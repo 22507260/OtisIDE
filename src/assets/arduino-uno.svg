@@ -1,0 +1,348 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 344" width="600" height="344">
+  <defs>
+    <!-- PCB blue gradient -->
+    <linearGradient id="pcb" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#2B7EC3"/>
+      <stop offset="35%" stop-color="#2171B5"/>
+      <stop offset="100%" stop-color="#155A98"/>
+    </linearGradient>
+    <!-- USB-B metal -->
+    <linearGradient id="usbMetal" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#b0b0b0"/>
+      <stop offset="30%" stop-color="#d8d8d8"/>
+      <stop offset="70%" stop-color="#c0c0c0"/>
+      <stop offset="100%" stop-color="#a0a0a0"/>
+    </linearGradient>
+    <!-- Barrel jack -->
+    <radialGradient id="barrel" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#333"/>
+      <stop offset="60%" stop-color="#1a1a1a"/>
+      <stop offset="100%" stop-color="#0a0a0a"/>
+    </radialGradient>
+    <!-- IC body -->
+    <linearGradient id="icBody" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#2a2a2a"/>
+      <stop offset="50%" stop-color="#1a1a1a"/>
+      <stop offset="100%" stop-color="#111"/>
+    </linearGradient>
+    <!-- Gold pin -->
+    <linearGradient id="goldPin" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#E8C84A"/>
+      <stop offset="40%" stop-color="#D4A800"/>
+      <stop offset="100%" stop-color="#B08C00"/>
+    </linearGradient>
+    <!-- Pin hole dark -->
+    <radialGradient id="pinHole" cx="50%" cy="40%" r="50%">
+      <stop offset="0%" stop-color="#2a2a2a"/>
+      <stop offset="100%" stop-color="#0a0a0a"/>
+    </radialGradient>
+    <!-- Crystal -->
+    <linearGradient id="crystal" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#ccc"/>
+      <stop offset="50%" stop-color="#e8e8e8"/>
+      <stop offset="100%" stop-color="#bbb"/>
+    </linearGradient>
+    <!-- Heatsink -->
+    <linearGradient id="heatsink" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ccc"/>
+      <stop offset="50%" stop-color="#999"/>
+      <stop offset="100%" stop-color="#888"/>
+    </linearGradient>
+    <!-- LED glow green -->
+    <radialGradient id="ledGreen" cx="50%" cy="40%" r="50%">
+      <stop offset="0%" stop-color="#88ff88"/>
+      <stop offset="40%" stop-color="#00cc44"/>
+      <stop offset="100%" stop-color="#009933"/>
+    </radialGradient>
+    <!-- LED glow amber -->
+    <radialGradient id="ledAmber" cx="50%" cy="40%" r="50%">
+      <stop offset="0%" stop-color="#ffdd66"/>
+      <stop offset="40%" stop-color="#ff8c00"/>
+      <stop offset="100%" stop-color="#cc6600"/>
+    </radialGradient>
+    <!-- Board shadow -->
+    <filter id="boardShadow" x="-5%" y="-5%" width="115%" height="115%">
+      <feDropShadow dx="4" dy="4" stdDeviation="4" flood-color="#000" flood-opacity="0.35"/>
+    </filter>
+    <!-- Subtle inner shadow for holes -->
+    <filter id="holeShadow">
+      <feDropShadow dx="0" dy="0.5" stdDeviation="0.5" flood-color="#000" flood-opacity="0.5"/>
+    </filter>
+  </defs>
+
+  <!-- ====== BOARD BODY ====== -->
+  <rect x="10" y="10" width="580" height="324" rx="14" ry="14" fill="#000" opacity="0.3"/>
+  <rect x="0" y="0" width="580" height="324" rx="12" ry="12" fill="url(#pcb)" filter="url(#boardShadow)"/>
+  <rect x="1" y="1" width="578" height="322" rx="11" ry="11" fill="none" stroke="#114477" stroke-width="2"/>
+  <rect x="3" y="3" width="574" height="110" rx="10" ry="10" fill="#fff" opacity="0.04"/>
+
+  <!-- ====== MOUNTING HOLES ====== -->
+  <g fill="none" stroke="#0E4488" stroke-width="1.5">
+    <circle cx="28" cy="28" r="10" fill="#1458A0"/><circle cx="28" cy="28" r="6" fill="#0E4488"/><circle cx="28" cy="28" r="3" fill="#0A3366"/>
+    <circle cx="540" cy="28" r="10" fill="#1458A0"/><circle cx="540" cy="28" r="6" fill="#0E4488"/><circle cx="540" cy="28" r="3" fill="#0A3366"/>
+    <circle cx="28" cy="296" r="10" fill="#1458A0"/><circle cx="28" cy="296" r="6" fill="#0E4488"/><circle cx="28" cy="296" r="3" fill="#0A3366"/>
+    <circle cx="488" cy="296" r="10" fill="#1458A0"/><circle cx="488" cy="296" r="6" fill="#0E4488"/><circle cx="488" cy="296" r="3" fill="#0A3366"/>
+  </g>
+
+  <!-- ====== USB TYPE-B CONNECTOR ====== -->
+  <rect x="-14" y="70" width="66" height="88" rx="5" ry="5" fill="url(#usbMetal)" stroke="#888" stroke-width="1.5"/>
+  <rect x="-10" y="76" width="58" height="76" rx="3" ry="3" fill="#a0a0a0" stroke="#999" stroke-width="1"/>
+  <rect x="-4" y="84" width="46" height="60" rx="2" ry="2" fill="#888" stroke="#777" stroke-width="0.8"/>
+  <rect x="4" y="96" width="28" height="36" fill="#666"/>
+  <rect x="10" y="104" width="16" height="20" fill="#555" rx="1"/>
+
+  <!-- ====== DC BARREL JACK ====== -->
+  <rect x="-12" y="210" width="52" height="72" rx="5" ry="5" fill="#222" stroke="#333" stroke-width="1"/>
+  <rect x="-8" y="214" width="44" height="64" rx="3" ry="3" fill="#1a1a1a"/>
+  <circle cx="14" cy="246" r="14" fill="url(#barrel)"/>
+  <circle cx="14" cy="246" r="9" fill="#0a0a0a"/>
+  <circle cx="14" cy="246" r="4.5" fill="#050505"/>
+
+  <!-- ====== VOLTAGE REGULATOR + HEATSINK ====== -->
+  <rect x="58" y="250" width="30" height="52" fill="#222" rx="2"/>
+  <rect x="54" y="254" width="38" height="8" fill="url(#heatsink)" rx="1"/>
+  <rect x="60" y="266" width="26" height="2.4" fill="#aaa" rx="0.5"/>
+  <rect x="60" y="272" width="26" height="2.4" fill="#aaa" rx="0.5"/>
+  <rect x="60" y="278" width="26" height="2.4" fill="#aaa" rx="0.5"/>
+  <rect x="60" y="284" width="26" height="2.4" fill="#aaa" rx="0.5"/>
+  <rect x="60" y="290" width="26" height="2.4" fill="#aaa" rx="0.5"/>
+
+  <!-- ====== RESET BUTTON ====== -->
+  <rect x="100" y="178" width="24" height="20" rx="2" ry="2" fill="#c8be96"/>
+  <circle cx="112" cy="188" r="7" fill="#e0d8b8"/>
+  <circle cx="111" cy="187" r="3" fill="#f0ecd8" opacity="0.5"/>
+  <text x="112" y="206" font-size="8" fill="#88aacc" font-family="monospace" text-anchor="middle" font-weight="bold">RESET</text>
+
+  <!-- ====== ATmega16U2 (near USB) ====== -->
+  <rect x="62" y="94" width="44" height="44" rx="2" ry="2" fill="url(#icBody)"/>
+  <circle cx="70" cy="102" r="3.5" fill="#252525"/>
+  <g fill="#b0b0b0">
+    <rect x="58" y="100" width="5" height="2.2"/><rect x="58" y="105" width="5" height="2.2"/>
+    <rect x="58" y="110" width="5" height="2.2"/><rect x="58" y="115" width="5" height="2.2"/>
+    <rect x="58" y="120" width="5" height="2.2"/><rect x="58" y="125" width="5" height="2.2"/>
+    <rect x="58" y="130" width="5" height="2.2"/><rect x="58" y="135" width="5" height="2.2"/>
+    <rect x="105" y="100" width="5" height="2.2"/><rect x="105" y="105" width="5" height="2.2"/>
+    <rect x="105" y="110" width="5" height="2.2"/><rect x="105" y="115" width="5" height="2.2"/>
+    <rect x="105" y="120" width="5" height="2.2"/><rect x="105" y="125" width="5" height="2.2"/>
+    <rect x="105" y="130" width="5" height="2.2"/><rect x="105" y="135" width="5" height="2.2"/>
+  </g>
+  <text x="84" y="120" font-size="7" fill="#555" font-family="monospace" text-anchor="middle">MEGA</text>
+  <text x="84" y="130" font-size="7" fill="#555" font-family="monospace" text-anchor="middle">16U2</text>
+
+  <!-- ICSP1 header (near 16U2) -->
+  <rect x="120" y="92" width="26" height="18" rx="2" fill="#333"/>
+  <g fill="url(#goldPin)">
+    <circle cx="128" cy="97" r="2.5"/><circle cx="138" cy="97" r="2.5"/>
+    <circle cx="128" cy="101" r="2.5"/><circle cx="138" cy="101" r="2.5"/>
+    <circle cx="128" cy="105" r="2.5"/><circle cx="138" cy="105" r="2.5"/>
+  </g>
+  <g fill="#222">
+    <circle cx="128" cy="97" r="1.2"/><circle cx="138" cy="97" r="1.2"/>
+    <circle cx="128" cy="101" r="1.2"/><circle cx="138" cy="101" r="1.2"/>
+    <circle cx="128" cy="105" r="1.2"/><circle cx="138" cy="105" r="1.2"/>
+  </g>
+  <text x="133" y="118" font-size="6" fill="#88aacc" font-family="monospace" text-anchor="middle">ICSP1</text>
+
+  <!-- ====== 16 MHz CRYSTAL ====== -->
+  <rect x="300" y="150" width="34" height="13" rx="6" fill="url(#crystal)" stroke="#aaa" stroke-width="0.8"/>
+  <rect x="306" y="152.5" width="22" height="8" rx="4" fill="#ddd"/>
+  <text x="317" y="170" font-size="6" fill="#88aacc" font-family="monospace" text-anchor="middle">16.000</text>
+
+  <!-- ====== ATmega328P-PU (DIP-28, center IC) ====== -->
+  <rect x="216" y="72" width="108" height="168" rx="3" ry="3" fill="url(#icBody)" stroke="#333" stroke-width="0.8"/>
+  <circle cx="270" cy="72" r="8" fill="#252525"/>
+  <circle cx="228" cy="86" r="3" fill="#2a2a2a"/>
+  <g fill="#b8b8b8">
+    <rect x="210" y="82" width="7" height="3.5" rx="0.5"/>
+    <rect x="210" y="92" width="7" height="3.5" rx="0.5"/>
+    <rect x="210" y="102" width="7" height="3.5" rx="0.5"/>
+    <rect x="210" y="112" width="7" height="3.5" rx="0.5"/>
+    <rect x="210" y="122" width="7" height="3.5" rx="0.5"/>
+    <rect x="210" y="132" width="7" height="3.5" rx="0.5"/>
+    <rect x="210" y="142" width="7" height="3.5" rx="0.5"/>
+    <rect x="210" y="152" width="7" height="3.5" rx="0.5"/>
+    <rect x="210" y="162" width="7" height="3.5" rx="0.5"/>
+    <rect x="210" y="172" width="7" height="3.5" rx="0.5"/>
+    <rect x="210" y="182" width="7" height="3.5" rx="0.5"/>
+    <rect x="210" y="192" width="7" height="3.5" rx="0.5"/>
+    <rect x="210" y="202" width="7" height="3.5" rx="0.5"/>
+    <rect x="210" y="212" width="7" height="3.5" rx="0.5"/>
+    <rect x="323" y="82" width="7" height="3.5" rx="0.5"/>
+    <rect x="323" y="92" width="7" height="3.5" rx="0.5"/>
+    <rect x="323" y="102" width="7" height="3.5" rx="0.5"/>
+    <rect x="323" y="112" width="7" height="3.5" rx="0.5"/>
+    <rect x="323" y="122" width="7" height="3.5" rx="0.5"/>
+    <rect x="323" y="132" width="7" height="3.5" rx="0.5"/>
+    <rect x="323" y="142" width="7" height="3.5" rx="0.5"/>
+    <rect x="323" y="152" width="7" height="3.5" rx="0.5"/>
+    <rect x="323" y="162" width="7" height="3.5" rx="0.5"/>
+    <rect x="323" y="172" width="7" height="3.5" rx="0.5"/>
+    <rect x="323" y="182" width="7" height="3.5" rx="0.5"/>
+    <rect x="323" y="192" width="7" height="3.5" rx="0.5"/>
+    <rect x="323" y="202" width="7" height="3.5" rx="0.5"/>
+    <rect x="323" y="212" width="7" height="3.5" rx="0.5"/>
+  </g>
+  <text x="270" y="126" font-size="10" fill="#555" font-family="monospace" text-anchor="middle" font-weight="bold">ATMEL</text>
+  <text x="270" y="146" font-size="9" fill="#555" font-family="monospace" text-anchor="middle" font-weight="bold">ATMEGA328P</text>
+  <text x="270" y="160" font-size="9" fill="#555" font-family="monospace" text-anchor="middle">-PU</text>
+  <text x="270" y="180" font-size="8" fill="#444" font-family="monospace" text-anchor="middle">1523</text>
+
+  <!-- ICSP2 header (near 328P) -->
+  <rect x="354" y="118" width="26" height="18" rx="2" fill="#333"/>
+  <g fill="url(#goldPin)">
+    <circle cx="362" cy="123" r="2.5"/><circle cx="372" cy="123" r="2.5"/>
+    <circle cx="362" cy="126.5" r="2.5"/><circle cx="372" cy="126.5" r="2.5"/>
+    <circle cx="362" cy="130" r="2.5"/><circle cx="372" cy="130" r="2.5"/>
+  </g>
+  <g fill="#222">
+    <circle cx="362" cy="123" r="1.2"/><circle cx="372" cy="123" r="1.2"/>
+    <circle cx="362" cy="126.5" r="1.2"/><circle cx="372" cy="126.5" r="1.2"/>
+    <circle cx="362" cy="130" r="1.2"/><circle cx="372" cy="130" r="1.2"/>
+  </g>
+  <text x="367" y="144" font-size="6" fill="#88aacc" font-family="monospace" text-anchor="middle">ICSP</text>
+
+  <!-- ====== STATUS LEDs ====== -->
+  <circle cx="166" cy="178" r="5" fill="url(#ledGreen)"/>
+  <circle cx="165" cy="177" r="2" fill="#aaffaa" opacity="0.4"/>
+  <text x="166" y="192" font-size="8" fill="#88aacc" font-family="monospace" text-anchor="middle" font-weight="bold">ON</text>
+  <circle cx="166" cy="154" r="4.5" fill="url(#ledAmber)"/>
+  <circle cx="165" cy="153" r="1.8" fill="#ffee88" opacity="0.4"/>
+  <text x="166" y="148" font-size="8" fill="#88aacc" font-family="monospace" text-anchor="middle" font-weight="bold">L</text>
+  <circle cx="186" cy="154" r="3.5" fill="#ffcc00" opacity="0.85"/>
+  <text x="186" y="148" font-size="6" fill="#88aacc" font-family="monospace" text-anchor="middle">TX</text>
+  <circle cx="186" cy="178" r="3.5" fill="#ffcc00" opacity="0.85"/>
+  <text x="186" y="192" font-size="6" fill="#88aacc" font-family="monospace" text-anchor="middle">RX</text>
+
+  <!-- ====== SMD Ceramic Caps ====== -->
+  <g fill="#c0a060">
+    <rect x="155" y="88" width="9" height="5" rx="1"/><rect x="170" y="88" width="9" height="5" rx="1"/>
+    <rect x="155" y="98" width="9" height="5" rx="1"/><rect x="200" y="88" width="9" height="5" rx="1"/>
+    <rect x="200" y="98" width="9" height="5" rx="1"/><rect x="340" y="88" width="9" height="5" rx="1"/>
+    <rect x="340" y="98" width="9" height="5" rx="1"/>
+  </g>
+
+  <!-- ====== SMD Resistors ====== -->
+  <g fill="#333">
+    <rect x="172" y="160" width="10" height="3.5" rx="0.5"/>
+    <rect x="172" y="166" width="10" height="3.5" rx="0.5"/>
+    <rect x="192" y="160" width="10" height="3.5" rx="0.5"/>
+    <rect x="192" y="166" width="10" height="3.5" rx="0.5"/>
+  </g>
+
+  <!-- ====== Electrolytic Caps ====== -->
+  <circle cx="122" cy="262" r="11" fill="#1a1a3a" stroke="#222" stroke-width="1"/>
+  <circle cx="122" cy="262" r="9" fill="#111133"/>
+  <text x="122" y="265" font-size="6" fill="#444" font-family="Arial" text-anchor="middle">47uF</text>
+  <circle cx="150" cy="262" r="9" fill="#1a1a3a" stroke="#222" stroke-width="1"/>
+  <circle cx="150" cy="262" r="7" fill="#111133"/>
+
+  <!-- ====== Diode ====== -->
+  <rect x="102" y="236" width="14" height="5" rx="1" fill="#222"/>
+  <rect x="102" y="236" width="3.5" height="5" fill="#ccc" rx="0.5"/>
+
+  <!-- ====== PCB Traces (subtle) ====== -->
+  <g stroke="#1a6ab5" stroke-width="0.8" opacity="0.4">
+    <line x1="126" y1="38" x2="126" y2="78"/>
+    <line x1="146" y1="38" x2="146" y2="78"/>
+    <line x1="352" y1="250" x2="352" y2="310"/>
+    <line x1="168" y1="310" x2="250" y2="310"/>
+    <path d="M 80,38 L 80,70" fill="none"/>
+    <path d="M 100,38 L 100,70" fill="none"/>
+  </g>
+
+  <!-- ====== SILKSCREEN TEXT ====== -->
+  <text x="396" y="258" font-size="24" fill="#c0dde8" font-family="Arial, sans-serif" font-weight="bold" letter-spacing="3">ARDUINO</text>
+  <text x="448" y="286" font-size="20" fill="#c0dde8" font-family="Arial, sans-serif" font-weight="bold" letter-spacing="7">UNO</text>
+  <text x="500" y="236" font-size="16" fill="#c0dde8" font-family="Arial, sans-serif" font-weight="bold">R3</text>
+  <text x="115" y="52" font-size="8" fill="#88aacc" font-family="monospace">DIGITAL (PWM~)</text>
+  <text x="88" y="322" font-size="8" fill="#88aacc" font-family="monospace">POWER</text>
+  <text x="318" y="322" font-size="8" fill="#88aacc" font-family="monospace">ANALOG IN</text>
+  <text x="420" y="308" font-size="7" fill="#6699bb" font-family="serif" font-style="italic">Made in Italy</text>
+  <text x="396" y="318" font-size="6" fill="#5588aa" font-family="monospace">www.arduino.cc</text>
+
+  <!-- ====== Infinity / Arduino logo ====== -->
+  <path d="M 410,216 C 414,206 426,200 436,206 C 446,212 446,224 436,228 C 426,234 414,228 410,216 Z M 436,216 C 440,206 452,200 462,206 C 472,212 472,224 462,228 C 452,234 440,228 436,216 Z" fill="none" stroke="#c0dde8" stroke-width="2"/>
+  <line x1="427" y1="216" x2="447" y2="216" stroke="#c0dde8" stroke-width="2"/>
+  <line x1="437" y1="210" x2="437" y2="222" stroke="#c0dde8" stroke-width="2"/>
+
+  <!-- ═══════ PIN HEADERS ═══════ -->
+
+  <!-- Digital Block 1 (0-7) -->
+  <rect x="92" y="-6" width="164" height="30" rx="3" fill="#333"/>
+  <g font-size="8" fill="#88aacc" font-family="monospace" text-anchor="middle">
+    <circle cx="106" cy="8" r="5.5" fill="url(#goldPin)"/><circle cx="106" cy="8" r="3.2" fill="url(#pinHole)"/>
+    <circle cx="126" cy="8" r="5.5" fill="url(#goldPin)"/><circle cx="126" cy="8" r="3.2" fill="url(#pinHole)"/>
+    <circle cx="146" cy="8" r="5.5" fill="url(#goldPin)"/><circle cx="146" cy="8" r="3.2" fill="url(#pinHole)"/>
+    <circle cx="166" cy="8" r="5.5" fill="url(#goldPin)"/><circle cx="166" cy="8" r="3.2" fill="url(#pinHole)"/>
+    <circle cx="186" cy="8" r="5.5" fill="url(#goldPin)"/><circle cx="186" cy="8" r="3.2" fill="url(#pinHole)"/>
+    <circle cx="206" cy="8" r="5.5" fill="url(#goldPin)"/><circle cx="206" cy="8" r="3.2" fill="url(#pinHole)"/>
+    <circle cx="226" cy="8" r="5.5" fill="url(#goldPin)"/><circle cx="226" cy="8" r="3.2" fill="url(#pinHole)"/>
+    <circle cx="246" cy="8" r="5.5" fill="url(#goldPin)"/><circle cx="246" cy="8" r="3.2" fill="url(#pinHole)"/>
+    <text x="106" y="36">0</text><text x="126" y="36">1</text>
+    <text x="146" y="36">2</text><text x="166" y="36">~3</text>
+    <text x="186" y="36">4</text><text x="206" y="36">~5</text>
+    <text x="226" y="36">~6</text><text x="246" y="36">7</text>
+  </g>
+  <text x="106" y="48" font-size="6" fill="#88aacc" font-family="monospace" text-anchor="middle">RX</text>
+  <text x="126" y="48" font-size="6" fill="#88aacc" font-family="monospace" text-anchor="middle">TX</text>
+
+  <!-- Digital Block 2 (8-13) -->
+  <rect x="272" y="-6" width="128" height="30" rx="3" fill="#333"/>
+  <g font-size="8" fill="#88aacc" font-family="monospace" text-anchor="middle">
+    <circle cx="286" cy="8" r="5.5" fill="url(#goldPin)"/><circle cx="286" cy="8" r="3.2" fill="url(#pinHole)"/>
+    <circle cx="306" cy="8" r="5.5" fill="url(#goldPin)"/><circle cx="306" cy="8" r="3.2" fill="url(#pinHole)"/>
+    <circle cx="326" cy="8" r="5.5" fill="url(#goldPin)"/><circle cx="326" cy="8" r="3.2" fill="url(#pinHole)"/>
+    <circle cx="346" cy="8" r="5.5" fill="url(#goldPin)"/><circle cx="346" cy="8" r="3.2" fill="url(#pinHole)"/>
+    <circle cx="366" cy="8" r="5.5" fill="url(#goldPin)"/><circle cx="366" cy="8" r="3.2" fill="url(#pinHole)"/>
+    <circle cx="386" cy="8" r="5.5" fill="url(#goldPin)"/><circle cx="386" cy="8" r="3.2" fill="url(#pinHole)"/>
+    <text x="286" y="36">8</text><text x="306" y="36">~9</text>
+    <text x="326" y="36">~10</text><text x="346" y="36">~11</text>
+    <text x="366" y="36">12</text><text x="386" y="36">13</text>
+  </g>
+
+  <!-- Block 3 (GND, AREF, SDA, SCL) -->
+  <rect x="410" y="-6" width="88" height="30" rx="3" fill="#333"/>
+  <g font-size="7" fill="#88aacc" font-family="monospace" text-anchor="middle">
+    <circle cx="424" cy="8" r="5.5" fill="url(#goldPin)"/><circle cx="424" cy="8" r="3.2" fill="url(#pinHole)"/>
+    <circle cx="444" cy="8" r="5.5" fill="url(#goldPin)"/><circle cx="444" cy="8" r="3.2" fill="url(#pinHole)"/>
+    <circle cx="464" cy="8" r="5.5" fill="url(#goldPin)"/><circle cx="464" cy="8" r="3.2" fill="url(#pinHole)"/>
+    <circle cx="484" cy="8" r="5.5" fill="url(#goldPin)"/><circle cx="484" cy="8" r="3.2" fill="url(#pinHole)"/>
+    <text x="424" y="36">GND</text><text x="444" y="36">AREF</text>
+    <text x="464" y="36">SDA</text><text x="484" y="36">SCL</text>
+  </g>
+
+  <!-- Power Block 1 (IOREF, RESET) -->
+  <rect x="66" y="300" width="48" height="30" rx="3" fill="#333"/>
+  <g font-size="6" fill="#88aacc" font-family="monospace" text-anchor="middle">
+    <circle cx="80" cy="316" r="5.5" fill="url(#goldPin)"/><circle cx="80" cy="316" r="3.2" fill="url(#pinHole)"/>
+    <circle cx="100" cy="316" r="5.5" fill="url(#goldPin)"/><circle cx="100" cy="316" r="3.2" fill="url(#pinHole)"/>
+    <text x="80" y="340">IOREF</text><text x="100" y="340">RST</text>
+  </g>
+
+  <!-- Power Block 2 (3.3V, 5V, GND, GND, VIN) -->
+  <rect x="128" y="300" width="108" height="30" rx="3" fill="#333"/>
+  <g font-size="6" fill="#88aacc" font-family="monospace" text-anchor="middle">
+    <circle cx="142" cy="316" r="5.5" fill="url(#goldPin)"/><circle cx="142" cy="316" r="3.2" fill="url(#pinHole)"/>
+    <circle cx="162" cy="316" r="5.5" fill="url(#goldPin)"/><circle cx="162" cy="316" r="3.2" fill="url(#pinHole)"/>
+    <circle cx="182" cy="316" r="5.5" fill="url(#goldPin)"/><circle cx="182" cy="316" r="3.2" fill="url(#pinHole)"/>
+    <circle cx="202" cy="316" r="5.5" fill="url(#goldPin)"/><circle cx="202" cy="316" r="3.2" fill="url(#pinHole)"/>
+    <circle cx="222" cy="316" r="5.5" fill="url(#goldPin)"/><circle cx="222" cy="316" r="3.2" fill="url(#pinHole)"/>
+    <text x="142" y="340">3.3V</text><text x="162" y="340">5V</text>
+    <text x="182" y="340">GND</text><text x="202" y="340">GND</text>
+    <text x="222" y="340">VIN</text>
+  </g>
+
+  <!-- Analog Block (A0-A5) -->
+  <rect x="260" y="300" width="128" height="30" rx="3" fill="#333"/>
+  <g font-size="7" fill="#88aacc" font-family="monospace" text-anchor="middle">
+    <circle cx="274" cy="316" r="5.5" fill="url(#goldPin)"/><circle cx="274" cy="316" r="3.2" fill="url(#pinHole)"/>
+    <circle cx="294" cy="316" r="5.5" fill="url(#goldPin)"/><circle cx="294" cy="316" r="3.2" fill="url(#pinHole)"/>
+    <circle cx="314" cy="316" r="5.5" fill="url(#goldPin)"/><circle cx="314" cy="316" r="3.2" fill="url(#pinHole)"/>
+    <circle cx="334" cy="316" r="5.5" fill="url(#goldPin)"/><circle cx="334" cy="316" r="3.2" fill="url(#pinHole)"/>
+    <circle cx="354" cy="316" r="5.5" fill="url(#goldPin)"/><circle cx="354" cy="316" r="3.2" fill="url(#pinHole)"/>
+    <circle cx="374" cy="316" r="5.5" fill="url(#goldPin)"/><circle cx="374" cy="316" r="3.2" fill="url(#pinHole)"/>
+    <text x="274" y="340">A0</text><text x="294" y="340">A1</text>
+    <text x="314" y="340">A2</text><text x="334" y="340">A3</text>
+    <text x="354" y="340">A4</text><text x="374" y="340">A5</text>
+  </g>
+</svg>

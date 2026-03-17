@@ -1,0 +1,150 @@
+const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const path = require('path');
+const fs = require('fs');
+
+let mainWindow = null;
+
+function createWindow() {
+  mainWindow = new BrowserWindow({
+    width: 1400,
+    height: 900,
+    minWidth: 1100,
+    minHeight: 700,
+    title: 'AI Circuit Simulator',
+    icon: path.join(__dirname, 'icon.png'),
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+    backgroundColor: '#1a1a2e',
+  });
+
+  const isDev = process.argv.includes('--dev');
+  if (isDev) {
+    mainWindow.loadURL('http://localhost:5173');
+    mainWindow.webContents.openDevTools();
+  } else {
+    mainWindow.loadFile(path.join(__dirname, '..', 'dist', 'index.html'));
+  }
+}
+
+function readDialogOptions(options) {
+  if (!options || typeof options !== 'object') {
+    return {};
+  }
+
+  return {
+    title: typeof options.title === 'string' ? options.title : undefined,
+    defaultPath:
+      typeof options.defaultPath === 'string' ? options.defaultPath : undefined,
+    filterName:
+      typeof options.filterName === 'string' ? options.filterName : undefined,
+  };
+}
+
+app.whenReady().then(createWindow);
+
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') app.quit();
+});
+
+app.on('activate', () => {
+  if (BrowserWindow.getAllWindows().length === 0) createWindow();
+});
+
+ipcMain.on('set-window-title', (_event, title) => {
+  if (mainWindow && typeof title === 'string') {
+    mainWindow.setTitle(title);
+  }
+});
+
+ipcMain.handle('save-project', async (_event, payload) => {
+  const data = payload?.data;
+  const options = readDialogOptions(payload?.options);
+  const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
+    title: options.title || 'Save Project',
+    defaultPath: options.defaultPath || 'circuit-project.json',
+    filters: [
+      {
+        name: options.filterName || 'Circuit Project',
+        extensions: ['json'],
+      },
+    ],
+  });
+
+  if (canceled || !filePath) return null;
+  fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
+  return filePath;
+});
+
+ipcMain.handle('load-project', async (_event, optionsPayload) => {
+  const options = readDialogOptions(optionsPayload);
+  const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
+    title: options.title || 'Open Project',
+    filters: [
+      {
+        name: options.filterName || 'Circuit Project',
+        extensions: ['json'],
+      },
+    ],
+    properties: ['openFile'],
+  });
+
+  if (canceled || filePaths.length === 0) return null;
+  const content = fs.readFileSync(filePaths[0], 'utf-8');
+  return JSON.parse(content);
+});
+
+ipcMain.handle('export-png', async (_event, payload) => {
+  const dataUrl = payload?.dataUrl;
+  const options = readDialogOptions(payload?.options);
+  const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
+    title: options.title || 'Export as PNG',
+    defaultPath: options.defaultPath || 'circuit.png',
+    filters: [
+      {
+        name: options.filterName || 'PNG Image',
+        extensions: ['png'],
+      },
+    ],
+  });
+
+  if (canceled || !filePath || typeof dataUrl !== 'string') return null;
+  const base64 = dataUrl.replace(/^data:image\/png;base64,/, '');
+  fs.writeFileSync(filePath, Buffer.from(base64, 'base64'));
+  return filePath;
+});
+
+ipcMain.handle(
+  'ai-chat',
+  async (_event, { baseUrl, model, messages, apiKey }) => {
+    try {
+      const headers = { 'Content-Type': 'application/json' };
+      if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
+
+      const res = await fetch(`${baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          model,
+          messages,
+          max_tokens: 2000,
+          temperature: 0.7,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        return { error: err.error?.message || `API error: ${res.status}` };
+      }
+
+      const data = await res.json();
+      return {
+        content: data.choices?.[0]?.message?.content || 'No response received.',
+      };
+    } catch (error) {
+      return { error: error?.message || 'Connection error' };
+    }
+  }
+);

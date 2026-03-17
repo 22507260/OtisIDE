@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 88 68">
+  <g id="breadboard">
+    <rect x="10" y="12" width="68" height="40" rx="6" fill="#364e5e" stroke="#1e2e39" stroke-width="2"/>
+    <circle cx="44" cy="31" r="14" fill="#d1d7dc" stroke="#8f9aa3" stroke-width="2"/>
+    <circle cx="44" cy="31" r="10" fill="none" stroke="#aab4bc" stroke-width="1.5"/>
+    <g stroke="#7a8791" stroke-width="1">
+      <line x1="34" y1="25" x2="54" y2="25"/>
+      <line x1="34" y1="29" x2="54" y2="29"/>
+      <line x1="34" y1="33" x2="54" y2="33"/>
+      <line x1="34" y1="37" x2="54" y2="37"/>
+      <line x1="38" y1="21" x2="38" y2="41"/>
+      <line x1="44" y1="21" x2="44" y2="41"/>
+      <line x1="50" y1="21" x2="50" y2="41"/>
+    </g>
+    <text x="44" y="59" font-size="7" text-anchor="middle" fill="#ffffff" font-family="Arial">MQ-2</text>
+    <rect id="connector0pin" x="24" y="52" width="4" height="12" fill="#caa24d"/>
+    <rect id="connector1pin" x="36" y="52" width="4" height="12" fill="#caa24d"/>
+    <rect id="connector2pin" x="48" y="52" width="4" height="12" fill="#caa24d"/>
+    <rect id="connector3pin" x="60" y="52" width="4" height="12" fill="#caa24d"/>
+  </g>
+</svg>

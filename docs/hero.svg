@@ -1,0 +1,61 @@
+<svg width="1280" height="640" viewBox="0 0 1280 640" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="80" y1="40" x2="1180" y2="620" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0C1D2B"/>
+      <stop offset="1" stop-color="#061119"/>
+    </linearGradient>
+    <linearGradient id="glow" x1="220" y1="120" x2="1120" y2="520" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#5EEAD4" stop-opacity="0.28"/>
+      <stop offset="0.55" stop-color="#63B3FF" stop-opacity="0.12"/>
+      <stop offset="1" stop-color="#FF8C42" stop-opacity="0.2"/>
+    </linearGradient>
+    <linearGradient id="card" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#102636"/>
+      <stop offset="1" stop-color="#0B1823"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1280" height="640" rx="28" fill="url(#bg)"/>
+  <rect x="24" y="24" width="1232" height="592" rx="24" stroke="#AAC3D3" stroke-opacity="0.18" stroke-width="2"/>
+  <rect x="70" y="76" width="1140" height="488" rx="28" fill="url(#glow)"/>
+
+  <circle cx="102" cy="102" r="10" fill="#FF8C42"/>
+  <circle cx="136" cy="102" r="10" fill="#F7C948"/>
+  <circle cx="170" cy="102" r="10" fill="#5EEAD4"/>
+
+  <path d="M800 146H1118V212H1068V280H1218" stroke="#1F4B69" stroke-width="4" stroke-linecap="round"/>
+  <path d="M770 414H1044V362H1132V300H1218" stroke="#183B52" stroke-width="4" stroke-linecap="round"/>
+  <path d="M148 470H242V376H402V322H458" stroke="#254D66" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="1118" cy="212" r="7" fill="#5EEAD4"/>
+  <circle cx="1044" cy="362" r="7" fill="#FF8C42"/>
+  <circle cx="402" cy="376" r="7" fill="#63B3FF"/>
+
+  <text x="108" y="178" fill="#A9C4D5" font-size="20" font-family="Segoe UI, Arial, sans-serif" letter-spacing="5">AI-ASSISTED CIRCUIT WORKSPACE</text>
+  <text x="108" y="262" fill="#ECF8FF" font-size="68" font-weight="700" font-family="Segoe UI, Arial, sans-serif">AI Arduino Circuit</text>
+  <text x="108" y="320" fill="#D2E5F1" font-size="26" font-family="Segoe UI, Arial, sans-serif">
+    Design Arduino + breadboard projects with drag-and-drop parts,
+  </text>
+  <text x="108" y="356" fill="#D2E5F1" font-size="26" font-family="Segoe UI, Arial, sans-serif">
+    guided wiring, live serial output, and an OpenAI-compatible helper panel.
+  </text>
+
+  <rect x="108" y="406" width="214" height="58" rx="18" fill="#122A3B" stroke="#244861"/>
+  <rect x="340" y="406" width="224" height="58" rx="18" fill="#122A3B" stroke="#244861"/>
+  <rect x="582" y="406" width="230" height="58" rx="18" fill="#122A3B" stroke="#244861"/>
+  <text x="142" y="442" fill="#5EEAD4" font-size="20" font-family="Segoe UI, Arial, sans-serif">AI wiring blocks</text>
+  <text x="374" y="442" fill="#63B3FF" font-size="20" font-family="Segoe UI, Arial, sans-serif">Breadboard snap logic</text>
+  <text x="616" y="442" fill="#FFB77C" font-size="20" font-family="Segoe UI, Arial, sans-serif">Web + Electron workflow</text>
+
+  <g transform="translate(844 128)">
+    <rect width="296" height="362" rx="24" fill="url(#card)" stroke="#294761"/>
+    <rect x="24" y="28" width="248" height="44" rx="16" fill="#142A3C"/>
+    <text x="44" y="56" fill="#ECF8FF" font-size="18" font-weight="700" font-family="Segoe UI, Arial, sans-serif">Circuit Assistant</text>
+    <rect x="24" y="94" width="248" height="94" rx="18" fill="#0E2231" stroke="#1D455D"/>
+    <text x="44" y="126" fill="#AAC3D3" font-size="15" font-family="Consolas, monospace">Prompt:</text>
+    <text x="44" y="154" fill="#ECF8FF" font-size="16" font-family="Consolas, monospace">Build a traffic light and wire it.</text>
+    <rect x="24" y="210" width="248" height="54" rx="18" fill="#102A27" stroke="#1D5B55"/>
+    <text x="44" y="242" fill="#5EEAD4" font-size="16" font-family="Consolas, monospace">```wires``` JSON applied</text>
+    <rect x="24" y="286" width="248" height="54" rx="18" fill="#2A1E18" stroke="#70492A"/>
+    <text x="44" y="318" fill="#FFB77C" font-size="16" font-family="Consolas, monospace">Serial monitor + code editor</text>
+  </g>
+</svg>

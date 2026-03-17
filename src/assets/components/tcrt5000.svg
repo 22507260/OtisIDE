@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   id="svg2"
+   viewBox="0 0 35.555889 19.527157"
+   height="5.5110002mm"
+   version="1.2"
+   width="10.034663mm">
+  <metadata
+     id="metadata35">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title></dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <defs
+     id="defs33">
+    <defs
+       id="defs9" />
+  </defs>
+  <g
+     id="breadboard">
+    <g
+       style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:1;stroke-linecap:square;stroke-linejoin:bevel"
+       id="g11"
+       transform="translate(-1.4693199,-10.895423)" />
+    <rect
+       style="fill:none"
+       id="rect15"
+       height="4.9999976"
+       y="6.1045771"
+       x="14.03068"
+       width="4.9999995" />
+    <rect
+       style="fill:none"
+       id="rect17"
+       height="4.9999976"
+       y="6.1045771"
+       x="14.03068"
+       width="4.9999995" />
+    <rect
+       style="fill:none"
+       id="rect19"
+       height="4.9999976"
+       y="6.1045771"
+       x="14.03068"
+       width="4.9999995" />
+    <rect
+       style="fill:none"
+       id="rect21"
+       height="4.9999976"
+       y="6.1045771"
+       x="14.03068"
+       width="4.9999995" />
+    <rect
+       style="fill:none"
+       id="connector0pin"
+       height="5.0399995"
+       y="0.51458639"
+       x="7.0806794"
+       width="0.89999992" />
+    <rect
+       style="fill:none"
+       transform="scale(-1,1)"
+       id="connector0terminal"
+       height="0.0020000001"
+       y="5.1025858"
+       x="-7.5326791"
+       width="0.0020000001" />
+    <rect
+       style="fill:none"
+       id="connector1pin"
+       height="5.0399995"
+       y="13.564584"
+       x="7.0806794"
+       width="0.89999992" />
+    <rect
+       transform="scale(-1,1)"
+       style="fill:none"
+       id="connector1terminal"
+       height="0.0020000001"
+       y="14.102584"
+       x="-7.5316796"
+       width="0.0020000001" />
+    <rect
+       style="fill:none"
+       id="connector2pin"
+       height="5.0399995"
+       y="13.564584"
+       x="25.080677"
+       width="0.89999992" />
+    <rect
+       style="fill:none"
+       transform="scale(-1,1)"
+       id="connector2terminal"
+       height="0.0020000001"
+       y="14.102584"
+       x="-25.531677"
+       width="0.0020000001" />
+    <rect
+       style="fill:none"
+       id="connector3pin"
+       height="5.0399995"
+       y="0.9645862"
+       x="25.080677"
+       width="0.89999992" />
+    <rect
+       transform="scale(-1,1)"
+       style="fill:none"
+       id="connector3terminal"
+       height="0.0020000001"
+       y="5.1025858"
+       x="-25.531677"
+       width="0.0020000001" />
+    <path
+       style="fill:#93aca7;fill-rule:evenodd;stroke:#000000;stroke-width:1.00000012;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       d="M 1.5855615,17.461852 C 29.555959,17.399331 29.555959,17.399331 29.555959,17.399331 L 34.992458,13.085358 34.913668,6.2705322 29.555959,1.9565597 1.1916119,1.8940383 0.5612947,2.206645 l 0,14.379908 z"
+       id="path4183" />
+    <ellipse
+       style="fill:#006680"
+       id="path4185"
+       cx="10.107567"
+       cy="9.7952242"
+       rx="4.9220457"
+       ry="3.9057431" />
+    <ellipse
+       cy="9.6146536"
+       cx="23.36734"
+       id="ellipse4189"
+       style="fill:#0088aa"
+       rx="4.9220457"
+       ry="3.9057431" />
+    <path
+       style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:1.00000012;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       d="M 4.462552,4.7959171 C 4.3837637,14.049076 4.3837637,14.049076 4.3837637,14.049076 L 5.4868215,15.049417 16.04466,14.986896 15.96587,4.1081823 4.9352926,4.2332249 Z"
+       id="path4193" />
+    <path
+       style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:1.00000012;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       d="m 17.699246,14.986896 c 11.266948,0 11.266948,0 11.266948,0 l 0.23637,-0.562692 0,-9.6908083 -1.024268,-0.6252134 -10.636629,0 z"
+       id="path4197" />
+    <path
+       style="fill:#6f918a;fill-rule:evenodd;stroke:#000000;stroke-width:1.00000012;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+       d="m 14.937067,17.610719 c 0,1.105231 0,1.094179 0,1.094179 l 0.473559,0.364726 2.131017,0.01105 0.598913,-0.408936 0.02786,-1.160493 0,0"
+       id="path4199" />
+    <path
+       id="path4201"
+       d="m 18.168412,1.9164331 c 0,-1.10523175 0,-1.09417936 0,-1.09417936 l -0.473559,-0.36472611 -2.131016,-0.0110533 -0.598913,0.40893564 -0.02786,1.16049333 0,0"
+       style="fill:#6f918a;fill-rule:evenodd;stroke:#000000;stroke-width:1.00000012;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1" />
+    <ellipse
+       cx="7.4987893"
+       cy="5.0941095"
+       id="circle4220"
+       gorn="0.0.1"
+       style="fill:none"
+       rx="1.7397636"
+       ry="1.7396097" />
+  </g>
+</svg>

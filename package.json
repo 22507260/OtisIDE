@@ -1,0 +1,57 @@
+{
+  "name": "ai-arduino-circuit",
+  "version": "1.0.0",
+  "description": "AI-assisted Arduino and breadboard circuit builder for web and Electron",
+  "main": "electron/main.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "electron:dev": "concurrently \"vite\" \"wait-on http://localhost:5173 && electron . --dev\"",
+    "electron:build": "vite build && electron-builder",
+    "start": "vite"
+  },
+  "keywords": [
+    "arduino",
+    "breadboard",
+    "circuit",
+    "electron",
+    "react",
+    "simulator"
+  ],
+  "author": "otis21",
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/22507260/AI-Arduino-Circuit.git"
+  },
+  "bugs": {
+    "url": "https://github.com/22507260/AI-Arduino-Circuit/issues"
+  },
+  "homepage": "https://github.com/22507260/AI-Arduino-Circuit#readme",
+  "funding": {
+    "type": "Buy Me a Coffee",
+    "url": "https://buymeacoffee.com/otis21"
+  },
+  "dependencies": {
+    "@monaco-editor/react": "^4.7.0",
+    "konva": "^10.2.1",
+    "openai": "^6.29.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "react-konva": "^19.2.3",
+    "uuid": "^13.0.0",
+    "zustand": "^5.0.12"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@types/uuid": "^10.0.0",
+    "@vitejs/plugin-react": "^6.0.1",
+    "concurrently": "^9.2.1",
+    "electron": "^41.0.2",
+    "electron-builder": "^26.8.1",
+    "typescript": "^5.9.3",
+    "vite": "^8.0.0",
+    "wait-on": "^9.0.4"
+  }
+}
