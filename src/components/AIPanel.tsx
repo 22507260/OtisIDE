@@ -377,7 +377,9 @@ const AIPanel: React.FC = () => {
   ) => {
     const activeBoard = getControllerBoardDefinition(activeBoardType);
     if (components.length === 0) {
-      return t(language, 'circuitEmpty');
+      return `${t(language, 'circuitEmpty')}
+  ${t(language, 'boardLabel')}: ${activeBoard.name}
+  ${t(language, 'boardPinsLabel')}: ${getControllerBoardPinSummary(activeBoardType)}`;
     }
 
     const compList = components

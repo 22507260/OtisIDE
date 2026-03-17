@@ -3,6 +3,7 @@ import arduinoUnoImage from '../assets/arduino-uno-fritzing.svg';
 import arduinoNanoImage from '../assets/boards/arduino-nano-fritzing.svg';
 import arduinoMegaImage from '../assets/boards/arduino-mega-fritzing.svg';
 import arduinoLeonardoImage from '../assets/boards/arduino-leonardo-fritzing.svg';
+import deneyapKart1AV2Image from '../assets/boards/deneyap-kart-1a-v2-fritzing.svg';
 import nodemcuImage from '../assets/boards/nodemcu-amica-fritzing.svg';
 import proMicroImage from '../assets/boards/pro-micro-fritzing.svg';
 import picoImage from '../assets/boards/pico-fritzing.svg';
@@ -13,6 +14,7 @@ export type ControllerBoardType =
   | 'nano'
   | 'mega'
   | 'leonardo'
+  | 'deneyap-kart-1a-v2'
   | 'nodemcu'
   | 'pro-micro'
   | 'pico'
@@ -278,6 +280,132 @@ const LEONARDO_PIN_DEFS: ArduinoPinDef[] = [
   makePin('A5', 248, 198, 'analog'),
 ];
 
+const DENEYAP_W = 96;
+const DENEYAP_H = 239;
+const DENEYAP_RAW_W = 25.3;
+const DENEYAP_RAW_H = 63;
+const DENEYAP_SCALE_X = DENEYAP_W / DENEYAP_RAW_W;
+const DENEYAP_SCALE_Y = DENEYAP_H / DENEYAP_RAW_H;
+
+function scaleDeneyapX(rawX: number): number {
+  return rawX * DENEYAP_SCALE_X;
+}
+
+function scaleDeneyapY(rawY: number): number {
+  return rawY * DENEYAP_SCALE_Y;
+}
+
+const DENEYAP_KART_1A_V2_PIN_DEFS: ArduinoPinDef[] = [
+  makePin('EN', scaleDeneyapX(1.341), scaleDeneyapY(7.427), 'digital', [
+    'CHIP_EN',
+  ]),
+  makePin('A0', scaleDeneyapX(1.384), scaleDeneyapY(9.797), 'analog'),
+  makePin('A1', scaleDeneyapX(1.449), scaleDeneyapY(12.187), 'analog'),
+  makePin('A2', scaleDeneyapX(1.449), scaleDeneyapY(14.855), 'analog'),
+  makePin('A3', scaleDeneyapX(1.449), scaleDeneyapY(17.361), 'analog'),
+  makePin('A4', scaleDeneyapX(1.449), scaleDeneyapY(20.03), 'analog'),
+  makePin('A5', scaleDeneyapX(1.384), scaleDeneyapY(22.498), 'analog'),
+  makePin('A6', scaleDeneyapX(1.449), scaleDeneyapY(24.888), 'analog'),
+  makePin('A7', scaleDeneyapX(1.449), scaleDeneyapY(27.556), 'analog'),
+  makePin('D14', scaleDeneyapX(1.514), scaleDeneyapY(30.038), 'digital', [
+    '14',
+  ]),
+  makePin('D13', scaleDeneyapX(1.589), scaleDeneyapY(32.435), 'digital', [
+    '13',
+    'LED_BUILTIN',
+  ]),
+  makePin('D12', scaleDeneyapX(1.654), scaleDeneyapY(34.825), 'digital', [
+    '12',
+  ]),
+  makePin(
+    '3V3_LEFT',
+    scaleDeneyapX(1.654),
+    scaleDeneyapY(37.493),
+    'power',
+    ['3V3', '3.3V', '3V', 'VCC']
+  ),
+  makePin('BAT', scaleDeneyapX(1.654), scaleDeneyapY(40), 'power', [
+    'VBAT',
+    'BATTERY',
+  ]),
+  makePin('5V', scaleDeneyapX(1.638), scaleDeneyapY(42.53), 'power', [
+    'USB',
+    'VUSB',
+  ]),
+  makePin(
+    'GND_LEFT',
+    scaleDeneyapX(1.638),
+    scaleDeneyapY(45.068),
+    'ground',
+    ['GND', 'GROUND']
+  ),
+  makePin(
+    'GND_RIGHT_TOP',
+    scaleDeneyapX(23.896),
+    scaleDeneyapY(45.068),
+    'ground',
+    ['GND', 'GROUND']
+  ),
+  makePin(
+    '3V3_RIGHT_TOP',
+    scaleDeneyapX(23.896),
+    scaleDeneyapY(42.53),
+    'power',
+    ['3V3', '3.3V', '3V', 'VCC']
+  ),
+  makePin(
+    '3V3_RIGHT_MID',
+    scaleDeneyapX(23.912),
+    scaleDeneyapY(40),
+    'power',
+    ['3V3', '3.3V', '3V', 'VCC']
+  ),
+  makePin('SCL', scaleDeneyapX(23.912), scaleDeneyapY(37.493), 'digital', [
+    'I2C_SCL',
+  ]),
+  makePin('SDA', scaleDeneyapX(23.912), scaleDeneyapY(34.825), 'digital', [
+    'I2C_SDA',
+  ]),
+  makePin('D9', scaleDeneyapX(23.847), scaleDeneyapY(32.435), 'digital', [
+    '9',
+  ]),
+  makePin('D8', scaleDeneyapX(23.772), scaleDeneyapY(30.038), 'digital', [
+    '8',
+  ]),
+  makePin('MOSI', scaleDeneyapX(23.707), scaleDeneyapY(27.556), 'digital', [
+    'SPI_MOSI',
+  ]),
+  makePin('MISO', scaleDeneyapX(23.707), scaleDeneyapY(24.888), 'digital', [
+    'SPI_MISO',
+  ]),
+  makePin('SCK', scaleDeneyapX(23.642), scaleDeneyapY(22.498), 'digital', [
+    'SPI_SCK',
+    'CLK',
+  ]),
+  makePin('D4', scaleDeneyapX(23.707), scaleDeneyapY(20.03), 'digital', [
+    '4',
+  ]),
+  makePin('RX', scaleDeneyapX(23.707), scaleDeneyapY(17.361), 'digital', [
+    'RX0',
+  ]),
+  makePin('TX', scaleDeneyapX(23.707), scaleDeneyapY(14.855), 'digital', [
+    'TX0',
+  ]),
+  makePin('D1', scaleDeneyapX(23.707), scaleDeneyapY(12.187), 'digital', [
+    '1',
+  ]),
+  makePin('D0', scaleDeneyapX(23.642), scaleDeneyapY(9.797), 'digital', [
+    '0',
+  ]),
+  makePin(
+    'GND_RIGHT_BOTTOM',
+    scaleDeneyapX(23.599),
+    scaleDeneyapY(7.427),
+    'ground',
+    ['GND', 'GROUND']
+  ),
+];
+
 const NODEMCU_PIN_DEFS = [
   ...createVerticalPins(12, 30, 28, [
     { id: 'A0', type: 'analog' },
@@ -439,6 +567,7 @@ export const CONTROLLER_BOARD_OPTIONS: Array<{
   { value: 'nano', label: 'Arduino Nano' },
   { value: 'mega', label: 'Arduino Mega' },
   { value: 'leonardo', label: 'Arduino Leonardo' },
+  { value: 'deneyap-kart-1a-v2', label: 'Deneyap Kart 1A v2' },
   { value: 'nodemcu', label: 'NodeMCU ESP8266' },
   { value: 'pro-micro', label: 'SparkFun Pro Micro' },
   { value: 'pico', label: 'Raspberry Pi Pico' },
@@ -524,6 +653,36 @@ const BOARD_DEFINITIONS: Record<ControllerBoardType, ControllerBoardDefinition> 
       chip: '#1f2837',
       pin: '#171b23',
       usb: '#dce4ea',
+    },
+  },
+  'deneyap-kart-1a-v2': {
+    type: 'deneyap-kart-1a-v2',
+    name: 'Deneyap Kart 1A v2',
+    shortName: 'DENEYAP',
+    width: DENEYAP_W,
+    height: DENEYAP_H,
+    imageUrl: deneyapKart1AV2Image,
+    pinDefs: DENEYAP_KART_1A_V2_PIN_DEFS,
+    aliases: [
+      'deneyap',
+      'deneyap kart',
+      'deneyapkart',
+      'deneyap kart 1a',
+      'deneyapkart1a',
+      'deneyap kart 1a v2',
+      'deneyapkart1av2',
+      'deneyap 1a v2',
+    ],
+    pinSummary:
+      'EN, A0-A7, D14, D13, D12, D9, D8, D4, D1, D0, TX, RX, SCL, SDA, MISO, MOSI, SCK, 3V3, 5V, BAT, GND',
+    theme: {
+      body: '#b90d14',
+      accent: '#870c11',
+      outline: '#ffc2c6',
+      text: '#fff2f3',
+      chip: '#172432',
+      pin: '#171b23',
+      usb: '#dfe6ec',
     },
   },
   nodemcu: {

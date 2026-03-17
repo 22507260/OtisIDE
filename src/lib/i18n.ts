@@ -102,8 +102,7 @@ const UI_STRINGS = {
     send: 'Send',
     errorPrefix: 'Error',
     historyTitleFallback: 'New chat',
-    circuitEmpty:
-      'The circuit is empty - no components have been added yet.\nArduino pins: D0-D13, A0-A5, 5V, GND, 3V3, VIN, RESET.',
+    circuitEmpty: 'The circuit is empty - no components have been added yet.',
     currentCircuit: 'Current circuit:',
     componentsLabel: 'Components',
     wiresLabel: 'Wires',
@@ -243,8 +242,7 @@ const UI_STRINGS = {
     send: 'Gonder',
     errorPrefix: 'Hata',
     historyTitleFallback: 'Yeni sohbet',
-    circuitEmpty:
-      'Devre bos - henuz bilesen eklenmedi.\nArduino pinleri: D0-D13, A0-A5, 5V, GND, 3V3, VIN, RESET.',
+    circuitEmpty: 'Devre bos - henuz bilesen eklenmedi.',
     currentCircuit: 'Mevcut devre:',
     componentsLabel: 'Bilesenler',
     wiresLabel: 'Kablolar',
