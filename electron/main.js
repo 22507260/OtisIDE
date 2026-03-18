@@ -4,14 +4,43 @@ const fs = require('fs');
 
 let mainWindow = null;
 
-function createWindow() {
+function resolveIconPath() {
+  const winIcon = path.join(__dirname, '..', 'build', 'icon.ico');
+  const pngIcon = path.join(__dirname, '..', 'build', 'icon.png');
+
+  if (process.platform === 'win32' && fs.existsSync(winIcon)) {
+    return winIcon;
+  }
+
+  if (fs.existsSync(pngIcon)) {
+    return pngIcon;
+  }
+
+  return undefined;
+}
+
+async function loadApplication(window, isDev) {
+  if (isDev) {
+    await window.loadURL('http://localhost:5173');
+    window.webContents.openDevTools();
+    return;
+  }
+
+  const indexPath = path.join(__dirname, '..', 'dist', 'index.html');
+  await window.loadFile(indexPath);
+}
+
+async function createWindow() {
+  const isDev = !app.isPackaged || process.argv.includes('--dev');
+
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
     minWidth: 1100,
     minHeight: 700,
-    title: 'AI Circuit Simulator',
-    icon: path.join(__dirname, 'icon.png'),
+    show: false,
+    title: 'AI Arduino Circuit',
+    icon: resolveIconPath(),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -20,12 +49,44 @@ function createWindow() {
     backgroundColor: '#1a1a2e',
   });
 
-  const isDev = process.argv.includes('--dev');
-  if (isDev) {
-    mainWindow.loadURL('http://localhost:5173');
-    mainWindow.webContents.openDevTools();
-  } else {
-    mainWindow.loadFile(path.join(__dirname, '..', 'dist', 'index.html'));
+  mainWindow.once('ready-to-show', () => {
+    mainWindow?.show();
+  });
+
+  mainWindow.on('closed', () => {
+    mainWindow = null;
+  });
+
+  mainWindow.webContents.on('did-finish-load', () => {
+    if (mainWindow && !mainWindow.isVisible()) {
+      mainWindow.show();
+    }
+  });
+
+  mainWindow.webContents.on(
+    'did-fail-load',
+    (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+      if (mainWindow && !mainWindow.isVisible()) {
+        mainWindow.show();
+      }
+
+      if (isMainFrame) {
+        dialog.showErrorBox(
+          'Renderer Load Error',
+          `${errorDescription} (${errorCode})\n${validatedURL || ''}`.trim()
+        );
+      }
+    }
+  );
+
+  try {
+    await loadApplication(mainWindow, isDev);
+  } catch (error) {
+    dialog.showErrorBox(
+      'Startup Error',
+      error?.stack || error?.message || String(error)
+    );
+    throw error;
   }
 }
 
@@ -43,7 +104,10 @@ function readDialogOptions(options) {
   };
 }
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  app.setAppUserModelId('com.otis21.aiarduinocircuit');
+  return createWindow();
+});
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
@@ -51,6 +115,20 @@ app.on('window-all-closed', () => {
 
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) createWindow();
+});
+
+process.on('uncaughtException', (error) => {
+  dialog.showErrorBox(
+    'Unexpected Error',
+    error?.stack || error?.message || String(error)
+  );
+});
+
+process.on('unhandledRejection', (reason) => {
+  dialog.showErrorBox(
+    'Unhandled Rejection',
+    reason?.stack || reason?.message || String(reason)
+  );
 });
 
 ipcMain.on('set-window-title', (_event, title) => {

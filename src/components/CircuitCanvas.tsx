@@ -1,11 +1,15 @@
 ﻿import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import { Stage, Layer, Group, Rect, Line, Circle, Text, Image as KonvaImage } from 'react-konva';
 import { useCircuitStore } from '../store/circuitStore';
-import { CircuitComponent, ComponentType, Pin, getDefaultPins } from '../models/types';
+import {
+  CircuitComponent,
+  ComponentType,
+  Pin,
+  SimulationState,
+  getDefaultPins,
+} from '../models/types';
 import {
   ARDUINO_COMPONENT_ID,
-  ARDUINO_X,
-  ARDUINO_Y,
   CONTROLLER_BOARD_OPTIONS,
   getControllerBoardDefinition,
   getControllerBoardPins,
@@ -14,21 +18,29 @@ import {
 } from '../models/arduinoUno';
 import {
   BREADBOARD_COMPONENT_ID,
-  BREADBOARD_HOLE_MAP,
+  DEFAULT_BREADBOARD_POSITION,
   type BreadboardHole,
-  BB_BOTTOM,
   BB_COLS,
-  BB_RIGHT,
-  BB_X,
-  BB_Y,
+  getBreadboardBounds,
+  getBreadboardHoleGlobal,
   HOLE_R,
   HOLE_SP,
   RAIL_H,
   getNearestBreadboardHole,
 } from '../models/breadboard';
 import type Konva from 'konva';
-import { useComponentImage, SVG_CONFIGS } from '../hooks/useComponentImages';
-import { t } from '../lib/i18n';
+import {
+  useAssetImage,
+  useComponentImage,
+  SVG_CONFIGS,
+} from '../hooks/useComponentImages';
+import {
+  getMultimeterModeLabel,
+  getMultimeterStatusLabel,
+  t,
+} from '../lib/i18n';
+import multimeterProbeRedSvg from '../assets/components/multimeter-probe-red.svg';
+import multimeterProbeBlackSvg from '../assets/components/multimeter-probe-black.svg';
 
 // ===== Constants =====
 const GRID_SIZE = 10;
@@ -40,6 +52,13 @@ const WIRE_PIN_FANOUT_SPACING = 22;
 const DENSE_PIN_THRESHOLD = 20;
 const MAX_FANOUT_PINS = 6;
 const BREADBOARD_WIRE_SNAP_RADIUS_SQ = (HOLE_SP * 1.8) ** 2;
+const PROBE_SNAP_RADIUS_SQ = (HOLE_SP * 1.8) ** 2;
+const PROBE_DOCK_SNAP_RADIUS_SQ = 24 ** 2;
+const MULTIMETER_BLACK_ANCHOR = { x: 0, y: 103 };
+const MULTIMETER_RED_V_ANCHOR = { x: 36, y: 103 };
+const MULTIMETER_RED_A_ANCHOR = { x: -36, y: 103 };
+const PROBE_IMAGE_WIDTH = 24;
+const PROBE_IMAGE_HEIGHT = 72;
 
 type WirePinHandle = {
   pin: Pin;
@@ -66,6 +85,17 @@ type ContextMenuState = {
   x: number;
   y: number;
   target: ContextMenuTarget;
+};
+
+type ProbeSlot = 'black' | 'red';
+
+type ProbeSnapTarget = {
+  componentId: string;
+  pinId: string;
+  x: number;
+  y: number;
+  label: string;
+  distSq: number;
 };
 
 const RESISTOR_DIGIT_COLORS = [
@@ -108,6 +138,90 @@ const RESISTOR_BANDS: ResistorBandOverlay[] = [
 function getNumericValue(value: unknown, fallback = 0): number {
   const parsed = typeof value === 'number' ? value : Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function getMultimeterMode(value: unknown): 'voltage' | 'current' | 'resistance' | 'continuity' {
+  const normalized = String(value ?? 'voltage').trim().toLowerCase();
+  if (normalized.includes('akim')) return 'current';
+  if (normalized.includes('direnc')) return 'resistance';
+  if (normalized.includes('surekl')) return 'continuity';
+  if (normalized === 'current') return 'current';
+  if (normalized === 'resistance') return 'resistance';
+  if (normalized === 'continuity') return 'continuity';
+  return 'voltage';
+}
+
+function getLocalizedMultimeterDisplayText(language: 'en' | 'tr', text: string): string {
+  const normalized = text.trim().toLowerCase();
+  if (normalized === 'open') return getMultimeterStatusLabel(language, 'open');
+  if (normalized === 'beep') return getMultimeterStatusLabel(language, 'beep');
+  return text;
+}
+
+function readBooleanProperty(value: unknown): boolean | null {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value !== 0;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === 'true') return true;
+    if (normalized === 'false') return false;
+  }
+
+  return null;
+}
+
+function getProbeAnchorLocalPosition(
+  slot: ProbeSlot,
+  mode: 'voltage' | 'current' | 'resistance' | 'continuity'
+) {
+  if (slot === 'black') {
+    return MULTIMETER_BLACK_ANCHOR;
+  }
+
+  return mode === 'current' ? MULTIMETER_RED_A_ANCHOR : MULTIMETER_RED_V_ANCHOR;
+}
+
+function getProbeStoredWorldPosition(
+  component: CircuitComponent,
+  slot: ProbeSlot
+): { x: number; y: number } {
+  const prefix = slot === 'black' ? 'blackProbe' : 'redProbe';
+  const fallbackX = component.x + (slot === 'black' ? 6 : 72);
+  const fallbackY = component.y + 170;
+
+  return {
+    x: getNumericValue(component.properties[`${prefix}X`], fallbackX),
+    y: getNumericValue(component.properties[`${prefix}Y`], fallbackY),
+  };
+}
+
+function getProbeTargetKeys(slot: ProbeSlot) {
+  if (slot === 'black') {
+    return {
+      componentKey: 'blackProbeTargetComponentId',
+      pinKey: 'blackProbeTargetPinId',
+    } as const;
+  }
+
+  return {
+    componentKey: 'redProbeTargetComponentId',
+    pinKey: 'redProbeTargetPinId',
+  } as const;
+}
+
+function getProbeDockKey(slot: ProbeSlot) {
+  return slot === 'black' ? 'blackProbeDocked' : 'redProbeDocked';
+}
+
+function getProbeDockedLocalPosition(
+  slot: ProbeSlot,
+  mode: 'voltage' | 'current' | 'resistance' | 'continuity'
+) {
+  const anchor = getProbeAnchorLocalPosition(slot, mode);
+  return {
+    x: anchor.x,
+    y: anchor.y + 54,
+  };
 }
 
 function formatCompactNumber(value: number): string {
@@ -170,11 +284,87 @@ function snapToGrid(val: number): number {
   return Math.round(val / GRID_SIZE) * GRID_SIZE;
 }
 
-function isNearBreadboardArea(x: number, y: number): boolean {
-  return x >= BB_X - 24 && x <= BB_RIGHT + 24 && y >= BB_Y - 24 && y <= BB_BOTTOM + 24;
+function normalizeRotation(rotation: number): number {
+  return ((rotation % 360) + 360) % 360;
 }
 
-function snapPinsToBreadboard(x: number, y: number, pins: Array<{ x: number; y: number }>): { x: number; y: number } | null {
+function rotatePoint(x: number, y: number, rotation = 0): { x: number; y: number } {
+  const normalized = normalizeRotation(rotation);
+  const snappedRightAngle = (Math.round(normalized / 90) * 90) % 360;
+
+  if (Math.abs(normalized - snappedRightAngle) < 0.001) {
+    switch (snappedRightAngle) {
+      case 90:
+        return { x: -y, y: x };
+      case 180:
+        return { x: -x, y: -y };
+      case 270:
+        return { x: y, y: -x };
+      default:
+        return { x, y };
+    }
+  }
+
+  const radians = (normalized * Math.PI) / 180;
+  const rotatedX = x * Math.cos(radians) - y * Math.sin(radians);
+  const rotatedY = x * Math.sin(radians) + y * Math.cos(radians);
+
+  return {
+    x: Math.round(rotatedX * 1000) / 1000,
+    y: Math.round(rotatedY * 1000) / 1000,
+  };
+}
+
+function getRotatedPins<T extends { x: number; y: number }>(pins: T[], rotation = 0): T[] {
+  if (pins.length === 0 || normalizeRotation(rotation) === 0) {
+    return pins;
+  }
+
+  return pins.map((pin) => {
+    const rotated = rotatePoint(pin.x, pin.y, rotation);
+    return {
+      ...pin,
+      x: rotated.x,
+      y: rotated.y,
+    };
+  });
+}
+
+function getComponentPinWorldPosition(
+  component: Pick<CircuitComponent, 'x' | 'y' | 'rotation' | 'pins'>,
+  pinId: string
+) {
+  const pin = component.pins.find((item) => item.id === pinId);
+  if (!pin) return null;
+
+  const rotated = rotatePoint(pin.x, pin.y, component.rotation);
+  return {
+    pin,
+    x: component.x + rotated.x,
+    y: component.y + rotated.y,
+  };
+}
+
+function isNearBreadboardArea(
+  x: number,
+  y: number,
+  breadboardPosition: { x: number; y: number } = DEFAULT_BREADBOARD_POSITION
+): boolean {
+  const bounds = getBreadboardBounds(breadboardPosition);
+  return (
+    x >= bounds.x - 24 &&
+    x <= bounds.right + 24 &&
+    y >= bounds.y - 24 &&
+    y <= bounds.bottom + 24
+  );
+}
+
+function snapPinsToBreadboard(
+  x: number,
+  y: number,
+  pins: Array<{ x: number; y: number }>,
+  breadboardPosition: { x: number; y: number } = DEFAULT_BREADBOARD_POSITION
+): { x: number; y: number } | null {
   if (pins.length === 0) return null;
 
   let bestCandidate: { x: number; y: number; score: number } | null = null;
@@ -182,9 +372,16 @@ function snapPinsToBreadboard(x: number, y: number, pins: Array<{ x: number; y: 
   for (const anchorPin of pins) {
     const anchorGlobalX = x + anchorPin.x;
     const anchorGlobalY = y + anchorPin.y;
-    const nearestHole = getNearestBreadboardHole(anchorGlobalX, anchorGlobalY);
+    const nearestHole = getNearestBreadboardHole(
+      anchorGlobalX,
+      anchorGlobalY,
+      breadboardPosition
+    );
 
-    if (!isNearBreadboardArea(anchorGlobalX, anchorGlobalY) && nearestHole.distSq > SNAP_RADIUS_SQ) {
+    if (
+      !isNearBreadboardArea(anchorGlobalX, anchorGlobalY, breadboardPosition) &&
+      nearestHole.distSq > SNAP_RADIUS_SQ
+    ) {
       continue;
     }
 
@@ -195,10 +392,14 @@ function snapPinsToBreadboard(x: number, y: number, pins: Array<{ x: number; y: 
     for (const pin of pins) {
       const pinGlobalX = candidateX + pin.x;
       const pinGlobalY = candidateY + pin.y;
-      const snappedHole = getNearestBreadboardHole(pinGlobalX, pinGlobalY);
+      const snappedHole = getNearestBreadboardHole(
+        pinGlobalX,
+        pinGlobalY,
+        breadboardPosition
+      );
 
       score += snappedHole.distSq;
-      if (!isNearBreadboardArea(pinGlobalX, pinGlobalY)) {
+      if (!isNearBreadboardArea(pinGlobalX, pinGlobalY, breadboardPosition)) {
         score += SNAP_RADIUS_SQ;
       }
     }
@@ -215,11 +416,14 @@ export function snapToBreadboard(
   x: number,
   y: number,
   type?: string,
-  pins?: Array<{ x: number; y: number }>
+  pins?: Array<{ x: number; y: number }>,
+  breadboardPosition: { x: number; y: number } = DEFAULT_BREADBOARD_POSITION,
+  rotation = 0
 ): { x: number; y: number } {
   const componentType = type && type in SVG_CONFIGS ? (type as ComponentType) : undefined;
   const pinLayout = pins ?? (componentType ? getDefaultPins(componentType) : []);
-  const snapped = snapPinsToBreadboard(x, y, pinLayout);
+  const rotatedPinLayout = getRotatedPins(pinLayout, rotation);
+  const snapped = snapPinsToBreadboard(x, y, rotatedPinLayout, breadboardPosition);
 
   if (snapped) {
     return snapped;
@@ -302,11 +506,38 @@ function getWirePinHandles(pins: Pin[]): WirePinHandle[] {
 const ComponentShape: React.FC<{
   comp: CircuitComponent;
   isSelected: boolean;
-  simulation: any;
+  simulation: SimulationState;
   language: 'en' | 'tr';
-}> = ({ comp, isSelected, simulation, language }) => {
+}> = ({ comp: sourceComp, isSelected, simulation, language }) => {
+  const comp = simulation.running
+    ? {
+        ...sourceComp,
+        properties: {
+          ...sourceComp.properties,
+          ...(simulation.componentStates[sourceComp.id] ?? {}),
+        },
+      }
+    : sourceComp;
   const config = SVG_CONFIGS[comp.type];
   const image = useComponentImage(comp.type);
+  const multimeterMode =
+    comp.type === 'multimeter' ? getMultimeterMode(comp.properties.mode) : 'voltage';
+  const blackProbeDocked =
+    comp.type === 'multimeter'
+      ? (
+          readBooleanProperty(comp.properties.blackProbeDocked) ??
+          (!String(comp.properties.blackProbeTargetComponentId ?? '').trim() &&
+            !String(comp.properties.blackProbeTargetPinId ?? '').trim())
+        )
+      : false;
+  const redProbeDocked =
+    comp.type === 'multimeter'
+      ? (
+          readBooleanProperty(comp.properties.redProbeDocked) ??
+          (!String(comp.properties.redProbeTargetComponentId ?? '').trim() &&
+            !String(comp.properties.redProbeTargetPinId ?? '').trim())
+        )
+      : false;
 
   if (!config || !image) {
     return <Circle radius={10} fill="#888" />;
@@ -320,7 +551,7 @@ const ComponentShape: React.FC<{
         y={-config.offsetY}
         width={config.width}
         height={config.height}
-        fill="transparent"
+        fill="rgba(255,255,255,0.001)"
       />
       {/* SVG image */}
       <KonvaImage
@@ -402,7 +633,179 @@ const ComponentShape: React.FC<{
 
       {/* Servo angle */}
       {comp.type === 'servo' && (
-        <Text text={`${(comp.properties.angle as number) || 90}°`} x={-8} y={-28} fontSize={8} fill="#aaa" listening={false} />
+        <>
+          <Group rotation={((Number(comp.properties.angle) || 90) - 90) * 0.9} listening={false}>
+            <Line
+              points={[0, -4, 0, -22]}
+              stroke="#f5f5f5"
+              strokeWidth={2.2}
+              lineCap="round"
+              listening={false}
+            />
+          </Group>
+          <Circle x={0} y={-4} radius={3.2} fill="#d9d9d9" listening={false} />
+          <Text
+            text={`${(comp.properties.angle as number) || 90}°`}
+            x={-10}
+            y={-30}
+            width={20}
+            align="center"
+            fontSize={8}
+            fill="#aaa"
+            listening={false}
+          />
+        </>
+      )}
+
+      {comp.type === 'dc-motor' && (
+        <>
+          <Circle
+            x={0}
+            y={0}
+            radius={7}
+            stroke={Math.abs(Number(comp.properties.rpm) || 0) > 0 ? '#f7e38b' : '#6d7481'}
+            strokeWidth={1.4}
+            dash={Math.abs(Number(comp.properties.rpm) || 0) > 0 ? [2, 2] : undefined}
+            listening={false}
+          />
+          <Text
+            text={`${Math.round(Number(comp.properties.rpm) || 0)} RPM`}
+            x={-20}
+            y={-24}
+            width={40}
+            align="center"
+            fontSize={7}
+            fill={Math.abs(Number(comp.properties.rpm) || 0) > 0 ? '#f7e38b' : '#8a909c'}
+            listening={false}
+          />
+        </>
+      )}
+
+      {comp.type === 'multimeter' && (
+        <>
+          <Group listening={false}>
+            <Circle
+              x={MULTIMETER_RED_A_ANCHOR.x}
+              y={MULTIMETER_RED_A_ANCHOR.y}
+              radius={9}
+              fill={multimeterMode === 'current' ? '#3b1118' : '#1b1f27'}
+              stroke={multimeterMode === 'current' ? '#ef6c7a' : '#697486'}
+              strokeWidth={1.4}
+              listening={false}
+            />
+            <Circle
+              x={MULTIMETER_RED_A_ANCHOR.x}
+              y={MULTIMETER_RED_A_ANCHOR.y}
+              radius={4.1}
+              fill={redProbeDocked && multimeterMode === 'current' ? '#191c22' : '#090b0f'}
+              stroke={redProbeDocked && multimeterMode === 'current' ? '#ffb5bf' : '#303744'}
+              strokeWidth={1}
+              listening={false}
+            />
+            <Circle
+              x={MULTIMETER_BLACK_ANCHOR.x}
+              y={MULTIMETER_BLACK_ANCHOR.y}
+              radius={9}
+              fill="#1b1f27"
+              stroke={blackProbeDocked ? '#d4dae3' : '#697486'}
+              strokeWidth={1.4}
+              listening={false}
+            />
+            <Circle
+              x={MULTIMETER_BLACK_ANCHOR.x}
+              y={MULTIMETER_BLACK_ANCHOR.y}
+              radius={4.1}
+              fill={blackProbeDocked ? '#15191f' : '#090b0f'}
+              stroke={blackProbeDocked ? '#eff4fb' : '#303744'}
+              strokeWidth={1}
+              listening={false}
+            />
+            <Circle
+              x={MULTIMETER_RED_V_ANCHOR.x}
+              y={MULTIMETER_RED_V_ANCHOR.y}
+              radius={9}
+              fill={multimeterMode === 'current' ? '#1b1f27' : '#3b1118'}
+              stroke={multimeterMode === 'current' ? '#697486' : '#ef6c7a'}
+              strokeWidth={1.4}
+              listening={false}
+            />
+            <Circle
+              x={MULTIMETER_RED_V_ANCHOR.x}
+              y={MULTIMETER_RED_V_ANCHOR.y}
+              radius={4.1}
+              fill={redProbeDocked && multimeterMode !== 'current' ? '#191c22' : '#090b0f'}
+              stroke={redProbeDocked && multimeterMode !== 'current' ? '#ffb5bf' : '#303744'}
+              strokeWidth={1}
+              listening={false}
+            />
+            <Text
+              text="10A"
+              x={MULTIMETER_RED_A_ANCHOR.x - 12}
+              y={MULTIMETER_RED_A_ANCHOR.y + 12}
+              width={24}
+              align="center"
+              fontSize={6}
+              fill={multimeterMode === 'current' ? '#ffb0ba' : '#8d99ab'}
+              listening={false}
+            />
+            <Text
+              text="COM"
+              x={MULTIMETER_BLACK_ANCHOR.x - 12}
+              y={MULTIMETER_BLACK_ANCHOR.y + 12}
+              width={24}
+              align="center"
+              fontSize={6}
+              fill={blackProbeDocked ? '#e5ebf3' : '#8d99ab'}
+              listening={false}
+            />
+            <Text
+              text="VΩ"
+              x={MULTIMETER_RED_V_ANCHOR.x - 12}
+              y={MULTIMETER_RED_V_ANCHOR.y + 12}
+              width={24}
+              align="center"
+              fontSize={6}
+              fill={multimeterMode === 'current' ? '#8d99ab' : '#ffb0ba'}
+              listening={false}
+            />
+          </Group>
+          <Rect
+            x={-58}
+            y={-96}
+            width={116}
+            height={42}
+            cornerRadius={6}
+            fill="#9bc1d9"
+            opacity={0.78}
+            stroke="#c6e3f1"
+            strokeWidth={1}
+            listening={false}
+          />
+          <Text
+            text={getLocalizedMultimeterDisplayText(
+              language,
+              String(comp.properties.displayText ?? '0.00 V')
+            )}
+            x={-52}
+            y={-86}
+            width={104}
+            align="center"
+            fontSize={12}
+            fontStyle="bold"
+            fill="#133243"
+            listening={false}
+          />
+          <Text
+            text={`${getMultimeterModeLabel(language, String(comp.properties.mode ?? 'voltage'))} | ${getMultimeterStatusLabel(language, String(comp.properties.status ?? 'ready'))}`}
+            x={-56}
+            y={-68}
+            width={112}
+            align="center"
+            fontSize={6}
+            fill="#214a60"
+            listening={false}
+          />
+        </>
       )}
 
       {/* Potentiometer position */}
@@ -846,7 +1249,7 @@ const Breadboard: React.FC = React.memo(() => {
   const gapY = mainStartY + 4.5 * HOLE_SP;
 
   return (
-    <Group x={BB_X} y={BB_Y} listening={false}>
+    <Group>
       {/* Shadow */}
       <Rect x={3} y={3} width={boardW} height={totalH} fill="#000" opacity={0.25} cornerRadius={6} />
       {/* Board body */}
@@ -888,13 +1291,13 @@ const ControllerBoard: React.FC<{ board: ControllerBoardDefinition }> = React.me
   const pinRadius = board.type === 'nano' ? 2.8 : 3.1;
 
   return (
-    <Group x={ARDUINO_X} y={ARDUINO_Y}>
+    <Group>
       <Rect
         x={0}
         y={0}
         width={board.width}
         height={board.height}
-        fill="transparent"
+        fill="rgba(255,255,255,0.001)"
       />
 
       {boardImg ? (
@@ -1008,12 +1411,18 @@ const CircuitCanvas: React.FC = () => {
   const stageRef = useRef<Konva.Stage>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const activeDragRef = useRef<{ componentId: string; node: Konva.Group | null } | null>(null);
+  const draggedComponentPositionsRef = useRef<Record<string, { x: number; y: number }>>({});
+  const breadboardDragRef = useRef<{
+    startPosition: { x: number; y: number };
+    attachedComponents: Array<{ id: string; x: number; y: number }>;
+  } | null>(null);
   const [stageSize, setStageSize] = useState({ width: 800, height: 600 });
   const [middlePanActive, setMiddlePanActive] = useState(false);
   const [wiringStart, setWiringStart] = useState<{ componentId: string; pinId: string; x: number; y: number } | null>(null);
   const [wiringMouse, setWiringMouse] = useState<{ x: number; y: number } | null>(null);
   const [hoveredBreadboardHole, setHoveredBreadboardHole] = useState<BreadboardHole | null>(null);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  const [, setDragPreviewVersion] = useState(0);
 
   const components = useCircuitStore((s) => s.components);
   const wires = useCircuitStore((s) => s.wires);
@@ -1025,6 +1434,8 @@ const CircuitCanvas: React.FC = () => {
   const wireColor = useCircuitStore((s) => s.wireColor);
   const simulation = useCircuitStore((s) => s.simulation);
   const boardType = useCircuitStore((s) => s.boardType);
+  const boardPosition = useCircuitStore((s) => s.boardPosition);
+  const breadboardPosition = useCircuitStore((s) => s.breadboardPosition);
   const language = useCircuitStore((s) => s.language);
 
   const setZoom = useCircuitStore((s) => s.setZoom);
@@ -1032,6 +1443,9 @@ const CircuitCanvas: React.FC = () => {
   const setToolMode = useCircuitStore((s) => s.setToolMode);
   const setRightTab = useCircuitStore((s) => s.setRightTab);
   const setBoardType = useCircuitStore((s) => s.setBoardType);
+  const setBoardPosition = useCircuitStore((s) => s.setBoardPosition);
+  const setBreadboardPosition = useCircuitStore((s) => s.setBreadboardPosition);
+  const captureUndoSnapshot = useCircuitStore((s) => s.captureUndoSnapshot);
   const addComponent = useCircuitStore((s) => s.addComponent);
   const selectComponent = useCircuitStore((s) => s.selectComponent);
   const updateComponent = useCircuitStore((s) => s.updateComponent);
@@ -1044,12 +1458,236 @@ const CircuitCanvas: React.FC = () => {
   const currentBoard = useMemo(() => getControllerBoardDefinition(boardType), [boardType]);
   const boardPins = useMemo(() => getControllerBoardPins(boardType), [boardType]);
   const canUndo = useCircuitStore((s) => s.canUndo());
+  const multimeterRedProbeImage = useAssetImage(multimeterProbeRedSvg);
+  const multimeterBlackProbeImage = useAssetImage(multimeterProbeBlackSvg);
+  const getRenderedComponentPosition = useCallback(
+    (component: CircuitComponent) =>
+      draggedComponentPositionsRef.current[component.id] ?? {
+        x: component.x,
+        y: component.y,
+      },
+    []
+  );
+
+  const resolveWireEndpointPosition = useCallback((
+    componentId: string,
+    pinId: string,
+    availableComponents: CircuitComponent[] = components
+  ) => {
+    if (componentId === ARDUINO_COMPONENT_ID) {
+      const pin = boardPins.find((item) => item.id === pinId);
+      return pin
+        ? {
+            x: boardPosition.x + pin.x,
+            y: boardPosition.y + pin.y,
+          }
+        : null;
+    }
+
+    if (componentId === BREADBOARD_COMPONENT_ID) {
+      const hole = getBreadboardHoleGlobal(pinId, breadboardPosition);
+      return hole ? { x: hole.x, y: hole.y } : null;
+    }
+
+    const component = availableComponents.find((item) => item.id === componentId);
+    if (!component) return null;
+
+    const pinPosition = getComponentPinWorldPosition(component, pinId);
+    return pinPosition
+      ? {
+          x: pinPosition.x,
+          y: pinPosition.y,
+        }
+      : null;
+  }, [boardPins, boardPosition, breadboardPosition, components]);
+
+  const getBreadboardSnapPositionForComponent = useCallback(
+    (
+      component: CircuitComponent,
+      position: { x: number; y: number } = breadboardPosition
+    ) => snapPinsToBreadboard(
+      component.x,
+      component.y,
+      getRotatedPins(component.pins, component.rotation),
+      position
+    ),
+    [breadboardPosition]
+  );
+
+  const resolveMultimeterProbeTargetPosition = useCallback(
+    (component: CircuitComponent, slot: ProbeSlot) => {
+      const keys = getProbeTargetKeys(slot);
+      const targetComponentId = String(component.properties[keys.componentKey] ?? '').trim();
+      const targetPinId = String(component.properties[keys.pinKey] ?? '').trim();
+
+      if (!targetComponentId || !targetPinId) {
+        return null;
+      }
+
+      return resolveWireEndpointPosition(targetComponentId, targetPinId);
+    },
+    [resolveWireEndpointPosition]
+  );
+
+  const getMultimeterProbeDockedWorldPosition = useCallback(
+    (component: CircuitComponent, slot: ProbeSlot) => {
+      const mode = getMultimeterMode(component.properties.mode);
+      const tip = getProbeDockedLocalPosition(slot, mode);
+      const rotated = rotatePoint(tip.x, tip.y, component.rotation);
+      const position = getRenderedComponentPosition(component);
+
+      return {
+        x: position.x + rotated.x,
+        y: position.y + rotated.y,
+      };
+    },
+    [getRenderedComponentPosition]
+  );
+
+  const isMultimeterProbeDocked = useCallback(
+    (component: CircuitComponent, slot: ProbeSlot) => {
+      const explicitDocked = readBooleanProperty(
+        component.properties[getProbeDockKey(slot)]
+      );
+      if (explicitDocked !== null) {
+        return explicitDocked;
+      }
+
+      const keys = getProbeTargetKeys(slot);
+      const hasTarget =
+        String(component.properties[keys.componentKey] ?? '').trim().length > 0 &&
+        String(component.properties[keys.pinKey] ?? '').trim().length > 0;
+
+      if (hasTarget) {
+        return false;
+      }
+
+      const stored = getProbeStoredWorldPosition(component, slot);
+      const docked = getMultimeterProbeDockedWorldPosition(component, slot);
+      const dx = stored.x - docked.x;
+      const dy = stored.y - docked.y;
+      return dx * dx + dy * dy <= PROBE_DOCK_SNAP_RADIUS_SQ;
+    },
+    [getMultimeterProbeDockedWorldPosition]
+  );
+
+  const getMultimeterProbeWorldPosition = useCallback(
+    (component: CircuitComponent, slot: ProbeSlot) =>
+      resolveMultimeterProbeTargetPosition(component, slot) ??
+      (isMultimeterProbeDocked(component, slot)
+        ? getMultimeterProbeDockedWorldPosition(component, slot)
+        : getProbeStoredWorldPosition(component, slot)),
+    [
+      getMultimeterProbeDockedWorldPosition,
+      isMultimeterProbeDocked,
+      resolveMultimeterProbeTargetPosition,
+    ]
+  );
+
+  const getMultimeterProbeAnchorWorldPosition = useCallback(
+    (component: CircuitComponent, slot: ProbeSlot) => {
+      const mode = getMultimeterMode(component.properties.mode);
+      const anchor = getProbeAnchorLocalPosition(slot, mode);
+      const rotated = rotatePoint(anchor.x, anchor.y, component.rotation);
+      const position = getRenderedComponentPosition(component);
+
+      return {
+        x: position.x + rotated.x,
+        y: position.y + rotated.y,
+      };
+    },
+    [getRenderedComponentPosition]
+  );
+
+  const resolveProbeDockTargetPosition = useCallback(
+    (
+      component: CircuitComponent,
+      slot: ProbeSlot,
+      x: number,
+      y: number
+    ): { x: number; y: number } | null => {
+      const dockedPosition = getMultimeterProbeDockedWorldPosition(component, slot);
+      const anchorPosition = getMultimeterProbeAnchorWorldPosition(component, slot);
+      const dockDx = dockedPosition.x - x;
+      const dockDy = dockedPosition.y - y;
+      const anchorDx = anchorPosition.x - x;
+      const anchorDy = anchorPosition.y - y;
+
+      if (
+        dockDx * dockDx + dockDy * dockDy <= PROBE_DOCK_SNAP_RADIUS_SQ ||
+        anchorDx * anchorDx + anchorDy * anchorDy <= PROBE_DOCK_SNAP_RADIUS_SQ
+      ) {
+        return dockedPosition;
+      }
+
+      return null;
+    },
+    [getMultimeterProbeAnchorWorldPosition, getMultimeterProbeDockedWorldPosition]
+  );
+
+  const isComponentMountedOnBreadboard = useCallback(
+    (
+      component: CircuitComponent,
+      position: { x: number; y: number } = breadboardPosition
+    ) => {
+      const snapped = getBreadboardSnapPositionForComponent(component, position);
+      if (!snapped) return false;
+
+      return (
+        Math.abs(snapped.x - component.x) < 0.75 &&
+        Math.abs(snapped.y - component.y) < 0.75
+      );
+    },
+    [breadboardPosition, getBreadboardSnapPositionForComponent]
+  );
+
   const clearTransientCanvasState = useCallback(() => {
     setWiringStart(null);
     setWiringMouse(null);
     setHoveredBreadboardHole(null);
     setContextMenu(null);
   }, []);
+
+  useEffect(() => {
+    let hasChanges = false;
+
+    const nextWires = wires.map((wire) => {
+      const start = resolveWireEndpointPosition(
+        wire.startComponentId,
+        wire.startPinId
+      );
+      const end = resolveWireEndpointPosition(wire.endComponentId, wire.endPinId);
+
+      if (!start || !end) {
+        return wire;
+      }
+
+      const nextPoints =
+        wire.points.length >= 4
+          ? [...wire.points]
+          : [start.x, start.y, end.x, end.y];
+
+      nextPoints[0] = start.x;
+      nextPoints[1] = start.y;
+      nextPoints[nextPoints.length - 2] = end.x;
+      nextPoints[nextPoints.length - 1] = end.y;
+
+      const pointsChanged =
+        nextPoints.length !== wire.points.length ||
+        nextPoints.some((value, index) => value !== wire.points[index]);
+
+      if (!pointsChanged) {
+        return wire;
+      }
+
+      hasChanges = true;
+      return { ...wire, points: nextPoints };
+    });
+
+    if (hasChanges) {
+      useCircuitStore.setState({ wires: nextWires });
+    }
+  }, [resolveWireEndpointPosition, wires]);
 
   // Resize observer
   useEffect(() => {
@@ -1141,9 +1779,9 @@ const CircuitCanvas: React.FC = () => {
     const x = (e.clientX - rect.left - stagePos.x) / zoom;
     const y = (e.clientY - rect.top - stagePos.y) / zoom;
 
-    const snapped = snapToBreadboard(x, y, type);
+    const snapped = snapToBreadboard(x, y, type, undefined, breadboardPosition);
     addComponent(type, snapped.x, snapped.y);
-  }, [zoom, stagePos, addComponent]);
+  }, [zoom, stagePos, addComponent, breadboardPosition]);
 
   const getWorldPointerPosition = useCallback(() => {
     const stage = stageRef.current;
@@ -1194,25 +1832,189 @@ const CircuitCanvas: React.FC = () => {
 
   const resolveBreadboardHoleAtPointer = useCallback(() => {
     const pointer = getWorldPointerPosition();
-    if (!pointer || !isNearBreadboardArea(pointer.x, pointer.y)) {
+    if (!pointer || !isNearBreadboardArea(pointer.x, pointer.y, breadboardPosition)) {
       return null;
     }
 
-    const nearestHole = getNearestBreadboardHole(pointer.x, pointer.y);
+    const nearestHole = getNearestBreadboardHole(
+      pointer.x,
+      pointer.y,
+      breadboardPosition
+    );
     if (nearestHole.distSq > BREADBOARD_WIRE_SNAP_RADIUS_SQ) {
       return null;
     }
 
     return nearestHole;
-  }, [getWorldPointerPosition]);
+  }, [breadboardPosition, getWorldPointerPosition]);
+
+  const resolveProbeSnapTargetAtPosition = useCallback(
+    (x: number, y: number, sourceComponentId: string): ProbeSnapTarget | null => {
+      let bestTarget: ProbeSnapTarget | null = null;
+
+      const considerTarget = (
+        componentId: string,
+        pinId: string,
+        targetX: number,
+        targetY: number,
+        label: string
+      ) => {
+        const dx = targetX - x;
+        const dy = targetY - y;
+        const distSq = dx * dx + dy * dy;
+
+        if (distSq > PROBE_SNAP_RADIUS_SQ) return;
+        if (!bestTarget || distSq < bestTarget.distSq) {
+          bestTarget = {
+            componentId,
+            pinId,
+            x: targetX,
+            y: targetY,
+            label,
+            distSq,
+          };
+        }
+      };
+
+      if (isNearBreadboardArea(x, y, breadboardPosition)) {
+        const nearestHole = getNearestBreadboardHole(x, y, breadboardPosition);
+        considerTarget(
+          BREADBOARD_COMPONENT_ID,
+          nearestHole.id,
+          nearestHole.x,
+          nearestHole.y,
+          nearestHole.label
+        );
+      }
+
+      for (const pin of boardPins) {
+        considerTarget(
+          ARDUINO_COMPONENT_ID,
+          pin.id,
+          boardPosition.x + pin.x,
+          boardPosition.y + pin.y,
+          pin.name
+        );
+      }
+
+      for (const component of components) {
+        if (component.id === sourceComponentId || component.type === 'multimeter') continue;
+
+        for (const pin of component.pins) {
+          const pinWorldPosition = getComponentPinWorldPosition(component, pin.id);
+          if (!pinWorldPosition) continue;
+
+          considerTarget(
+            component.id,
+            pin.id,
+            pinWorldPosition.x,
+            pinWorldPosition.y,
+            pin.name
+          );
+        }
+      }
+
+      return bestTarget;
+    },
+    [boardPins, boardPosition, breadboardPosition, components]
+  );
 
   const resetViewport = useCallback(() => {
     setZoom(1);
     setStagePos({ x: 0, y: 0 });
   }, [setStagePos, setZoom]);
 
+  const persistMultimeterProbePosition = useCallback(
+    (
+      component: CircuitComponent,
+      slot: ProbeSlot,
+      nextPosition: { x: number; y: number },
+      target: ProbeSnapTarget | null,
+      docked: boolean
+    ) => {
+      const keys = getProbeTargetKeys(slot);
+      const prefix = slot === 'black' ? 'blackProbe' : 'redProbe';
+      const dockKey = getProbeDockKey(slot);
+
+      updateComponent(component.id, {
+        properties: {
+          ...component.properties,
+          [`${prefix}X`]: nextPosition.x,
+          [`${prefix}Y`]: nextPosition.y,
+          [dockKey]: docked,
+          [keys.componentKey]: target?.componentId ?? '',
+          [keys.pinKey]: target?.pinId ?? '',
+        },
+      });
+    },
+    [updateComponent]
+  );
+
+  const handleMultimeterProbeDragStart = useCallback(
+    (componentId: string) => {
+      closeContextMenu();
+      selectComponent(componentId);
+      selectWire(null);
+      setRightTab('properties');
+    },
+    [closeContextMenu, selectComponent, selectWire, setRightTab]
+  );
+
+  const handleMultimeterProbeDragEnd = useCallback(
+    (
+      component: CircuitComponent,
+      slot: ProbeSlot,
+      event: Konva.KonvaEventObject<DragEvent>
+    ) => {
+      const currentPosition = {
+        x: event.target.x(),
+        y: event.target.y(),
+      };
+      const dockedPosition = resolveProbeDockTargetPosition(
+        component,
+        slot,
+        currentPosition.x,
+        currentPosition.y
+      );
+      if (dockedPosition) {
+        event.target.x(dockedPosition.x);
+        event.target.y(dockedPosition.y);
+        persistMultimeterProbePosition(component, slot, dockedPosition, null, true);
+        return;
+      }
+
+      const target = resolveProbeSnapTargetAtPosition(
+        currentPosition.x,
+        currentPosition.y,
+        component.id
+      );
+      const nextPosition = target
+        ? { x: target.x, y: target.y }
+        : {
+            x: snapToGrid(currentPosition.x),
+            y: snapToGrid(currentPosition.y),
+          };
+
+      event.target.x(nextPosition.x);
+      event.target.y(nextPosition.y);
+      persistMultimeterProbePosition(component, slot, nextPosition, target, false);
+    },
+    [
+      persistMultimeterProbePosition,
+      resolveProbeDockTargetPosition,
+      resolveProbeSnapTargetAtPosition,
+    ]
+  );
+
   // Component click
-  const handleComponentClick = useCallback((comp: CircuitComponent) => {
+  const handleComponentClick = useCallback((
+    comp: CircuitComponent,
+    event?: Konva.KonvaEventObject<MouseEvent | TouchEvent>
+  ) => {
+    if (event) {
+      event.cancelBubble = true;
+    }
+
     closeContextMenu();
     if (toolMode !== 'delete') {
       selectComponent(comp.id);
@@ -1298,53 +2100,65 @@ const CircuitCanvas: React.FC = () => {
   }, [toolMode, wiringStart, getWorldPointerPosition, resolveBreadboardHoleAtPointer]);
 
   const finalizeComponentDrag = useCallback((comp: CircuitComponent, node: Konva.Group) => {
-    const snapped = snapToBreadboard(node.x(), node.y(), comp.type, comp.pins);
+    const snapped = snapToBreadboard(
+      node.x(),
+      node.y(),
+      comp.type,
+      comp.pins,
+      breadboardPosition,
+      comp.rotation
+    );
     const newX = snapped.x;
     const newY = snapped.y;
     node.x(newX);
     node.y(newY);
     updateComponent(comp.id, { x: newX, y: newY });
-
-    // Update wire endpoints
-    const state = useCircuitStore.getState();
-    state.wires.forEach((wire) => {
-      let updated = false;
-      const newPoints = [...wire.points];
-      if (wire.startComponentId === comp.id) {
-        const pin = comp.pins.find((p) => p.id === wire.startPinId);
-        if (pin) {
-          newPoints[0] = newX + pin.x;
-          newPoints[1] = newY + pin.y;
-          updated = true;
-        }
-      }
-      if (wire.endComponentId === comp.id) {
-        const pin = comp.pins.find((p) => p.id === wire.endPinId);
-        if (pin) {
-          newPoints[newPoints.length - 2] = newX + pin.x;
-          newPoints[newPoints.length - 1] = newY + pin.y;
-          updated = true;
-        }
-      }
-      if (updated) {
-        // Direct state update for wire points
-        useCircuitStore.setState((s) => ({
-          wires: s.wires.map((w) => w.id === wire.id ? { ...w, points: newPoints } : w),
-        }));
-      }
-    });
-  }, [updateComponent]);
+  }, [breadboardPosition, updateComponent]);
 
   useEffect(() => {
     const win = window as Window & {
       snapToBreadboard?: typeof snapToBreadboard;
     };
 
-    win.snapToBreadboard = snapToBreadboard;
+    win.snapToBreadboard = (
+      x: number,
+      y: number,
+      type?: string,
+      pins?: Array<{ x: number; y: number }>,
+      rotation?: number
+    ) => snapToBreadboard(x, y, type, pins, breadboardPosition, rotation);
     return () => {
       delete win.snapToBreadboard;
     };
-  }, []);
+  }, [breadboardPosition]);
+
+  useEffect(() => {
+    const handleExportCanvas = async () => {
+      const stage = stageRef.current;
+      if (!stage) return;
+
+      const dataUrl = stage.toDataURL({ pixelRatio: 2 });
+
+      if (window.electronAPI?.exportPng) {
+        await window.electronAPI.exportPng(dataUrl, {
+          title: t(language, 'exportPngDialogTitle'),
+          defaultPath: t(language, 'pngFileName'),
+          filterName: t(language, 'pngFilterName'),
+        });
+        return;
+      }
+
+      const link = document.createElement('a');
+      link.href = dataUrl;
+      link.download = t(language, 'pngFileName');
+      link.click();
+    };
+
+    window.addEventListener('export-canvas-png', handleExportCanvas);
+    return () => {
+      window.removeEventListener('export-canvas-png', handleExportCanvas);
+    };
+  }, [language]);
 
   const stopMiddlePan = useCallback(() => {
     if (!middlePanActive) return;
@@ -1375,6 +2189,10 @@ const CircuitCanvas: React.FC = () => {
       activeDrag.node.stopDrag();
       activeDragRef.current = null;
       finalizeComponentDrag(currentComp, activeDrag.node);
+      if (currentComp.type === 'multimeter') {
+        delete draggedComponentPositionsRef.current[currentComp.id];
+        setDragPreviewVersion((version) => version + 1);
+      }
     };
 
     window.addEventListener('mouseup', handlePointerRelease);
@@ -1454,14 +2272,182 @@ const CircuitCanvas: React.FC = () => {
     setRightTab('properties');
   }, [closeContextMenu, selectComponent, selectWire, setRightTab]);
 
+  const handleDragMove = useCallback((comp: CircuitComponent, e: Konva.KonvaEventObject<DragEvent>) => {
+    if (comp.type !== 'multimeter') return;
+
+    const nextPosition = {
+      x: e.target.x(),
+      y: e.target.y(),
+    };
+    const previousPosition = draggedComponentPositionsRef.current[comp.id];
+
+    if (
+      previousPosition &&
+      previousPosition.x === nextPosition.x &&
+      previousPosition.y === nextPosition.y
+    ) {
+      return;
+    }
+
+    draggedComponentPositionsRef.current[comp.id] = nextPosition;
+    setDragPreviewVersion((version) => version + 1);
+  }, []);
+
   const handleDragEnd = useCallback((comp: CircuitComponent, e: Konva.KonvaEventObject<DragEvent>) => {
+    if (comp.type === 'multimeter') {
+      draggedComponentPositionsRef.current[comp.id] = {
+        x: e.target.x(),
+        y: e.target.y(),
+      };
+    }
     activeDragRef.current = null;
     finalizeComponentDrag(comp, e.target as Konva.Group);
+    if (comp.type === 'multimeter') {
+      delete draggedComponentPositionsRef.current[comp.id];
+      setDragPreviewVersion((version) => version + 1);
+    }
   }, [finalizeComponentDrag]);
+
+  const handleBoardDragStart = useCallback(() => {
+    captureUndoSnapshot();
+    closeContextMenu();
+    selectComponent(null);
+    selectWire(null);
+  }, [captureUndoSnapshot, closeContextMenu, selectComponent, selectWire]);
+
+  const handleBoardDragMove = useCallback(
+    (e: Konva.KonvaEventObject<DragEvent>) => {
+      setBoardPosition({ x: e.target.x(), y: e.target.y() });
+    },
+    [setBoardPosition]
+  );
+
+  const handleBoardDragEnd = useCallback(
+    (e: Konva.KonvaEventObject<DragEvent>) => {
+      const nextPosition = {
+        x: snapToGrid(e.target.x()),
+        y: snapToGrid(e.target.y()),
+      };
+      e.target.x(nextPosition.x);
+      e.target.y(nextPosition.y);
+      setBoardPosition(nextPosition);
+    },
+    [setBoardPosition]
+  );
+
+  const handleBreadboardDragStart = useCallback(() => {
+    captureUndoSnapshot();
+    closeContextMenu();
+    selectComponent(null);
+    selectWire(null);
+    breadboardDragRef.current = {
+      startPosition: { ...breadboardPosition },
+      attachedComponents: components
+        .filter((component) => isComponentMountedOnBreadboard(component))
+        .map((component) => ({
+          id: component.id,
+          x: component.x,
+          y: component.y,
+        })),
+    };
+  }, [
+    breadboardPosition,
+    captureUndoSnapshot,
+    closeContextMenu,
+    components,
+    isComponentMountedOnBreadboard,
+    selectComponent,
+    selectWire,
+  ]);
+
+  const handleBreadboardDragMove = useCallback(
+    (e: Konva.KonvaEventObject<DragEvent>) => {
+      const nextPosition = { x: e.target.x(), y: e.target.y() };
+      const dragState = breadboardDragRef.current;
+      setBreadboardPosition(nextPosition);
+
+      if (!dragState || dragState.attachedComponents.length === 0) {
+        return;
+      }
+
+      const dx = nextPosition.x - dragState.startPosition.x;
+      const dy = nextPosition.y - dragState.startPosition.y;
+      const attachedMap = new Map(
+        dragState.attachedComponents.map((component) => [component.id, component])
+      );
+
+      useCircuitStore.setState((state) => ({
+        components: state.components.map((component) => {
+          const attached = attachedMap.get(component.id);
+          if (!attached) return component;
+
+          return {
+            ...component,
+            x: attached.x + dx,
+            y: attached.y + dy,
+          };
+        }),
+      }));
+    },
+    [setBreadboardPosition]
+  );
+
+  const handleBreadboardDragEnd = useCallback(
+    (e: Konva.KonvaEventObject<DragEvent>) => {
+      const nextPosition = {
+        x: snapToGrid(e.target.x()),
+        y: snapToGrid(e.target.y()),
+      };
+      const dragState = breadboardDragRef.current;
+      const dx = dragState
+        ? nextPosition.x - dragState.startPosition.x
+        : 0;
+      const dy = dragState
+        ? nextPosition.y - dragState.startPosition.y
+        : 0;
+
+      e.target.x(nextPosition.x);
+      e.target.y(nextPosition.y);
+      setBreadboardPosition(nextPosition);
+
+      if (dragState?.attachedComponents.length) {
+        const attachedMap = new Map(
+          dragState.attachedComponents.map((component) => [component.id, component])
+        );
+
+        useCircuitStore.setState((state) => ({
+          components: state.components.map((component) => {
+            const attached = attachedMap.get(component.id);
+            if (!attached) return component;
+
+            const translated = {
+              x: attached.x + dx,
+              y: attached.y + dy,
+            };
+            const snapped = snapPinsToBreadboard(
+              translated.x,
+              translated.y,
+              getRotatedPins(component.pins, component.rotation),
+              nextPosition
+            );
+
+            return {
+              ...component,
+              x: snapped?.x ?? translated.x,
+              y: snapped?.y ?? translated.y,
+            };
+          }),
+        }));
+      }
+
+      breadboardDragRef.current = null;
+    },
+    [setBreadboardPosition]
+  );
 
   const activeBreadboardHole =
     wiringStart?.componentId === BREADBOARD_COMPONENT_ID
-      ? BREADBOARD_HOLE_MAP.get(wiringStart.pinId) ?? null
+      ? getBreadboardHoleGlobal(wiringStart.pinId, breadboardPosition)
       : null;
 
   // Memoized grid dots
@@ -1515,8 +2501,17 @@ const CircuitCanvas: React.FC = () => {
               <span>{t(language, 'startWire')}</span>
             </button>
             <button className="context-menu-item" onClick={action(() => {
+              const nextRotation = (selectedComponent.rotation + 90) % 360;
+              const snapped = snapPinsToBreadboard(
+                selectedComponent.x,
+                selectedComponent.y,
+                getRotatedPins(selectedComponent.pins, nextRotation),
+                breadboardPosition
+              );
+
               updateComponent(selectedComponent.id, {
-                rotation: (selectedComponent.rotation + 90) % 360,
+                rotation: nextRotation,
+                ...(snapped ? { x: snapped.x, y: snapped.y } : {}),
               });
             })}>
               <span>{t(language, 'rotate90')}</span>
@@ -1660,6 +2655,12 @@ const CircuitCanvas: React.FC = () => {
 
           {/* Controller board */}
           <Group
+            x={boardPosition.x}
+            y={boardPosition.y}
+            draggable={toolMode === 'select' && !middlePanActive}
+            onDragStart={handleBoardDragStart}
+            onDragMove={handleBoardDragMove}
+            onDragEnd={handleBoardDragEnd}
             onContextMenu={(e) => {
               e.evt.preventDefault();
               e.cancelBubble = true;
@@ -1667,22 +2668,26 @@ const CircuitCanvas: React.FC = () => {
             }}
           >
             <ControllerBoard board={currentBoard} />
-          </Group>
 
-          {/* Board clickable pins */}
-          {toolMode === 'wire' &&
-            boardPins.map((pin) => (
+            {/* Board clickable pins */}
+            {toolMode === 'wire' &&
+              boardPins.map((pin) => (
               <Circle
                 key={pin.id}
-                x={ARDUINO_X + pin.x}
-                y={ARDUINO_Y + pin.y}
+                x={pin.x}
+                y={pin.y}
                 radius={6}
                 fill="transparent"
                 stroke={wiringStart?.componentId === ARDUINO_COMPONENT_ID && wiringStart?.pinId === pin.id ? '#fff' : 'transparent'}
                 strokeWidth={1}
                 onClick={(e) => {
                   e.cancelBubble = true;
-                  handlePinClick(ARDUINO_COMPONENT_ID, pin.id, ARDUINO_X + pin.x, ARDUINO_Y + pin.y);
+                  handlePinClick(
+                    ARDUINO_COMPONENT_ID,
+                    pin.id,
+                    boardPosition.x + pin.x,
+                    boardPosition.y + pin.y
+                  );
                 }}
                 onContextMenu={(e) => {
                   e.evt.preventDefault();
@@ -1703,9 +2708,20 @@ const CircuitCanvas: React.FC = () => {
                 }}
               />
             ))}
+          </Group>
 
           {/* Breadboard */}
-          <Breadboard />
+          <Group
+            x={breadboardPosition.x}
+            y={breadboardPosition.y}
+            draggable={toolMode === 'select' && !middlePanActive}
+            listening={toolMode === 'select'}
+            onDragStart={handleBreadboardDragStart}
+            onDragMove={handleBreadboardDragMove}
+            onDragEnd={handleBreadboardDragEnd}
+          >
+            <Breadboard />
+          </Group>
 
           {toolMode === 'wire' && hoveredBreadboardHole && (
             <Group listening={false}>
@@ -1797,9 +2813,10 @@ const CircuitCanvas: React.FC = () => {
               rotation={comp.rotation}
               draggable={toolMode === 'select' && !middlePanActive}
               onDragStart={(e) => handleDragStart(comp, e)}
+              onDragMove={(e) => handleDragMove(comp, e)}
               onDragEnd={(e) => handleDragEnd(comp, e)}
-              onClick={() => handleComponentClick(comp)}
-              onTap={() => handleComponentClick(comp)}
+              onClick={(e) => handleComponentClick(comp, e)}
+              onTap={(e) => handleComponentClick(comp, e)}
               onContextMenu={(e) => {
                 e.evt.preventDefault();
                 e.cancelBubble = true;
@@ -1818,6 +2835,10 @@ const CircuitCanvas: React.FC = () => {
                   const isSelectedPin =
                     wiringStart?.componentId === comp.id &&
                     wiringStart?.pinId === handle.pin.id;
+                  const pinWorldPosition = getComponentPinWorldPosition(
+                    comp,
+                    handle.pin.id
+                  );
 
                   return (
                     <Group key={handle.pin.id}>
@@ -1874,20 +2895,22 @@ const CircuitCanvas: React.FC = () => {
                         hitStrokeWidth={18}
                         onClick={(e) => {
                           e.cancelBubble = true;
+                          if (!pinWorldPosition) return;
                           handlePinClick(
                             comp.id,
                             handle.pin.id,
-                            comp.x + handle.pin.x,
-                            comp.y + handle.pin.y
+                            pinWorldPosition.x,
+                            pinWorldPosition.y
                           );
                         }}
                         onTap={(e) => {
                           e.cancelBubble = true;
+                          if (!pinWorldPosition) return;
                           handlePinClick(
                             comp.id,
                             handle.pin.id,
-                            comp.x + handle.pin.x,
-                            comp.y + handle.pin.y
+                            pinWorldPosition.x,
+                            pinWorldPosition.y
                           );
                         }}
                       />
@@ -1908,6 +2931,153 @@ const CircuitCanvas: React.FC = () => {
               />
             </Group>
           ))}
+
+          {components
+            .filter((comp) => comp.type === 'multimeter')
+            .map((comp) => {
+              const blackTip = getMultimeterProbeWorldPosition(comp, 'black');
+              const redTip = getMultimeterProbeWorldPosition(comp, 'red');
+              const blackAnchor = getMultimeterProbeAnchorWorldPosition(comp, 'black');
+              const redAnchor = getMultimeterProbeAnchorWorldPosition(comp, 'red');
+              const mode = getMultimeterMode(comp.properties.mode);
+              const blackRotation =
+                (Math.atan2(blackTip.y - blackAnchor.y, blackTip.x - blackAnchor.x) * 180) /
+                  Math.PI -
+                90;
+              const redRotation =
+                (Math.atan2(redTip.y - redAnchor.y, redTip.x - redAnchor.x) * 180) / Math.PI - 90;
+
+              return (
+                <Group key={`${comp.id}-multimeter-probes`}>
+                  <Line
+                    points={[
+                      blackAnchor.x,
+                      blackAnchor.y,
+                      blackAnchor.x - 26,
+                      blackAnchor.y + 12,
+                      blackTip.x - 12,
+                      blackTip.y - 28,
+                      blackTip.x,
+                      blackTip.y,
+                    ]}
+                    stroke="#05070a"
+                    strokeWidth={4.4}
+                    opacity={0.25}
+                    bezier
+                    lineCap="round"
+                    listening={false}
+                  />
+                  <Line
+                    points={[
+                      blackAnchor.x,
+                      blackAnchor.y,
+                      blackAnchor.x - 24,
+                      blackAnchor.y + 10,
+                      blackTip.x - 10,
+                      blackTip.y - 30,
+                      blackTip.x,
+                      blackTip.y,
+                    ]}
+                    stroke="#10161d"
+                    strokeWidth={2.6}
+                    bezier
+                    lineCap="round"
+                    listening={false}
+                  />
+                  <Line
+                    points={[
+                      redAnchor.x,
+                      redAnchor.y,
+                      redAnchor.x + (mode === 'current' ? -18 : 18),
+                      redAnchor.y + 10,
+                      redTip.x + 10,
+                      redTip.y - 30,
+                      redTip.x,
+                      redTip.y,
+                    ]}
+                    stroke="#140406"
+                    strokeWidth={4.4}
+                    opacity={0.24}
+                    bezier
+                    lineCap="round"
+                    listening={false}
+                  />
+                  <Line
+                    points={[
+                      redAnchor.x,
+                      redAnchor.y,
+                      redAnchor.x + (mode === 'current' ? -16 : 16),
+                      redAnchor.y + 8,
+                      redTip.x + 8,
+                      redTip.y - 30,
+                      redTip.x,
+                      redTip.y,
+                    ]}
+                    stroke="#c94457"
+                    strokeWidth={2.6}
+                    bezier
+                    lineCap="round"
+                    listening={false}
+                  />
+
+                  <Group
+                    x={blackTip.x}
+                    y={blackTip.y}
+                    offsetX={0}
+                    offsetY={0}
+                    rotation={blackRotation}
+                    draggable={toolMode === 'select' && !middlePanActive}
+                    onDragStart={() => handleMultimeterProbeDragStart(comp.id)}
+                    onDragEnd={(event) => handleMultimeterProbeDragEnd(comp, 'black', event)}
+                    onMouseDown={(event) => {
+                      event.cancelBubble = true;
+                    }}
+                    onTouchStart={(event) => {
+                      event.cancelBubble = true;
+                    }}
+                  >
+                    <Circle radius={8} fill="rgba(255,255,255,0.001)" />
+                    {multimeterBlackProbeImage && (
+                      <KonvaImage
+                        image={multimeterBlackProbeImage}
+                        x={-PROBE_IMAGE_WIDTH / 2}
+                        y={-PROBE_IMAGE_HEIGHT + 4}
+                        width={PROBE_IMAGE_WIDTH}
+                        height={PROBE_IMAGE_HEIGHT}
+                      />
+                    )}
+                  </Group>
+
+                  <Group
+                    x={redTip.x}
+                    y={redTip.y}
+                    offsetX={0}
+                    offsetY={0}
+                    rotation={redRotation}
+                    draggable={toolMode === 'select' && !middlePanActive}
+                    onDragStart={() => handleMultimeterProbeDragStart(comp.id)}
+                    onDragEnd={(event) => handleMultimeterProbeDragEnd(comp, 'red', event)}
+                    onMouseDown={(event) => {
+                      event.cancelBubble = true;
+                    }}
+                    onTouchStart={(event) => {
+                      event.cancelBubble = true;
+                    }}
+                  >
+                    <Circle radius={8} fill="rgba(255,255,255,0.001)" />
+                    {multimeterRedProbeImage && (
+                      <KonvaImage
+                        image={multimeterRedProbeImage}
+                        x={-PROBE_IMAGE_WIDTH / 2}
+                        y={-PROBE_IMAGE_HEIGHT + 4}
+                        width={PROBE_IMAGE_WIDTH}
+                        height={PROBE_IMAGE_HEIGHT}
+                      />
+                    )}
+                  </Group>
+                </Group>
+              );
+            })}
         </Layer>
       </Stage>
 

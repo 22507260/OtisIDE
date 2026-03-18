@@ -19,10 +19,12 @@ import {
 } from '../lib/i18n';
 import {
   DEFAULT_CONTROLLER_BOARD_TYPE,
+  DEFAULT_CONTROLLER_BOARD_POSITION,
   type ControllerBoardType,
   getControllerBoardDefinition,
   getControllerBoardPins,
 } from '../models/arduinoUno';
+import { DEFAULT_BREADBOARD_POSITION } from '../models/breadboard';
 import { v4 as uuidv4 } from 'uuid';
 import { startMockArduinoRuntime, stopMockArduinoRuntime } from '../lib/mockArduinoRuntime';
 
@@ -57,6 +59,11 @@ interface CircuitStore {
   setStagePos: (pos: { x: number; y: number }) => void;
   boardType: ControllerBoardType;
   setBoardType: (boardType: ControllerBoardType) => void;
+  boardPosition: { x: number; y: number };
+  setBoardPosition: (pos: { x: number; y: number }) => void;
+  breadboardPosition: { x: number; y: number };
+  setBreadboardPosition: (pos: { x: number; y: number }) => void;
+  captureUndoSnapshot: () => void;
 
   // Component actions
   addComponent: (type: ComponentType, x: number, y: number) => void;
@@ -111,12 +118,16 @@ interface CircuitStore {
     wires: Wire[];
     code: string;
     boardType?: ControllerBoardType;
+    boardPosition?: { x: number; y: number };
+    breadboardPosition?: { x: number; y: number };
   }) => void;
   getProjectData: () => {
     components: CircuitComponent[];
     wires: Wire[];
     code: string;
     boardType: ControllerBoardType;
+    boardPosition: { x: number; y: number };
+    breadboardPosition: { x: number; y: number };
   };
 }
 
@@ -125,6 +136,8 @@ type ProjectSnapshot = {
   wires: Wire[];
   code: string;
   boardType: ControllerBoardType;
+  boardPosition: { x: number; y: number };
+  breadboardPosition: { x: number; y: number };
   selectedComponentId: string | null;
   selectedWireId: string | null;
 };
@@ -145,6 +158,21 @@ void loop() {
 `;
 
 const MAX_UNDO_HISTORY = 100;
+
+function getBoardLogicHighVoltage(boardType: ControllerBoardType): number {
+  switch (boardType) {
+    case 'deneyap-kart-1a-v2':
+    case 'nodemcu':
+    case 'nodemcu-v3':
+    case 'wemos-d1-mini':
+    case 'arduino-fio':
+    case 'pico':
+    case 'feather-huzzah32':
+      return 3.3;
+    default:
+      return 5;
+  }
+}
 
 const cloneComponents = (components: CircuitComponent[]): CircuitComponent[] =>
   components.map((component) => ({
@@ -282,6 +310,8 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
       wires: cloneWires(state.wires),
       code: state.code,
       boardType: state.boardType,
+      boardPosition: { ...state.boardPosition },
+      breadboardPosition: { ...state.breadboardPosition },
       selectedComponentId: state.selectedComponentId,
       selectedWireId: state.selectedWireId,
     };
@@ -301,6 +331,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
       state.components,
       state.wires,
       getControllerBoardPins(state.boardType),
+      getBoardLogicHighVoltage(state.boardType),
       {
       addSerialOutput: (text) =>
         set((s) => ({
@@ -326,6 +357,26 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
             ledStates: {},
           },
         })),
+      setComponentState: (componentId, properties) =>
+        set((s) => ({
+          simulation: {
+            ...s.simulation,
+            componentStates: {
+              ...s.simulation.componentStates,
+              [componentId]: {
+                ...(s.simulation.componentStates[componentId] ?? {}),
+                ...properties,
+              },
+            },
+          },
+        })),
+      clearComponentStates: () =>
+        set((s) => ({
+          simulation: {
+            ...s.simulation,
+            componentStates: {},
+          },
+        })),
       }
     );
   };
@@ -345,6 +396,8 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
       wires: cloneWires(snapshot.wires),
       code: snapshot.code,
       boardType: snapshot.boardType,
+      boardPosition: { ...snapshot.boardPosition },
+      breadboardPosition: { ...snapshot.breadboardPosition },
       selectedComponentId: snapshot.selectedComponentId,
       selectedWireId: snapshot.selectedWireId,
       simulation: wasRunning
@@ -353,12 +406,14 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
             running: true,
             pinStates: {},
             ledStates: {},
+            componentStates: {},
             serialOutput: [],
           }
         : {
             ...state.simulation,
             pinStates: {},
             ledStates: {},
+            componentStates: {},
           },
     }));
 
@@ -430,6 +485,11 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
     set({ boardType });
     syncRuntimeIfRunning();
   },
+  boardPosition: { ...DEFAULT_CONTROLLER_BOARD_POSITION },
+  setBoardPosition: (boardPosition) => set({ boardPosition }),
+  breadboardPosition: { ...DEFAULT_BREADBOARD_POSITION },
+  setBreadboardPosition: (breadboardPosition) => set({ breadboardPosition }),
+  captureUndoSnapshot: () => pushUndoSnapshot(),
 
   // Component actions
   addComponent: (type, x, y) => {
@@ -511,6 +571,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
     running: false,
     pinStates: {},
     ledStates: {},
+    componentStates: {},
     serialOutput: [],
   },
 
@@ -523,6 +584,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
           running: true,
           pinStates: {},
           ledStates: {},
+          componentStates: {},
           serialOutput: [],
         },
       };
@@ -539,6 +601,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
           running: false,
           pinStates: {},
           ledStates: {},
+          componentStates: {},
         },
       };
     });
@@ -674,7 +737,11 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
       get().components.length > 0 ||
       get().wires.length > 0 ||
       get().code !== DEFAULT_CODE ||
-      get().boardType !== DEFAULT_CONTROLLER_BOARD_TYPE
+      get().boardType !== DEFAULT_CONTROLLER_BOARD_TYPE ||
+      get().boardPosition.x !== DEFAULT_CONTROLLER_BOARD_POSITION.x ||
+      get().boardPosition.y !== DEFAULT_CONTROLLER_BOARD_POSITION.y ||
+      get().breadboardPosition.x !== DEFAULT_BREADBOARD_POSITION.x ||
+      get().breadboardPosition.y !== DEFAULT_BREADBOARD_POSITION.y
     ) {
       pushUndoSnapshot();
     }
@@ -686,10 +753,13 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
       selectedWireId: null,
       code: DEFAULT_CODE,
       boardType: DEFAULT_CONTROLLER_BOARD_TYPE,
+      boardPosition: { ...DEFAULT_CONTROLLER_BOARD_POSITION },
+      breadboardPosition: { ...DEFAULT_BREADBOARD_POSITION },
       simulation: {
         running: false,
         pinStates: {},
         ledStates: {},
+        componentStates: {},
         serialOutput: [],
       },
     });
@@ -705,20 +775,43 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
       boardType: getControllerBoardDefinition(
         data.boardType ?? DEFAULT_CONTROLLER_BOARD_TYPE
       ).type,
+      boardPosition: {
+        ...DEFAULT_CONTROLLER_BOARD_POSITION,
+        ...data.boardPosition,
+      },
+      breadboardPosition: {
+        ...DEFAULT_BREADBOARD_POSITION,
+        ...data.breadboardPosition,
+      },
       selectedComponentId: null,
       selectedWireId: null,
       simulation: {
         running: false,
         pinStates: {},
         ledStates: {},
+        componentStates: {},
         serialOutput: [],
       },
     });
   },
 
   getProjectData: () => {
-    const { components, wires, code, boardType } = get();
-    return { components, wires, code, boardType };
+    const {
+      components,
+      wires,
+      code,
+      boardType,
+      boardPosition,
+      breadboardPosition,
+    } = get();
+    return {
+      components,
+      wires,
+      code,
+      boardType,
+      boardPosition,
+      breadboardPosition,
+    };
   },
   });
 });

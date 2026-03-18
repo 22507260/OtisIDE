@@ -21,6 +21,7 @@ const Toolbar: React.FC = () => {
   const setBoardType = useCircuitStore((s) => s.setBoardType);
   const language = useCircuitStore((s) => s.language);
   const setLanguage = useCircuitStore((s) => s.setLanguage);
+  const isDesktop = Boolean(window.electronAPI);
 
   const handleSave = async () => {
     const data = getProjectData();
@@ -75,6 +76,10 @@ const Toolbar: React.FC = () => {
     input.click();
   };
 
+  const handleExportPng = () => {
+    window.dispatchEvent(new CustomEvent('export-canvas-png'));
+  };
+
   return (
     <div className="toolbar">
       <div className="toolbar-group">
@@ -86,6 +91,9 @@ const Toolbar: React.FC = () => {
         </button>
         <button className="toolbar-btn" onClick={clearProject}>
           {t(language, 'newProject')}
+        </button>
+        <button className="toolbar-btn" onClick={handleExportPng}>
+          {t(language, 'exportPng')}
         </button>
       </div>
 
@@ -200,6 +208,7 @@ const Toolbar: React.FC = () => {
       <div className="toolbar-spacer" />
 
       <div className="toolbar-group toolbar-group-right">
+        {isDesktop && <span className="toolbar-label">Desktop</span>}
         <span className="toolbar-label">{t(language, 'language')}</span>
         <select
           className="toolbar-select toolbar-select-compact"

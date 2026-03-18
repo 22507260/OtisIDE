@@ -108,6 +108,8 @@ import transistorPnpSvg from '../assets/components/transistor-pnp.svg';
 import transistorPnpSvgRaw from '../assets/components/transistor-pnp.svg?raw';
 import relaySvg from '../assets/components/relay.svg';
 import relaySvgRaw from '../assets/components/relay.svg?raw';
+import multimeterSvg from '../assets/components/multimeter.svg';
+import multimeterSvgRaw from '../assets/components/multimeter.svg?raw';
 import motorDriverSvg from '../assets/components/motor-driver.svg';
 import motorDriverSvgRaw from '../assets/components/motor-driver.svg?raw';
 
@@ -253,6 +255,7 @@ export const SVG_CONFIGS: Record<ComponentType, SvgConfig> = {
   'transistor-npn': { url: transistorNpnSvg, raw: transistorNpnSvgRaw, width: 22, height: 32, offsetX: 11, offsetY: 8 },
   'transistor-pnp': { url: transistorPnpSvg, raw: transistorPnpSvgRaw, width: 22, height: 32, offsetX: 11, offsetY: 8 },
   relay:          { url: relaySvg,         raw: relaySvgRaw,         width: 52,  height: 42, offsetX: 26,  offsetY: 14 },
+  multimeter:     { url: multimeterSvg,    raw: multimeterSvgRaw,    width: 160, height: 248, offsetX: 80,  offsetY: 124 },
   'motor-driver': { url: motorDriverSvg,   raw: motorDriverSvgRaw,   width: 72,  height: 30, offsetX: 36,  offsetY: 8  },
 };
 

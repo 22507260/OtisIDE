@@ -57,6 +57,7 @@ export type ComponentType =
   | 'relay'
   | 'transistor-npn'
   | 'transistor-pnp'
+  | 'multimeter'
   | 'motor-driver';
 
 export type PinType = 'digital' | 'analog' | 'power' | 'ground' | 'pwm' | 'passive';
@@ -97,6 +98,7 @@ export interface SimulationState {
   running: boolean;
   pinStates: Record<string, number>;
   ledStates: Record<string, { on: boolean; brightness: number }>;
+  componentStates: Record<string, Record<string, string | number | boolean>>;
   serialOutput: string[];
 }
 
@@ -658,6 +660,8 @@ export function getDefaultPins(type: ComponentType): Pin[] {
         { id: 'vcc', name: 'VCC', type: 'power', x: 0, y: -25 },
         { id: 'gnd', name: 'GND', type: 'ground', x: 0, y: 35 },
       ]);
+    case 'multimeter':
+      return withSvgLayout([]);
     default:
       return [];
   }
@@ -773,6 +777,26 @@ export function getDefaultProperties(type: ComponentType): Record<string, string
       return { hfe: 100 };
     case 'transistor-pnp':
       return { hfe: 100 };
+    case 'multimeter':
+      return {
+        mode: 'voltage',
+        autoRange: true,
+        reading: 0,
+        unit: 'V',
+        displayText: '0.00 V',
+        continuity: false,
+        status: 'ready',
+        blackProbeX: 0,
+        blackProbeY: 0,
+        redProbeX: 0,
+        redProbeY: 0,
+        blackProbeDocked: true,
+        redProbeDocked: true,
+        blackProbeTargetComponentId: '',
+        blackProbeTargetPinId: '',
+        redProbeTargetComponentId: '',
+        redProbeTargetPinId: '',
+      };
     case 'motor-driver':
       return { type: 'L293D' };
     default:
@@ -781,6 +805,15 @@ export function getDefaultProperties(type: ComponentType): Record<string, string
 }
 
 export function createComponent(type: ComponentType, x: number, y: number): CircuitComponent {
+  const properties = getDefaultProperties(type);
+
+  if (type === 'multimeter') {
+    properties.blackProbeX = x + 6;
+    properties.blackProbeY = y + 170;
+    properties.redProbeX = x + 72;
+    properties.redProbeY = y + 170;
+  }
+
   return {
     id: uuidv4(),
     type,
@@ -788,7 +821,7 @@ export function createComponent(type: ComponentType, x: number, y: number): Circ
     y,
     rotation: 0,
     pins: getDefaultPins(type),
-    properties: getDefaultProperties(type),
+    properties,
   };
 }
 
@@ -861,6 +894,7 @@ export const COMPONENT_CATALOG: ComponentInfo[] = [
   { type: 'relay', name: 'Relay', category: 'Other', icon: 'RLY' },
   { type: 'transistor-npn', name: 'NPN Transistor', category: 'Other', icon: 'NPN' },
   { type: 'transistor-pnp', name: 'PNP Transistor', category: 'Other', icon: 'PNP' },
+  { type: 'multimeter', name: 'Digital Multimeter', category: 'Other', icon: 'DMM' },
   { type: 'motor-driver', name: 'Motor Driver', category: 'Other', icon: 'DRV' },
 ];
 

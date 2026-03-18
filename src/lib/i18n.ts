@@ -16,6 +16,7 @@ const UI_STRINGS = {
     save: 'Save',
     open: 'Open',
     newProject: 'New',
+    exportPng: 'Export PNG',
     selectTool: 'Select',
     wireTool: 'Wire',
     panTool: 'Pan',
@@ -147,6 +148,13 @@ const UI_STRINGS = {
     exportPngDialogTitle: 'Export as PNG',
     pngFileName: 'circuit.png',
     pngFilterName: 'PNG Image',
+    multimeterVoltageMode: 'DC Voltage',
+    multimeterCurrentMode: 'DC Current',
+    multimeterResistanceMode: 'Resistance',
+    multimeterContinuityMode: 'Continuity',
+    multimeterReady: 'Ready',
+    multimeterOpen: 'Open',
+    multimeterBeep: 'Beep',
   },
   tr: {
     appTitle: 'AI Devre Simulasyonu',
@@ -156,6 +164,7 @@ const UI_STRINGS = {
     save: 'Kaydet',
     open: 'Ac',
     newProject: 'Yeni',
+    exportPng: 'PNG Al',
     selectTool: 'Sec',
     wireTool: 'Kablo',
     panTool: 'Kaydir',
@@ -287,6 +296,13 @@ const UI_STRINGS = {
     exportPngDialogTitle: 'PNG Olarak Disa Aktar',
     pngFileName: 'devre.png',
     pngFilterName: 'PNG Resmi',
+    multimeterVoltageMode: 'DC Voltaj',
+    multimeterCurrentMode: 'DC Akim',
+    multimeterResistanceMode: 'Direnc',
+    multimeterContinuityMode: 'Sureklilik',
+    multimeterReady: 'Hazir',
+    multimeterOpen: 'Acik Devre',
+    multimeterBeep: 'Sureklilik',
   },
 } as const;
 
@@ -345,6 +361,7 @@ const COMPONENT_NAME_TR: Partial<Record<ComponentType, string>> = {
   relay: 'Role',
   'transistor-npn': 'NPN Transistor',
   'transistor-pnp': 'PNP Transistor',
+  multimeter: 'Dijital Avometre',
   'motor-driver': 'Motor Surucu',
 };
 
@@ -440,6 +457,10 @@ const PROPERTY_NAME_EN: Record<string, string> = {
   charging: 'Charging',
   batteryPercent: 'Battery (%)',
   pulses: 'Pulses',
+  autoRange: 'Auto Range',
+  displayText: 'Display',
+  continuity: 'Continuity',
+  status: 'Status',
 };
 
 const PROPERTY_NAME_TR: Partial<Record<string, string>> = {
@@ -515,6 +536,10 @@ const PROPERTY_NAME_TR: Partial<Record<string, string>> = {
   charging: 'Sarj Oluyor',
   batteryPercent: 'Pil (%)',
   pulses: 'Darbe',
+  autoRange: 'Otomatik Aralik',
+  displayText: 'Ekran',
+  continuity: 'Sureklilik',
+  status: 'Durum',
 };
 
 const WIRE_COLOR_NAME_TR: Record<string, string> = {
@@ -590,6 +615,41 @@ export function getWireColorDisplayName(
   }
 
   return fallback;
+}
+
+export function getMultimeterModeLabel(
+  language: AppLanguage,
+  mode: string
+): string {
+  const normalized = mode.trim().toLowerCase();
+
+  if (normalized === 'current') {
+    return t(language, 'multimeterCurrentMode');
+  }
+  if (normalized === 'resistance') {
+    return t(language, 'multimeterResistanceMode');
+  }
+  if (normalized === 'continuity') {
+    return t(language, 'multimeterContinuityMode');
+  }
+
+  return t(language, 'multimeterVoltageMode');
+}
+
+export function getMultimeterStatusLabel(
+  language: AppLanguage,
+  status: string
+): string {
+  const normalized = status.trim().toLowerCase();
+
+  if (normalized === 'open') {
+    return t(language, 'multimeterOpen');
+  }
+  if (normalized === 'beep') {
+    return t(language, 'multimeterBeep');
+  }
+
+  return t(language, 'multimeterReady');
 }
 
 export function getExamplePrompts(language: AppLanguage): string[] {

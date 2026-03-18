@@ -3,6 +3,8 @@ import { useCircuitStore } from '../store/circuitStore';
 import { COMPONENT_CATALOG } from '../models/types';
 import {
   getComponentDisplayName,
+  getMultimeterModeLabel,
+  getMultimeterStatusLabel,
   getPropertyDisplayName,
   t,
 } from '../lib/i18n';
@@ -39,6 +41,25 @@ const PropertiesPanel: React.FC = () => {
   const displayName = info
     ? getComponentDisplayName(language, info.type, info.name)
     : selectedComp.type;
+  const multimeterReadOnlyKeys = new Set([
+    'reading',
+    'unit',
+    'displayText',
+    'continuity',
+    'status',
+  ]);
+  const multimeterHiddenKeys = new Set([
+    'blackProbeX',
+    'blackProbeY',
+    'redProbeX',
+    'redProbeY',
+    'blackProbeDocked',
+    'redProbeDocked',
+    'blackProbeTargetComponentId',
+    'blackProbeTargetPinId',
+    'redProbeTargetComponentId',
+    'redProbeTargetPinId',
+  ]);
 
   return (
     <div className="properties-content">
@@ -96,12 +117,35 @@ const PropertiesPanel: React.FC = () => {
 
       <div className="property-group">
         <div className="property-group-title">{t(language, 'values')}</div>
-        {Object.entries(selectedComp.properties).map(([key, value]) => (
+        {Object.entries(selectedComp.properties)
+          .filter(([key]) => !multimeterHiddenKeys.has(key))
+          .map(([key, value]) => (
           <div className="property-row" key={key}>
             <span className="property-label">
               {getPropertyDisplayName(language, key)}
             </span>
-            {typeof value === 'boolean' ? (
+            {selectedComp.type === 'multimeter' && key === 'mode' ? (
+              <select
+                className="property-select"
+                value={String(value)}
+                onChange={(event) =>
+                  updateComponentProperty(selectedComp.id, key, event.target.value)
+                }
+              >
+                <option value="voltage">{getMultimeterModeLabel(language, 'voltage')}</option>
+                <option value="current">{getMultimeterModeLabel(language, 'current')}</option>
+                <option value="resistance">{getMultimeterModeLabel(language, 'resistance')}</option>
+                <option value="continuity">{getMultimeterModeLabel(language, 'continuity')}</option>
+              </select>
+            ) : selectedComp.type === 'multimeter' && multimeterReadOnlyKeys.has(key) ? (
+              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                {key === 'status'
+                  ? getMultimeterStatusLabel(language, String(value))
+                  : typeof value === 'boolean'
+                    ? (value ? 'ON' : 'OFF')
+                    : String(value)}
+              </span>
+            ) : typeof value === 'boolean' ? (
               <input
                 type="checkbox"
                 checked={value}

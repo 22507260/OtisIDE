@@ -5,6 +5,9 @@ import arduinoMegaImage from '../assets/boards/arduino-mega-fritzing.svg';
 import arduinoLeonardoImage from '../assets/boards/arduino-leonardo-fritzing.svg';
 import deneyapKart1AV2Image from '../assets/boards/deneyap-kart-1a-v2-fritzing.svg';
 import nodemcuImage from '../assets/boards/nodemcu-amica-fritzing.svg';
+import nodemcuV3Image from '../assets/boards/nodemcu-v3-fritzing.svg';
+import wemosD1MiniImage from '../assets/boards/wemos-d1-mini-fritzing.svg';
+import arduinoFioImage from '../assets/boards/arduino-fio-fritzing.svg';
 import proMicroImage from '../assets/boards/pro-micro-fritzing.svg';
 import picoImage from '../assets/boards/pico-fritzing.svg';
 import featherHuzzah32Image from '../assets/boards/feather-huzzah32-fritzing.svg';
@@ -16,6 +19,9 @@ export type ControllerBoardType =
   | 'leonardo'
   | 'deneyap-kart-1a-v2'
   | 'nodemcu'
+  | 'nodemcu-v3'
+  | 'wemos-d1-mini'
+  | 'arduino-fio'
   | 'pro-micro'
   | 'pico'
   | 'feather-huzzah32';
@@ -53,6 +59,7 @@ export const ARDUINO_COMPONENT_ID = 'arduino-uno-fixed';
 export const ARDUINO_X = 60;
 export const ARDUINO_Y = 10;
 export const DEFAULT_CONTROLLER_BOARD_TYPE: ControllerBoardType = 'uno';
+export const DEFAULT_CONTROLLER_BOARD_POSITION = { x: ARDUINO_X, y: ARDUINO_Y };
 
 const UNO_W = 300;
 const UNO_H = 214;
@@ -430,6 +437,117 @@ const NODEMCU_PIN_DEFS = [
   ]),
 ];
 
+const NODEMCU_V3_TOP_PINS = createHorizontalPins(29.554, 3.96, 6.698, [
+  { id: 'A0', type: 'analog' },
+  { id: 'GND_TOP_1', type: 'ground', aliases: ['GND', 'GROUND'] },
+  { id: 'VU', type: 'power', aliases: ['5V', 'USB'] },
+  { id: 'SD3', type: 'digital', aliases: ['S3'] },
+  { id: 'SD2', type: 'digital', aliases: ['S2'] },
+  { id: 'SD1', type: 'digital', aliases: ['S1'] },
+  { id: 'CMD', type: 'digital', aliases: ['SC'] },
+  { id: 'SD0', type: 'digital', aliases: ['S0'] },
+  { id: 'CLK', type: 'digital', aliases: ['SK', 'SCLK'] },
+  { id: 'GND_TOP_2', type: 'ground', aliases: ['GND', 'GROUND'] },
+  { id: '3V3_TOP', type: 'power', aliases: ['3V3', '3.3V', '3V', 'VCC'] },
+  { id: 'EN', type: 'digital', aliases: ['CHIP_EN'] },
+  { id: 'RST', type: 'digital', aliases: ['RESET'] },
+  { id: 'GND_TOP_3', type: 'ground', aliases: ['GND', 'GROUND'] },
+  { id: 'VIN', type: 'power', aliases: ['VIN_RAW'] },
+]);
+
+const NODEMCU_V3_BOTTOM_PINS = createHorizontalPins(29.554, 78.69, 6.698, [
+  { id: 'D0', type: 'digital', aliases: gpioAliases(16) },
+  { id: 'D1', type: 'digital', aliases: gpioAliases(5, 'SCL') },
+  { id: 'D2', type: 'digital', aliases: gpioAliases(4, 'SDA') },
+  { id: 'D3', type: 'digital', aliases: gpioAliases(0) },
+  { id: 'D4', type: 'digital', aliases: gpioAliases(2, 'LED_BUILTIN') },
+  { id: '3V3_BOTTOM_1', type: 'power', aliases: ['3V3', '3.3V', '3V', 'VCC'] },
+  { id: 'GND_BOTTOM_1', type: 'ground', aliases: ['GND', 'GROUND'] },
+  { id: 'D5', type: 'digital', aliases: gpioAliases(14) },
+  { id: 'D6', type: 'digital', aliases: gpioAliases(12) },
+  { id: 'D7', type: 'digital', aliases: gpioAliases(13) },
+  { id: 'D8', type: 'digital', aliases: gpioAliases(15) },
+  { id: 'RX', type: 'digital', aliases: gpioAliases(3, 'D9') },
+  { id: 'TX', type: 'digital', aliases: gpioAliases(1, 'D10') },
+  { id: 'GND_BOTTOM_2', type: 'ground', aliases: ['GND', 'GROUND'] },
+  { id: '3V3_BOTTOM_2', type: 'power', aliases: ['3V3', '3.3V', '3V', 'VCC'] },
+]);
+
+const NODEMCU_V3_PIN_DEFS = [
+  ...NODEMCU_V3_TOP_PINS,
+  ...NODEMCU_V3_BOTTOM_PINS,
+];
+
+const WEMOS_D1_MINI_LEFT_PINS = createVerticalPins(3.884, 20.6, 7.2, [
+  { id: 'RST', type: 'digital', aliases: ['RESET'] },
+  { id: 'A0', type: 'analog' },
+  { id: 'D0', type: 'digital', aliases: gpioAliases(16) },
+  { id: 'D5', type: 'digital', aliases: gpioAliases(14, 'SCK') },
+  { id: 'D6', type: 'digital', aliases: gpioAliases(12, 'MISO') },
+  { id: 'D7', type: 'digital', aliases: gpioAliases(13, 'MOSI') },
+  { id: 'D8', type: 'digital', aliases: gpioAliases(15) },
+  { id: '3V3', type: 'power', aliases: ['3.3V', '3V', 'VCC'] },
+]);
+
+const WEMOS_D1_MINI_RIGHT_PINS = createVerticalPins(68.684, 20.6, 7.2, [
+  { id: 'TX', type: 'digital', aliases: gpioAliases(1, 'D10') },
+  { id: 'RX', type: 'digital', aliases: gpioAliases(3, 'D9') },
+  { id: 'D1', type: 'digital', aliases: gpioAliases(5, 'SCL') },
+  { id: 'D2', type: 'digital', aliases: gpioAliases(4, 'SDA') },
+  { id: 'D3', type: 'digital', aliases: gpioAliases(0) },
+  { id: 'D4', type: 'digital', aliases: gpioAliases(2, 'LED_BUILTIN') },
+  { id: 'GND', type: 'ground', aliases: ['G', 'GROUND'] },
+  { id: '5V', type: 'power', aliases: ['VIN', 'USB'] },
+]);
+
+const WEMOS_D1_MINI_PIN_DEFS = [
+  ...WEMOS_D1_MINI_LEFT_PINS,
+  ...WEMOS_D1_MINI_RIGHT_PINS,
+];
+
+const FIO_TOP_PINS = createHorizontalPins(3.6, 7.298, 7.2, [
+  { id: 'D13', type: 'digital', aliases: ['13', 'SCK', 'LED_BUILTIN'] },
+  { id: 'D12', type: 'digital', aliases: ['12', 'MISO'] },
+  { id: 'D11', type: 'digital', aliases: ['11', 'MOSI'] },
+  { id: 'D10', type: 'digital', aliases: ['10', 'SS'] },
+  { id: 'D9', type: 'digital', aliases: ['9'] },
+  { id: 'D8', type: 'digital', aliases: ['8'] },
+  { id: 'D7', type: 'digital', aliases: ['7'] },
+  { id: 'D6', type: 'digital', aliases: ['6'] },
+  { id: 'D5', type: 'digital', aliases: ['5'] },
+  { id: 'D4', type: 'digital', aliases: ['4'] },
+  { id: 'D3', type: 'digital', aliases: ['3'] },
+  { id: 'D2', type: 'digital', aliases: ['2'] },
+  { id: 'GND_TOP', type: 'ground', aliases: ['GND', 'GROUND'] },
+  { id: 'VCC_TOP', type: 'power', aliases: ['VCC', '3V3', '3.3V'] },
+]);
+
+const FIO_BOTTOM_PINS = createHorizontalPins(3.6, 72.098, 7.2, [
+  { id: 'A7', type: 'analog' },
+  { id: 'A6', type: 'analog' },
+  { id: 'A5', type: 'analog', aliases: ['SCL'] },
+  { id: 'A4', type: 'analog', aliases: ['SDA'] },
+  { id: 'A3', type: 'analog' },
+  { id: 'A2', type: 'analog' },
+  { id: 'A1', type: 'analog' },
+  { id: 'A0', type: 'analog' },
+  { id: 'DTR_RESET', type: 'digital', aliases: ['DTR', 'RESET'] },
+  { id: 'D1', type: 'digital', aliases: ['1', 'TX', 'TXO'] },
+  { id: 'D0', type: 'digital', aliases: ['0', 'RX', 'RXI'] },
+  { id: 'VCC_BOTTOM', type: 'power', aliases: ['VCC', '3V3', '3.3V'] },
+  { id: 'AREF', type: 'power' },
+  { id: 'GND_BOTTOM', type: 'ground', aliases: ['GND', 'GROUND'] },
+]);
+
+const FIO_SIDE_PINS: ArduinoPinDef[] = [
+  makePin('GND_SIDE', 151.2, 25.298, 'ground', ['GND', 'GROUND']),
+  makePin('USB_VIN', 151.2, 32.498, 'power', ['USB', 'VIN', '5V']),
+  makePin('GND_BAT', 151.2, 50.497, 'ground', ['GND', 'GROUND']),
+  makePin('VBATT', 151.2, 57.698, 'power', ['BAT', 'VBAT']),
+];
+
+const FIO_PIN_DEFS = [...FIO_TOP_PINS, ...FIO_BOTTOM_PINS, ...FIO_SIDE_PINS];
+
 const PRO_MICRO_W = 166;
 const PRO_MICRO_H = 81;
 const PRO_MICRO_RAW_W = 103.465;
@@ -569,6 +687,9 @@ export const CONTROLLER_BOARD_OPTIONS: Array<{
   { value: 'leonardo', label: 'Arduino Leonardo' },
   { value: 'deneyap-kart-1a-v2', label: 'Deneyap Kart 1A v2' },
   { value: 'nodemcu', label: 'NodeMCU ESP8266' },
+  { value: 'nodemcu-v3', label: 'NodeMCU V3 (LoLin)' },
+  { value: 'wemos-d1-mini', label: 'WeMos D1 Mini' },
+  { value: 'arduino-fio', label: 'Arduino Fio' },
   { value: 'pro-micro', label: 'SparkFun Pro Micro' },
   { value: 'pico', label: 'Raspberry Pi Pico' },
   { value: 'feather-huzzah32', label: 'Adafruit HUZZAH32 Feather' },
@@ -705,6 +826,74 @@ const BOARD_DEFINITIONS: Record<ControllerBoardType, ControllerBoardDefinition> 
       usb: '#d9e1ea',
     },
   },
+  'nodemcu-v3': {
+    type: 'nodemcu-v3',
+    name: 'NodeMCU V3 (LoLin)',
+    shortName: 'NODEMCU V3',
+    width: 208.612,
+    height: 109.8528,
+    imageUrl: nodemcuV3Image,
+    pinDefs: NODEMCU_V3_PIN_DEFS,
+    aliases: [
+      'nodemcu v3',
+      'nodemcuv3',
+      'lolin nodemcu',
+      'lolin v3',
+      'nodemcu v3 lolin',
+    ],
+    pinSummary:
+      'D0-D8, RX, TX, A0, EN, RST, 3V3, GND, VU, VIN, CLK, CMD, SD0-SD3',
+    theme: {
+      body: '#314463',
+      accent: '#25344d',
+      outline: '#9ab6ff',
+      text: '#eef4ff',
+      chip: '#171e2c',
+      pin: '#121620',
+      usb: '#dbe4ed',
+    },
+  },
+  'wemos-d1-mini': {
+    type: 'wemos-d1-mini',
+    name: 'WeMos D1 Mini',
+    shortName: 'D1 MINI',
+    width: 72.567,
+    height: 96.945,
+    imageUrl: wemosD1MiniImage,
+    pinDefs: WEMOS_D1_MINI_PIN_DEFS,
+    aliases: ['wemos', 'wemos d1 mini', 'wemosd1mini', 'd1 mini', 'd1mini'],
+    pinSummary: 'D0-D8, RX, TX, A0, 3V3, 5V, GND, RST',
+    theme: {
+      body: '#0d4c75',
+      accent: '#0a3b5b',
+      outline: '#91d8ff',
+      text: '#edfaff',
+      chip: '#1a2530',
+      pin: '#171b23',
+      usb: '#dfe6ec',
+    },
+  },
+  'arduino-fio': {
+    type: 'arduino-fio',
+    name: 'Arduino Fio',
+    shortName: 'FIO',
+    width: 186.504,
+    height: 79.297,
+    imageUrl: arduinoFioImage,
+    pinDefs: FIO_PIN_DEFS,
+    aliases: ['fio', 'arduino fio', 'arduinofio', 'funnel io'],
+    pinSummary:
+      'D0-D13, A0-A7, VCC, GND, AREF, USB_VIN, VBATT, SDA, SCL, MOSI, MISO, SCK',
+    theme: {
+      body: '#7a9744',
+      accent: '#5f7635',
+      outline: '#dbf2ad',
+      text: '#f7ffe8',
+      chip: '#2a2f24',
+      pin: '#171b23',
+      usb: '#e1e7de',
+    },
+  },
   'pro-micro': {
     type: 'pro-micro',
     name: 'SparkFun Pro Micro',
@@ -806,14 +995,15 @@ export function findArduinoPin(
 
 export function getArduinoPinGlobal(
   pinId: string,
-  boardType: ControllerBoardType = DEFAULT_CONTROLLER_BOARD_TYPE
+  boardType: ControllerBoardType = DEFAULT_CONTROLLER_BOARD_TYPE,
+  position: { x: number; y: number } = DEFAULT_CONTROLLER_BOARD_POSITION
 ): { x: number; y: number; pin: Pin } | null {
   const pin = findArduinoPin(pinId, boardType);
   if (!pin) return null;
 
   return {
-    x: ARDUINO_X + pin.x,
-    y: ARDUINO_Y + pin.y,
+    x: position.x + pin.x,
+    y: position.y + pin.y,
     pin,
   };
 }

@@ -22,5 +22,11 @@ interface ElectronAPI {
 
 interface Window {
   electronAPI?: ElectronAPI;
-  snapToBreadboard?: (x: number, y: number, type?: string, pins?: Array<{ x: number; y: number }>) => { x: number; y: number };
+  snapToBreadboard?: (
+    x: number,
+    y: number,
+    type?: string,
+    pins?: Array<{ x: number; y: number }>,
+    rotation?: number
+  ) => { x: number; y: number };
 }

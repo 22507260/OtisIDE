@@ -64,7 +64,6 @@ type ParsedCodeFence = {
 
 const DEFAULT_WIRE_COLOR = '#e74c3c';
 const MAX_CONVERSATION_TITLE_LENGTH = 42;
-const CUSTOM_MODEL_VALUE = '__custom__';
 
 const normalizeToken = (value: string) =>
   value.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
@@ -204,21 +203,14 @@ const AIPanel: React.FC = () => {
   const addWire = useCircuitStore((s) => s.addWire);
   const setCode = useCircuitStore((s) => s.setCode);
   const boardType = useCircuitStore((s) => s.boardType);
+  const boardPosition = useCircuitStore((s) => s.boardPosition);
+  const breadboardPosition = useCircuitStore((s) => s.breadboardPosition);
   const setBoardType = useCircuitStore((s) => s.setBoardType);
   const language = useCircuitStore((s) => s.language);
 
   const examplePrompts = getExamplePrompts(language);
   const providerConfig = AI_PROVIDER_CONFIGS[aiProvider];
   const requiresApiKey = providerConfig.requiresApiKey;
-  const modelOptions = providerConfig.models.length
-    ? providerConfig.models
-    : [providerConfig.model].filter(Boolean);
-  const selectedModelValue = aiModel.trim()
-    ? modelOptions.includes(aiModel.trim())
-      ? aiModel.trim()
-      : CUSTOM_MODEL_VALUE
-    : providerConfig.model;
-  const showCustomModelInput = selectedModelValue === CUSTOM_MODEL_VALUE;
   const currentConversation =
     aiConversations.find(
       (conversation) => conversation.id === currentAIConversationId
@@ -309,7 +301,11 @@ const AIPanel: React.FC = () => {
     activeBoardType: ControllerBoardType
   ): ResolvedEndpoint | null => {
     if (isArduinoReference(endpointRef.component)) {
-      const arduinoPin = getArduinoPinGlobal(endpointRef.pin, activeBoardType);
+      const arduinoPin = getArduinoPinGlobal(
+        endpointRef.pin,
+        activeBoardType,
+        boardPosition
+      );
       if (!arduinoPin) return null;
       return {
         componentId: ARDUINO_COMPONENT_ID,
@@ -320,7 +316,10 @@ const AIPanel: React.FC = () => {
     }
 
     if (isBreadboardReference(endpointRef.component)) {
-      const breadboardHole = getBreadboardHoleGlobal(endpointRef.pin);
+      const breadboardHole = getBreadboardHoleGlobal(
+        endpointRef.pin,
+        breadboardPosition
+      );
       if (!breadboardHole) return null;
       return {
         componentId: BREADBOARD_COMPONENT_ID,
@@ -397,8 +396,14 @@ const AIPanel: React.FC = () => {
 
     const wireList = wires
       .map((wire) => {
-        const startBreadboardHole = getBreadboardHoleGlobal(wire.startPinId);
-        const endBreadboardHole = getBreadboardHoleGlobal(wire.endPinId);
+        const startBreadboardHole = getBreadboardHoleGlobal(
+          wire.startPinId,
+          breadboardPosition
+        );
+        const endBreadboardHole = getBreadboardHoleGlobal(
+          wire.endPinId,
+          breadboardPosition
+        );
         const startComp = components.find((item) => item.id === wire.startComponentId);
         const endComp = components.find((item) => item.id === wire.endComponentId);
         const startInfo = COMPONENT_CATALOG.find((item) => item.type === startComp?.type);
@@ -733,6 +738,8 @@ Kurallar:
 - Yalnizca kartta gercekten bulunan pinleri kullan. Gecerli pin/ad varyasyonlari: ${boardPinReference}.
 - Bilesen pinleri icin bilesenin gercek pin id veya adini kullan.
 - x ve y koordinatlari breadboard ustundeki birakma konumudur. Bilesenleri ust uste bindirme.
+- Servo devrelerinde servo, 5V/VCC, GND ve tek bir PWM/dijital sinyal pini kullan; kodda acikca Servo.attach(...) ve Servo.write(...) veya Servo.writeMicroseconds(...) yaz.
+- DC motor devrelerinde simule edilmesi kolay topolojileri tercih et: dogrudan dc-motor + PWM/dijital pin veya l298n-driver + dc-motor. Gereksiz transistorlu topolojilerden kacin.
 
 Ornek bilesen blogu:
 \`\`\`circuit
@@ -780,6 +787,8 @@ Rules:
 - Use only pins that actually exist on this board. Valid pin name variants are: ${boardPinReference}.
 - For component pins, use the real pin id or pin name.
 - x and y coordinates are drop positions on the breadboard. Do not overlap components.
+- For servo circuits, prefer a direct servo + 5V/VCC + GND + one PWM/digital signal pin topology, and write explicit Servo.attach(...) plus Servo.write(...) or Servo.writeMicroseconds(...) code.
+- For DC motor circuits, prefer simulation-friendly topologies: direct dc-motor + PWM/digital control or l298n-driver + dc-motor. Avoid unnecessary transistor-only topologies.
 
 Example component block:
 \`\`\`circuit
@@ -895,17 +904,6 @@ Example wire block:
     }
   };
 
-  const handleModelChange = (nextModel: string) => {
-    if (nextModel === CUSTOM_MODEL_VALUE) {
-      if (!aiModel.trim() || modelOptions.includes(aiModel.trim())) {
-        setAIModel('');
-      }
-      return;
-    }
-
-    setAIModel(nextModel);
-  };
-
   if (showSettings) {
     return (
       <div className="ai-panel">
@@ -956,29 +954,14 @@ Example wire block:
             <div className="property-group-title" style={{ marginTop: 8 }}>
               {t(language, 'model')}
             </div>
-            <select
+            <input
               className="property-input"
               style={{ width: '100%', marginBottom: 8 }}
-              value={selectedModelValue}
-              onChange={(event) => handleModelChange(event.target.value)}
-            >
-              {modelOptions.map((modelOption) => (
-                <option key={modelOption} value={modelOption}>
-                  {modelOption}
-                </option>
-              ))}
-              <option value={CUSTOM_MODEL_VALUE}>{t(language, 'customOption')}</option>
-            </select>
-            {showCustomModelInput && (
-              <input
-                className="property-input"
-                style={{ width: '100%', marginBottom: 8 }}
-                type="text"
-                placeholder={providerConfig.model || DEFAULT_AI_MODEL}
-                value={aiModel}
-                onChange={(event) => setAIModel(event.target.value)}
-              />
-            )}
+              type="text"
+              placeholder={providerConfig.model || DEFAULT_AI_MODEL}
+              value={aiModel}
+              onChange={(event) => setAIModel(event.target.value)}
+            />
 
             <div className="property-group-title" style={{ marginTop: 8 }}>
               {t(language, 'baseUrl')}

@@ -62,7 +62,7 @@ It is designed for:
 | --- | --- |
 | Canvas | Drag-and-drop components, breadboard-aware snapping, pin-level connection points, contextual right-click actions |
 | Wiring | Direct wiring between Arduino pins, breadboard holes, and component pins with selectable wire colors |
-| Boards | Arduino Uno, Nano, Mega, Leonardo, Deneyap Kart 1A v2, NodeMCU ESP8266, SparkFun Pro Micro, Raspberry Pi Pico, and HUZZAH32 support with board-specific hotspot maps |
+| Boards | Arduino Uno, Nano, Mega, Leonardo, Deneyap Kart 1A v2, NodeMCU ESP8266, NodeMCU V3, WeMos D1 Mini, Arduino Fio, SparkFun Pro Micro, Raspberry Pi Pico, and HUZZAH32 support with board-specific hotspot maps |
 | AI Assistant | OpenAI-compatible chat panel that can return circuit JSON, wire JSON, and Arduino sketches |
 | Runtime | Lightweight mock runtime for simple `digitalWrite`, `delay`, `Serial.print`, and LED blink flows |
 | Persistence | Save/load project JSON, local AI chat history, and PNG export support in Electron |

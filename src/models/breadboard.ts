@@ -3,6 +3,7 @@ import type { Pin } from './types';
 export const BREADBOARD_COMPONENT_ID = 'breadboard-fixed';
 export const BB_X = 60;
 export const BB_Y = 240;
+export const DEFAULT_BREADBOARD_POSITION = { x: BB_X, y: BB_Y };
 export const BB_COLS = 63;
 export const HOLE_SP = 11.5;
 export const HOLE_R = 2.2;
@@ -23,6 +24,30 @@ export type BreadboardHole = {
   stripId: string;
   pin: Pin;
 };
+
+function getBreadboardOffset(position: { x: number; y: number }) {
+  return {
+    x: position.x - BB_X,
+    y: position.y - BB_Y,
+  };
+}
+
+function withBreadboardOffset(
+  hole: BreadboardHole,
+  position: { x: number; y: number }
+): BreadboardHole {
+  const offset = getBreadboardOffset(position);
+  return {
+    ...hole,
+    x: hole.x + offset.x,
+    y: hole.y + offset.y,
+    pin: {
+      ...hole.pin,
+      x: hole.pin.x + offset.x,
+      y: hole.pin.y + offset.y,
+    },
+  };
+}
 
 type RowDefinition = {
   rowLabel: string;
@@ -128,19 +153,39 @@ export function findBreadboardHole(pinId: string): BreadboardHole | null {
   );
 }
 
-export function getBreadboardHoleGlobal(pinId: string): BreadboardHole | null {
-  return findBreadboardHole(pinId);
+export function getBreadboardHoleGlobal(
+  pinId: string,
+  position: { x: number; y: number } = DEFAULT_BREADBOARD_POSITION
+): BreadboardHole | null {
+  const hole = findBreadboardHole(pinId);
+  return hole ? withBreadboardOffset(hole, position) : null;
 }
 
-export function getNearestBreadboardHole(x: number, y: number): BreadboardHole & {
-  distSq: number;
-} {
+export function getBreadboardBounds(
+  position: { x: number; y: number } = DEFAULT_BREADBOARD_POSITION
+) {
+  return {
+    x: position.x,
+    y: position.y,
+    right: position.x + BB_BOARD_W,
+    bottom: position.y + BB_TOTAL_H,
+  };
+}
+
+export function getNearestBreadboardHole(
+  x: number,
+  y: number,
+  position: { x: number; y: number } = DEFAULT_BREADBOARD_POSITION
+): BreadboardHole & { distSq: number } {
+  const offset = getBreadboardOffset(position);
+  const localX = x - offset.x;
+  const localY = y - offset.y;
   let bestHole = BREADBOARD_HOLES[0];
   let bestDistSq = Infinity;
 
   for (const hole of BREADBOARD_HOLES) {
-    const dx = hole.x - x;
-    const dy = hole.y - y;
+    const dx = hole.x - localX;
+    const dy = hole.y - localY;
     const distSq = dx * dx + dy * dy;
     if (distSq < bestDistSq) {
       bestDistSq = distSq;
@@ -149,7 +194,7 @@ export function getNearestBreadboardHole(x: number, y: number): BreadboardHole &
   }
 
   return {
-    ...bestHole,
+    ...withBreadboardOffset(bestHole, position),
     distSq: bestDistSq,
   };
 }

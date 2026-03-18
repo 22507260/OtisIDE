@@ -6,8 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "electron:dev": "concurrently \"vite\" \"wait-on http://localhost:5173 && electron . --dev\"",
-    "electron:build": "vite build && electron-builder",
+    "electron:dev": "concurrently \"vite\" \"wait-on http://localhost:5173 && node scripts/run-electron-command.cjs . --dev\"",
+    "electron:build": "vite build && electron-builder --publish never",
+    "desktop:dev": "npm run electron:dev",
+    "desktop:build": "npm run electron:build",
     "start": "vite"
   },
   "keywords": [
@@ -31,6 +33,39 @@
   "funding": {
     "type": "Buy Me a Coffee",
     "url": "https://buymeacoffee.com/otis21"
+  },
+  "build": {
+    "appId": "com.otis21.aiarduinocircuit",
+    "productName": "AI Arduino Circuit",
+    "artifactName": "${productName}-${version}-${arch}.${ext}",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "asar": true,
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "AI Arduino Circuit"
+    }
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
