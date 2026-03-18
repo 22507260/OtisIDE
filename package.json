@@ -1,6 +1,6 @@
 {
   "name": "ai-arduino-circuit",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "AI-assisted Arduino and breadboard circuit builder for web and Electron",
   "main": "electron/main.js",
   "scripts": {
