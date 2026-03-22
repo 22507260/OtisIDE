@@ -1,13 +1,14 @@
 {
-  "name": "ai-arduino-circuit",
-  "version": "1.1.0",
+  "name": "otiside",
+  "version": "1.1.1",
   "description": "AI-assisted Arduino and breadboard circuit builder for web and Electron",
   "main": "electron/main.js",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:icons": "powershell -ExecutionPolicy Bypass -File scripts/generate-icons.ps1",
     "electron:dev": "concurrently \"vite\" \"wait-on http://localhost:5173 && node scripts/run-electron-command.cjs . --dev\"",
-    "electron:build": "vite build && electron-builder --publish never",
+    "electron:build": "npm run build:icons && vite build && electron-builder --publish never",
     "desktop:dev": "npm run electron:dev",
     "desktop:build": "npm run electron:build",
     "start": "vite"
@@ -24,19 +25,19 @@
   "license": "ISC",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/22507260/AI-Arduino-Circuit.git"
+    "url": "git+https://github.com/22507260/OtisIDE.git"
   },
   "bugs": {
-    "url": "https://github.com/22507260/AI-Arduino-Circuit/issues"
+    "url": "https://github.com/22507260/OtisIDE/issues"
   },
-  "homepage": "https://github.com/22507260/AI-Arduino-Circuit#readme",
+  "homepage": "https://github.com/22507260/OtisIDE#readme",
   "funding": {
     "type": "Buy Me a Coffee",
     "url": "https://buymeacoffee.com/otis21"
   },
   "build": {
-    "appId": "com.otis21.aiarduinocircuit",
-    "productName": "AI Arduino Circuit",
+    "appId": "com.otis21.otiside",
+    "productName": "OtisIDE",
     "artifactName": "${productName}-${version}-${arch}.${ext}",
     "directories": {
       "output": "release",
@@ -48,6 +49,7 @@
       "package.json"
     ],
     "asar": true,
+    "npmRebuild": false,
     "win": {
       "target": [
         {
@@ -64,7 +66,10 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "AI Arduino Circuit"
+      "shortcutName": "OtisIDE",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico"
     }
   },
   "dependencies": {
@@ -74,6 +79,7 @@
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-konva": "^19.2.3",
+    "serialport": "^13.0.0",
     "uuid": "^13.0.0",
     "zustand": "^5.0.12"
   },

@@ -38,6 +38,11 @@ export type ComponentType =
   | 'uln2003-driver'
   | 'rf-433-transmitter'
   | 'ds18b20-probe'
+  | 'deneyap-gps-glonass'
+  | 'deneyap-9-axis-imu'
+  | 'deneyap-touch-keypad'
+  | 'deneyap-rain-sensor-center'
+  | 'deneyap-rain-sensor-surface'
   | 'esp8266-module'
   | 'hx711'
   | 'microsd-module'
@@ -442,6 +447,65 @@ export function getDefaultPins(type: ComponentType): Pin[] {
         { id: 'vdd', name: 'VDD', type: 'power', x: 6, y: 18 },
         { id: 'shield', name: 'Shield', type: 'passive', x: 18, y: 18 },
       ]);
+    case 'deneyap-gps-glonass':
+      return withSvgLayout([
+        { id: 'gnd', name: 'GND', type: 'ground', x: -24, y: 18 },
+        { id: 'sda', name: 'SDA', type: 'digital', x: -18, y: 18 },
+        { id: 'scl', name: 'SCL', type: 'digital', x: -12, y: 18 },
+        { id: 'swim', name: 'SWIM', type: 'digital', x: -6, y: 18 },
+        { id: 'rx', name: 'RX', type: 'digital', x: 0, y: 18 },
+        { id: 'tx', name: 'TX', type: 'digital', x: 6, y: 18 },
+        { id: 'pps1', name: '1PPS', type: 'digital', x: 12, y: 18 },
+        { id: 'force', name: 'FORCE', type: 'digital', x: 18, y: 18 },
+        { id: 'res_n', name: 'RES_N', type: 'digital', x: 24, y: 18 },
+        { id: 'addet_n', name: 'ADDET_N', type: 'digital', x: 30, y: 18 },
+        { id: 'reset', name: 'RESET', type: 'digital', x: 36, y: 18 },
+        { id: 'vcc', name: '3V3', type: 'power', x: 42, y: 18 },
+      ]);
+    case 'deneyap-9-axis-imu':
+      return withSvgLayout([
+        { id: 'vcc', name: '3V3', type: 'power', x: -15, y: 18 },
+        { id: 'int1', name: 'INT1', type: 'digital', x: -9, y: 18 },
+        { id: 'int2', name: 'INT2', type: 'digital', x: -3, y: 18 },
+        { id: 'scl', name: 'SCL', type: 'digital', x: 3, y: 18 },
+        { id: 'sda', name: 'SDA', type: 'digital', x: 9, y: 18 },
+        { id: 'gnd', name: 'GND', type: 'ground', x: 15, y: 18 },
+      ]);
+    case 'deneyap-touch-keypad':
+      return withSvgLayout([
+        { id: 'vcc', name: '3V3', type: 'power', x: -36, y: 18 },
+        { id: 'but0', name: 'BUT0', type: 'digital', x: -30, y: 18 },
+        { id: 'but2', name: 'BUT2', type: 'digital', x: -24, y: 18 },
+        { id: 'but4', name: 'BUT4', type: 'digital', x: -18, y: 18 },
+        { id: 'but6', name: 'BUT6', type: 'digital', x: -12, y: 18 },
+        { id: 'but7', name: 'BUT7', type: 'digital', x: -6, y: 18 },
+        { id: 'but8', name: 'BUT8', type: 'digital', x: 0, y: 18 },
+        { id: 'but9', name: 'BUT9', type: 'digital', x: 6, y: 18 },
+        { id: 'sbwtdio', name: 'SBWTDIO', type: 'digital', x: 12, y: 18 },
+        { id: 'sbwtck', name: 'SBWTCK', type: 'digital', x: 18, y: 18 },
+        { id: 'but5', name: 'BUT5', type: 'digital', x: 24, y: 18 },
+        { id: 'but3', name: 'BUT3', type: 'digital', x: 30, y: 18 },
+        { id: 'but1', name: 'BUT1', type: 'digital', x: 36, y: 18 },
+        { id: 'scl', name: 'SCL', type: 'digital', x: 42, y: 18 },
+        { id: 'sda', name: 'SDA', type: 'digital', x: 48, y: 18 },
+        { id: 'gnd', name: 'GND', type: 'ground', x: 54, y: 18 },
+      ]);
+    case 'deneyap-rain-sensor-center':
+      return withSvgLayout([
+        { id: 'vcc', name: '3V3', type: 'power', x: -21, y: 18 },
+        { id: 'reset', name: 'RESET', type: 'digital', x: -15, y: 18 },
+        { id: 'd0', name: 'D0', type: 'digital', x: -9, y: 18 },
+        { id: 'a0', name: 'A0', type: 'analog', x: -3, y: 18 },
+        { id: 'gnd', name: 'GND', type: 'ground', x: 3, y: 18 },
+        { id: 'sda', name: 'SDA', type: 'digital', x: 9, y: 18 },
+        { id: 'scl', name: 'SCL', type: 'digital', x: 15, y: 18 },
+        { id: 'swim', name: 'SWIM', type: 'digital', x: 21, y: 18 },
+      ]);
+    case 'deneyap-rain-sensor-surface':
+      return withSvgLayout([
+        { id: 'gnd', name: 'GND', type: 'ground', x: -6, y: 18 },
+        { id: 'a0', name: 'A0', type: 'analog', x: 6, y: 18 },
+      ]);
     case 'esp8266-module':
       return withSvgLayout([
         { id: 'rxd', name: 'RXD', type: 'digital', x: -30, y: 18 },
@@ -739,6 +803,16 @@ export function getDefaultProperties(type: ComponentType): Record<string, string
       return { transmitting: false, frequencyMHz: 433.92 };
     case 'ds18b20-probe':
       return { temperature: 24 };
+    case 'deneyap-gps-glonass':
+      return { fix: false, satellites: 6, latitude: 41.0082, longitude: 28.9784 };
+    case 'deneyap-9-axis-imu':
+      return { pitch: 0, roll: 0, heading: 0 };
+    case 'deneyap-touch-keypad':
+      return { lastTouch: '', touchCount: 0 };
+    case 'deneyap-rain-sensor-center':
+      return { detected: false, analogLevel: 0 };
+    case 'deneyap-rain-sensor-surface':
+      return { wet: false, moisture: 0 };
     case 'esp8266-module':
       return { connected: false, ssid: '', mode: 'station' };
     case 'hx711':
@@ -891,6 +965,11 @@ export const COMPONENT_CATALOG: ComponentInfo[] = [
   { type: 'ds3231-rtc', name: 'DS3231 RTC', category: 'Other', icon: 'RTC' },
   { type: 'tp4056-charger', name: 'TP4056 Charger', category: 'Other', icon: 'BAT' },
   { type: 'rfm69hcw', name: 'RFM69HCW Radio', category: 'Other', icon: 'RF' },
+  { type: 'deneyap-gps-glonass', name: 'Deneyap GPS/GLONASS', category: 'Sensor', icon: 'GPS' },
+  { type: 'deneyap-9-axis-imu', name: 'Deneyap 9-Axis IMU', category: 'Sensor', icon: 'IMU' },
+  { type: 'deneyap-touch-keypad', name: 'Deneyap Touch Keypad', category: 'Active', icon: 'TOUCH' },
+  { type: 'deneyap-rain-sensor-center', name: 'Deneyap Rain Hub', category: 'Sensor', icon: 'RAIN' },
+  { type: 'deneyap-rain-sensor-surface', name: 'Deneyap Rain Plate', category: 'Sensor', icon: 'RAIN' },
   { type: 'relay', name: 'Relay', category: 'Other', icon: 'RLY' },
   { type: 'transistor-npn', name: 'NPN Transistor', category: 'Other', icon: 'NPN' },
   { type: 'transistor-pnp', name: 'PNP Transistor', category: 'Other', icon: 'PNP' },

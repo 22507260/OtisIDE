@@ -31,7 +31,7 @@
   <circle cx="402" cy="376" r="7" fill="#63B3FF"/>
 
   <text x="108" y="178" fill="#A9C4D5" font-size="20" font-family="Segoe UI, Arial, sans-serif" letter-spacing="5">AI-ASSISTED CIRCUIT WORKSPACE</text>
-  <text x="108" y="262" fill="#ECF8FF" font-size="68" font-weight="700" font-family="Segoe UI, Arial, sans-serif">AI Arduino Circuit</text>
+  <text x="108" y="262" fill="#ECF8FF" font-size="68" font-weight="700" font-family="Segoe UI, Arial, sans-serif">OtisIDE</text>
   <text x="108" y="320" fill="#D2E5F1" font-size="26" font-family="Segoe UI, Arial, sans-serif">
     Design Arduino + breadboard projects with drag-and-drop parts,
   </text>

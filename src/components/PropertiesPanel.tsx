@@ -12,6 +12,7 @@ import {
 const PropertiesPanel: React.FC = () => {
   const selectedComponentId = useCircuitStore((s) => s.selectedComponentId);
   const components = useCircuitStore((s) => s.components);
+  const simulation = useCircuitStore((s) => s.simulation);
   const updateComponentProperty = useCircuitStore((s) => s.updateComponentProperty);
   const updateComponent = useCircuitStore((s) => s.updateComponent);
   const removeComponent = useCircuitStore((s) => s.removeComponent);
@@ -60,6 +61,17 @@ const PropertiesPanel: React.FC = () => {
     'redProbeTargetComponentId',
     'redProbeTargetPinId',
   ]);
+  const liveProperties = simulation.componentStates[selectedComp.id] ?? null;
+  const displayComp =
+    simulation.running && liveProperties
+      ? {
+          ...selectedComp,
+          properties: {
+            ...selectedComp.properties,
+            ...liveProperties,
+          },
+        }
+      : selectedComp;
 
   return (
     <div className="properties-content">
@@ -70,7 +82,7 @@ const PropertiesPanel: React.FC = () => {
         <div className="property-row">
           <span className="property-label">{t(language, 'id')}</span>
           <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
-            {selectedComp.id.slice(0, 8)}
+            {displayComp.id.slice(0, 8)}
           </span>
         </div>
       </div>
@@ -82,7 +94,7 @@ const PropertiesPanel: React.FC = () => {
           <input
             className="property-input"
             type="number"
-            value={selectedComp.x}
+            value={displayComp.x}
             onChange={(event) =>
               updateComponent(selectedComp.id, { x: Number(event.target.value) })
             }
@@ -93,7 +105,7 @@ const PropertiesPanel: React.FC = () => {
           <input
             className="property-input"
             type="number"
-            value={selectedComp.y}
+            value={displayComp.y}
             onChange={(event) =>
               updateComponent(selectedComp.id, { y: Number(event.target.value) })
             }
@@ -104,7 +116,7 @@ const PropertiesPanel: React.FC = () => {
           <input
             className="property-input"
             type="number"
-            value={selectedComp.rotation}
+            value={displayComp.rotation}
             step={90}
             onChange={(event) =>
               updateComponent(selectedComp.id, {
@@ -116,15 +128,18 @@ const PropertiesPanel: React.FC = () => {
       </div>
 
       <div className="property-group">
-        <div className="property-group-title">{t(language, 'values')}</div>
-        {Object.entries(selectedComp.properties)
+        <div className="property-group-title">
+          {t(language, 'values')}
+          {simulation.running && liveProperties ? ' (Live)' : ''}
+        </div>
+        {Object.entries(displayComp.properties)
           .filter(([key]) => !multimeterHiddenKeys.has(key))
           .map(([key, value]) => (
           <div className="property-row" key={key}>
             <span className="property-label">
               {getPropertyDisplayName(language, key)}
             </span>
-            {selectedComp.type === 'multimeter' && key === 'mode' ? (
+            {displayComp.type === 'multimeter' && key === 'mode' ? (
               <select
                 className="property-select"
                 value={String(value)}
@@ -137,7 +152,7 @@ const PropertiesPanel: React.FC = () => {
                 <option value="resistance">{getMultimeterModeLabel(language, 'resistance')}</option>
                 <option value="continuity">{getMultimeterModeLabel(language, 'continuity')}</option>
               </select>
-            ) : selectedComp.type === 'multimeter' && multimeterReadOnlyKeys.has(key) ? (
+            ) : displayComp.type === 'multimeter' && multimeterReadOnlyKeys.has(key) ? (
               <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
                 {key === 'status'
                   ? getMultimeterStatusLabel(language, String(value))
@@ -203,7 +218,7 @@ const PropertiesPanel: React.FC = () => {
 
       <div className="property-group">
         <div className="property-group-title">{t(language, 'pins')}</div>
-        {selectedComp.pins.map((pin) => (
+        {displayComp.pins.map((pin) => (
           <div className="property-row" key={pin.id}>
             <span className="property-label" style={{ fontSize: 11 }}>
               <span

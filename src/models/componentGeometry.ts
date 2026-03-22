@@ -70,6 +70,16 @@ import rf433TxSvg from '../assets/components/rf-433-transmitter.svg';
 import rf433TxSvgRaw from '../assets/components/rf-433-transmitter.svg?raw';
 import ds18b20Svg from '../assets/components/ds18b20-probe.svg';
 import ds18b20SvgRaw from '../assets/components/ds18b20-probe.svg?raw';
+import deneyapGpsSvg from '../assets/components/deneyap-gps-glonass.svg';
+import deneyapGpsSvgRaw from '../assets/components/deneyap-gps-glonass.svg?raw';
+import deneyapImuSvg from '../assets/components/deneyap-9-axis-imu.svg';
+import deneyapImuSvgRaw from '../assets/components/deneyap-9-axis-imu.svg?raw';
+import deneyapTouchKeypadSvg from '../assets/components/deneyap-touch-keypad.svg';
+import deneyapTouchKeypadSvgRaw from '../assets/components/deneyap-touch-keypad.svg?raw';
+import deneyapRainCenterSvg from '../assets/components/deneyap-rain-sensor-center.svg';
+import deneyapRainCenterSvgRaw from '../assets/components/deneyap-rain-sensor-center.svg?raw';
+import deneyapRainSurfaceSvg from '../assets/components/deneyap-rain-sensor-surface.svg';
+import deneyapRainSurfaceSvgRaw from '../assets/components/deneyap-rain-sensor-surface.svg?raw';
 import esp8266Svg from '../assets/components/esp8266-module.svg';
 import esp8266SvgRaw from '../assets/components/esp8266-module.svg?raw';
 import hx711Svg from '../assets/components/hx711.svg';
@@ -201,6 +211,46 @@ export const SVG_CONFIGS: Record<ComponentType, SvgConfig> = {
     offsetY: 16,
   },
   'ds18b20-probe': { url: ds18b20Svg,      raw: ds18b20SvgRaw,       width: 30,  height: 138, offsetX: 15,  offsetY: 22 },
+  'deneyap-gps-glonass': {
+    url: deneyapGpsSvg,
+    raw: deneyapGpsSvgRaw,
+    width: 64,
+    height: 96,
+    offsetX: 32,
+    offsetY: 20,
+  },
+  'deneyap-9-axis-imu': {
+    url: deneyapImuSvg,
+    raw: deneyapImuSvgRaw,
+    width: 58,
+    height: 58,
+    offsetX: 29,
+    offsetY: 18,
+  },
+  'deneyap-touch-keypad': {
+    url: deneyapTouchKeypadSvg,
+    raw: deneyapTouchKeypadSvgRaw,
+    width: 64,
+    height: 128,
+    offsetX: 32,
+    offsetY: 22,
+  },
+  'deneyap-rain-sensor-center': {
+    url: deneyapRainCenterSvg,
+    raw: deneyapRainCenterSvgRaw,
+    width: 58,
+    height: 58,
+    offsetX: 29,
+    offsetY: 18,
+  },
+  'deneyap-rain-sensor-surface': {
+    url: deneyapRainSurfaceSvg,
+    raw: deneyapRainSurfaceSvgRaw,
+    width: 58,
+    height: 58,
+    offsetX: 29,
+    offsetY: 18,
+  },
   'esp8266-module': { url: esp8266Svg,     raw: esp8266SvgRaw,       width: 72,  height: 42, offsetX: 36,  offsetY: 12 },
   hx711:          { url: hx711Svg,         raw: hx711SvgRaw,         width: 82,  height: 48, offsetX: 41,  offsetY: 16 },
   'microsd-module': {

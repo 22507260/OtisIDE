@@ -3,7 +3,11 @@ import arduinoUnoImage from '../assets/arduino-uno-fritzing.svg';
 import arduinoNanoImage from '../assets/boards/arduino-nano-fritzing.svg';
 import arduinoMegaImage from '../assets/boards/arduino-mega-fritzing.svg';
 import arduinoLeonardoImage from '../assets/boards/arduino-leonardo-fritzing.svg';
+import deneyapKart1AImage from '../assets/boards/deneyap-kart-1a-fritzing.svg';
 import deneyapKart1AV2Image from '../assets/boards/deneyap-kart-1a-v2-fritzing.svg';
+import deneyapKartGImage from '../assets/boards/deneyap-kart-g-fritzing.svg';
+import deneyapMiniImage from '../assets/boards/deneyap-mini-fritzing.svg';
+import deneyapMiniV2Image from '../assets/boards/deneyap-mini-v2-fritzing.svg';
 import nodemcuImage from '../assets/boards/nodemcu-amica-fritzing.svg';
 import nodemcuV3Image from '../assets/boards/nodemcu-v3-fritzing.svg';
 import wemosD1MiniImage from '../assets/boards/wemos-d1-mini-fritzing.svg';
@@ -17,7 +21,11 @@ export type ControllerBoardType =
   | 'nano'
   | 'mega'
   | 'leonardo'
+  | 'deneyap-kart-1a'
   | 'deneyap-kart-1a-v2'
+  | 'deneyap-kart-g'
+  | 'deneyap-mini'
+  | 'deneyap-mini-v2'
   | 'nodemcu'
   | 'nodemcu-v3'
   | 'wemos-d1-mini'
@@ -32,6 +40,12 @@ type ArduinoPinDef = {
   y: number;
   type: PinType;
   aliases?: string[];
+};
+
+type GeneratedBoardPinSeed = {
+  name: string;
+  x: number;
+  y: number;
 };
 
 export type ControllerBoardDefinition = {
@@ -124,6 +138,260 @@ function createHorizontalPins(
     makePin(pin.id, startX + index * spacing, y, pin.type, pin.aliases)
   );
 }
+
+function inferGeneratedBoardPinType(name: string): PinType {
+  const token = normalizeToken(name);
+
+  if (!token) return 'passive';
+  if (token.includes('gnd') || token === 'ground') return 'ground';
+  if (
+    token === '3v3' ||
+    token === '3v' ||
+    token === '5v' ||
+    token === 'vin' ||
+    token === 'vbat' ||
+    token === 'bat' ||
+    token === 'vcc'
+  ) {
+    return 'power';
+  }
+  if (/^(a\d+|da\d+|dac\d+)$/.test(token)) {
+    return 'analog';
+  }
+
+  return 'digital';
+}
+
+function inferGeneratedBoardPinAliases(name: string): string[] {
+  const token = normalizeToken(name);
+  const aliases = new Set<string>();
+
+  const add = (...values: string[]) => {
+    values
+      .map((value) => value.trim())
+      .filter(Boolean)
+      .forEach((value) => aliases.add(value));
+  };
+
+  const digitalMatch = token.match(/^d(\d+)$/);
+  if (digitalMatch) {
+    const pinNumber = digitalMatch[1];
+    add(pinNumber, `GPIO${pinNumber}`, `IO${pinNumber}`);
+  }
+
+  const analogMatch = token.match(/^a(\d+)$/);
+  if (analogMatch) {
+    add(`ADC${analogMatch[1]}`);
+  }
+
+  const dacMatch = token.match(/^(?:da|dac)(\d+)$/);
+  if (dacMatch) {
+    add(`DAC${dacMatch[1]}`, `DA${dacMatch[1]}`);
+  }
+
+  switch (token) {
+    case 'vbat':
+      add('BAT');
+      break;
+    case 'bat':
+      add('VBAT');
+      break;
+    case 'reset':
+      add('RST');
+      break;
+    case 'en':
+      add('ENABLE');
+      break;
+    case 'scl':
+      add('I2C_SCL');
+      break;
+    case 'sda':
+      add('I2C_SDA');
+      break;
+    case 'tx':
+      add('TXD');
+      break;
+    case 'rx':
+      add('RXD');
+      break;
+    case 'mo':
+      add('MOSI');
+      break;
+    case 'mi':
+      add('MISO');
+      break;
+    case 'mc':
+      add('SCK', 'CLK');
+      break;
+    case 'sc':
+      add('SCL');
+      break;
+    case 'sd':
+      add('SDA');
+      break;
+    case 'bt':
+      add('BOOT');
+      break;
+    case '1pps':
+      add('PPS');
+      break;
+  }
+
+  return [...aliases].filter(
+    (value) => normalizeToken(value) !== token
+  );
+}
+
+function createGeneratedBoardPinDefs(
+  seeds: GeneratedBoardPinSeed[]
+): ArduinoPinDef[] {
+  const counts = new Map<string, number>();
+
+  return seeds.map((seed) => {
+    const count = (counts.get(seed.name) ?? 0) + 1;
+    counts.set(seed.name, count);
+
+    const aliases = inferGeneratedBoardPinAliases(seed.name);
+    if (count > 1) {
+      aliases.unshift(seed.name);
+    }
+
+    return makePin(
+      count === 1 ? seed.name : `${seed.name}_${count}`,
+      seed.x,
+      seed.y,
+      inferGeneratedBoardPinType(seed.name),
+      aliases.length > 0 ? aliases : undefined
+    );
+  });
+}
+
+const DENEYAP_KART_1A_PIN_SEEDS: GeneratedBoardPinSeed[] = [
+  { name: 'A0', x: 3.409, y: 37.982 },
+  { name: 'A1', x: 3.581, y: 47.462 },
+  { name: 'A2', x: 3.842, y: 57.02 },
+  { name: 'A3', x: 3.842, y: 67.694 },
+  { name: 'A4', x: 3.842, y: 77.718 },
+  { name: 'A5', x: 3.842, y: 88.392 },
+  { name: 'DAC1', x: 3.581, y: 98.267 },
+  { name: 'DAC2', x: 3.842, y: 107.824 },
+  { name: 'D15', x: 3.842, y: 118.499 },
+  { name: 'D14', x: 4.103, y: 128.425 },
+  { name: 'D13', x: 4.131, y: 139.078 },
+  { name: 'D12', x: 3.87, y: 148.952 },
+  { name: 'VBAT', x: 4.131, y: 158.51 },
+  { name: '5V', x: 4.131, y: 169.184 },
+  { name: 'GND', x: 4.392, y: 179.11 },
+  { name: 'GND', x: 98.216, y: 179.11 },
+  { name: '3V3', x: 97.955, y: 169.184 },
+  { name: '3V3', x: 97.955, y: 158.51 },
+  { name: 'SCL', x: 97.694, y: 148.952 },
+  { name: 'SDA', x: 97.955, y: 139.078 },
+  { name: 'D9', x: 97.806, y: 128.425 },
+  { name: 'D8', x: 97.545, y: 118.499 },
+  { name: 'MOSI', x: 97.545, y: 107.824 },
+  { name: 'MISO', x: 97.283, y: 98.267 },
+  { name: 'SCK', x: 97.545, y: 88.392 },
+  { name: 'D4', x: 97.545, y: 77.718 },
+  { name: 'RX', x: 97.545, y: 67.694 },
+  { name: 'TX', x: 97.545, y: 57.02 },
+  { name: 'D1', x: 97.283, y: 47.462 },
+  { name: 'D0', x: 97.111, y: 37.982 },
+];
+
+const DENEYAP_KART_G_PIN_SEEDS: GeneratedBoardPinSeed[] = [
+  { name: 'A0', x: 74.379, y: 24.59 },
+  { name: 'A1', x: 74.379, y: 34.659 },
+  { name: 'SCL', x: 74.379, y: 44.728 },
+  { name: 'A2', x: 74.379, y: 54.798 },
+  { name: 'A3', x: 74.379, y: 64.867 },
+  { name: 'A4', x: 74.379, y: 74.937 },
+  { name: 'A5', x: 74.752, y: 85.352 },
+  { name: 'D5', x: 74.752, y: 95.421 },
+  { name: 'SDA', x: 74.752, y: 105.491 },
+  { name: '3V3', x: 129.334, y: 104.478 },
+  { name: '3V3', x: 129.334, y: 94.409 },
+  { name: 'GND', x: 129.334, y: 84.34 },
+  { name: 'GND', x: 128.961, y: 73.924 },
+  { name: 'BAT', x: 128.961, y: 63.855 },
+  { name: 'D3', x: 128.961, y: 53.785 },
+  { name: 'D2', x: 128.961, y: 43.716 },
+  { name: 'TX', x: 128.961, y: 33.647 },
+  { name: 'RX', x: 128.961, y: 23.577 },
+];
+
+const DENEYAP_MINI_PIN_SEEDS: GeneratedBoardPinSeed[] = [
+  { name: 'BT', x: 4.505, y: 37.092 },
+  { name: 'A0', x: 4.505, y: 47.176 },
+  { name: 'A1', x: 4.505, y: 57.264 },
+  { name: 'A2', x: 4.505, y: 67.348 },
+  { name: 'A3', x: 4.505, y: 77.432 },
+  { name: 'A4', x: 4.505, y: 87.515 },
+  { name: 'A5', x: 4.505, y: 97.599 },
+  { name: 'A6', x: 4.505, y: 107.683 },
+  { name: 'DA0', x: 4.505, y: 117.767 },
+  { name: 'DA1', x: 4.505, y: 127.851 },
+  { name: 'D10', x: 4.505, y: 137.935 },
+  { name: 'D9', x: 4.505, y: 148.018 },
+  { name: 'GND', x: 4.52, y: 158.102 },
+  { name: '3V3', x: 4.473, y: 168.777 },
+  { name: '5V', x: 4.473, y: 178.766 },
+  { name: 'EN', x: 73.515, y: 37.022 },
+  { name: 'RX', x: 73.515, y: 47.105 },
+  { name: 'TX', x: 73.515, y: 57.189 },
+  { name: 'D2', x: 73.515, y: 67.273 },
+  { name: 'D3', x: 73.515, y: 77.357 },
+  { name: 'MO', x: 73.515, y: 87.441 },
+  { name: 'MI', x: 73.515, y: 97.525 },
+  { name: 'MC', x: 73.515, y: 107.608 },
+  { name: 'SC', x: 73.515, y: 117.692 },
+  { name: 'SD', x: 73.515, y: 127.776 },
+  { name: '3V3', x: 73.515, y: 137.86 },
+  { name: 'GND', x: 73.515, y: 147.944 },
+];
+
+const DENEYAP_MINI_V2_PIN_SEEDS: GeneratedBoardPinSeed[] = [
+  { name: 'A0', x: 4.505, y: 37.092 },
+  { name: 'A1', x: 4.505, y: 47.176 },
+  { name: 'A2', x: 4.505, y: 57.264 },
+  { name: 'A3', x: 4.505, y: 67.348 },
+  { name: 'A4', x: 4.505, y: 77.432 },
+  { name: 'A5', x: 4.505, y: 87.515 },
+  { name: 'A6', x: 4.505, y: 97.599 },
+  { name: 'A7', x: 4.505, y: 107.683 },
+  { name: 'DA0', x: 4.505, y: 117.767 },
+  { name: 'DA1', x: 4.505, y: 127.851 },
+  { name: 'D10', x: 4.505, y: 137.935 },
+  { name: 'D9', x: 4.505, y: 148.018 },
+  { name: 'GND', x: 4.52, y: 158.102 },
+  { name: '3V3', x: 4.473, y: 168.777 },
+  { name: '5V', x: 4.473, y: 178.766 },
+  { name: 'EN', x: 73.515, y: 37.022 },
+  { name: 'RX', x: 73.515, y: 47.105 },
+  { name: 'TX', x: 73.515, y: 57.189 },
+  { name: 'D2', x: 73.515, y: 67.273 },
+  { name: 'D3', x: 73.515, y: 77.357 },
+  { name: 'MO', x: 73.515, y: 87.441 },
+  { name: 'MI', x: 73.515, y: 97.525 },
+  { name: 'MC', x: 73.515, y: 107.608 },
+  { name: 'SC', x: 73.515, y: 117.692 },
+  { name: 'SD', x: 73.515, y: 127.776 },
+  { name: '3V3', x: 73.515, y: 137.86 },
+  { name: 'GND', x: 73.515, y: 147.944 },
+];
+
+const DENEYAP_KART_1A_PIN_DEFS = createGeneratedBoardPinDefs(
+  DENEYAP_KART_1A_PIN_SEEDS
+);
+const DENEYAP_KART_G_PIN_DEFS = createGeneratedBoardPinDefs(
+  DENEYAP_KART_G_PIN_SEEDS
+);
+const DENEYAP_MINI_PIN_DEFS = createGeneratedBoardPinDefs(
+  DENEYAP_MINI_PIN_SEEDS
+);
+const DENEYAP_MINI_V2_PIN_DEFS = createGeneratedBoardPinDefs(
+  DENEYAP_MINI_V2_PIN_SEEDS
+);
 
 const UNO_PIN_DEFS: ArduinoPinDef[] = [
   makePin('SCL', scaleUnoX(71.251), scaleUnoY(7.2), 'digital'),
@@ -685,7 +953,11 @@ export const CONTROLLER_BOARD_OPTIONS: Array<{
   { value: 'nano', label: 'Arduino Nano' },
   { value: 'mega', label: 'Arduino Mega' },
   { value: 'leonardo', label: 'Arduino Leonardo' },
+  { value: 'deneyap-kart-1a', label: 'Deneyap Kart 1A' },
   { value: 'deneyap-kart-1a-v2', label: 'Deneyap Kart 1A v2' },
+  { value: 'deneyap-kart-g', label: 'Deneyap Kart G' },
+  { value: 'deneyap-mini', label: 'Deneyap Mini' },
+  { value: 'deneyap-mini-v2', label: 'Deneyap Mini v2' },
   { value: 'nodemcu', label: 'NodeMCU ESP8266' },
   { value: 'nodemcu-v3', label: 'NodeMCU V3 (LoLin)' },
   { value: 'wemos-d1-mini', label: 'WeMos D1 Mini' },
@@ -776,6 +1048,32 @@ const BOARD_DEFINITIONS: Record<ControllerBoardType, ControllerBoardDefinition> 
       usb: '#dce4ea',
     },
   },
+  'deneyap-kart-1a': {
+    type: 'deneyap-kart-1a',
+    name: 'Deneyap Kart 1A',
+    shortName: 'DENEYAP 1A',
+    width: 101.2,
+    height: 252,
+    imageUrl: deneyapKart1AImage,
+    pinDefs: DENEYAP_KART_1A_PIN_DEFS,
+    aliases: [
+      'deneyap kart 1a',
+      'deneyapkart1a',
+      'deneyap 1a',
+      'deneyap kart legacy',
+    ],
+    pinSummary:
+      'A0-A5, DAC1-DAC2, D0-D15, 3V3, 5V, VBAT, GND, SCL, SDA, MOSI, MISO, SCK, RX, TX',
+    theme: {
+      body: '#b20f16',
+      accent: '#840d12',
+      outline: '#ffc2c6',
+      text: '#fff3f4',
+      chip: '#172432',
+      pin: '#171b23',
+      usb: '#dfe6ec',
+    },
+  },
   'deneyap-kart-1a-v2': {
     type: 'deneyap-kart-1a-v2',
     name: 'Deneyap Kart 1A v2',
@@ -801,6 +1099,73 @@ const BOARD_DEFINITIONS: Record<ControllerBoardType, ControllerBoardDefinition> 
       accent: '#870c11',
       outline: '#ffc2c6',
       text: '#fff2f3',
+      chip: '#172432',
+      pin: '#171b23',
+      usb: '#dfe6ec',
+    },
+  },
+  'deneyap-kart-g': {
+    type: 'deneyap-kart-g',
+    name: 'Deneyap Kart G',
+    shortName: 'DENEYAP G',
+    width: 200,
+    height: 174,
+    imageUrl: deneyapKartGImage,
+    pinDefs: DENEYAP_KART_G_PIN_DEFS,
+    aliases: [
+      'deneyap kart g',
+      'deneyapkartg',
+      'deneyap g',
+      'kart g',
+    ],
+    pinSummary: 'A0-A5, D2-D5, RX, TX, SCL, SDA, BAT, 3V3, GND',
+    theme: {
+      body: '#d61a23',
+      accent: '#8f1117',
+      outline: '#ffc5c8',
+      text: '#fff5f6',
+      chip: '#172432',
+      pin: '#171b23',
+      usb: '#dfe6ec',
+    },
+  },
+  'deneyap-mini': {
+    type: 'deneyap-mini',
+    name: 'Deneyap Mini',
+    shortName: 'DENEYAP MINI',
+    width: 77.28,
+    height: 212,
+    imageUrl: deneyapMiniImage,
+    pinDefs: DENEYAP_MINI_PIN_DEFS,
+    aliases: ['deneyap mini', 'deneyapmini'],
+    pinSummary:
+      'BT, A0-A6, DA0-DA1, D2-D3, D9-D10, EN, RX, TX, MO, MI, MC, SC, SD, 3V3, 5V, GND',
+    theme: {
+      body: '#0b4b72',
+      accent: '#083b5a',
+      outline: '#91d8ff',
+      text: '#ecfaff',
+      chip: '#172432',
+      pin: '#171b23',
+      usb: '#dfe6ec',
+    },
+  },
+  'deneyap-mini-v2': {
+    type: 'deneyap-mini-v2',
+    name: 'Deneyap Mini v2',
+    shortName: 'DENEYAP MINI v2',
+    width: 77.28,
+    height: 212,
+    imageUrl: deneyapMiniV2Image,
+    pinDefs: DENEYAP_MINI_V2_PIN_DEFS,
+    aliases: ['deneyap mini v2', 'deneyapminiv2', 'deneyap mini 2'],
+    pinSummary:
+      'A0-A7, DA0-DA1, D2-D3, D9-D10, EN, RX, TX, MO, MI, MC, SC, SD, 3V3, 5V, GND',
+    theme: {
+      body: '#0e5783',
+      accent: '#0b4667',
+      outline: '#9cdcff',
+      text: '#eefbff',
       chip: '#172432',
       pin: '#171b23',
       usb: '#dfe6ec',

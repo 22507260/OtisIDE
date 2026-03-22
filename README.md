@@ -1,15 +1,15 @@
-# AI Arduino Circuit
+# OtisIDE
 
 <p align="center">
-  <img src="docs/hero.svg" alt="AI Arduino Circuit banner" width="100%" />
+  <img src="docs/hero.svg" alt="OtisIDE banner" width="100%" />
 </p>
 
 <p align="center">
-  <a href="https://github.com/22507260/AI-Arduino-Circuit/actions/workflows/ci.yml">
-    <img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/22507260/AI-Arduino-Circuit/ci.yml?branch=main&label=build" />
+  <a href="https://github.com/22507260/OtisIDE/actions/workflows/ci.yml">
+    <img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/22507260/OtisIDE/ci.yml?branch=main&label=build" />
   </a>
-  <a href="https://github.com/22507260/AI-Arduino-Circuit/blob/main/LICENSE">
-    <img alt="License" src="https://img.shields.io/github/license/22507260/AI-Arduino-Circuit" />
+  <a href="https://github.com/22507260/OtisIDE/blob/main/LICENSE">
+    <img alt="License" src="https://img.shields.io/github/license/22507260/OtisIDE" />
   </a>
   <a href="https://www.typescriptlang.org/">
     <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript&logoColor=white" />
@@ -30,18 +30,28 @@
 </p>
 
 <p align="center">
+  <img src="docs/otis-mascot.png" alt="OtisIDE mascot" width="420" />
+</p>
+
+<p align="center">
+  Download the Windows installer from the <a href="https://github.com/22507260/OtisIDE/releases">Releases</a> page.
+</p>
+
+<p align="center">
   <a href="#quick-start"><strong>Quick start</strong></a>
   |
   <a href="#feature-set"><strong>Feature set</strong></a>
   |
   <a href="#workspace-layout"><strong>Workspace layout</strong></a>
   |
+  <a href="https://github.com/22507260/OtisIDE/releases"><strong>Releases</strong></a>
+  |
   <a href="#support-the-project"><strong>Support the project</strong></a>
 </p>
 
 ## Why This Project
 
-AI Arduino Circuit focuses on the part that most makers actually want to do quickly: lay out a circuit, connect the right pins, test the basic logic, and iterate with an assistant that can generate both wiring and Arduino code.
+OtisIDE focuses on the part that most makers actually want to do quickly: lay out a circuit, connect the right pins, test the basic logic, and iterate with an assistant that can generate both wiring and Arduino code.
 
 It is designed for:
 
@@ -62,7 +72,8 @@ It is designed for:
 | --- | --- |
 | Canvas | Drag-and-drop components, breadboard-aware snapping, pin-level connection points, contextual right-click actions |
 | Wiring | Direct wiring between Arduino pins, breadboard holes, and component pins with selectable wire colors |
-| Boards | Arduino Uno, Nano, Mega, Leonardo, Deneyap Kart 1A v2, NodeMCU ESP8266, NodeMCU V3, WeMos D1 Mini, Arduino Fio, SparkFun Pro Micro, Raspberry Pi Pico, and HUZZAH32 support with board-specific hotspot maps |
+| Boards | Arduino Uno, Nano, Mega, Leonardo, Deneyap Kart 1A, Deneyap Kart 1A v2, Deneyap Kart G, Deneyap Mini, Deneyap Mini v2, NodeMCU ESP8266, NodeMCU V3, WeMos D1 Mini, Arduino Fio, SparkFun Pro Micro, Raspberry Pi Pico, and HUZZAH32 support with board-specific hotspot maps |
+| Deneyap Modules | Deneyap GPS/GLONASS, 9-axis IMU, touch keypad, rain sensor hub, and rain plate components added with official-style Fritzing visuals |
 | AI Assistant | OpenAI-compatible chat panel that can return circuit JSON, wire JSON, and Arduino sketches |
 | Runtime | Lightweight mock runtime for simple `digitalWrite`, `delay`, `Serial.print`, and LED blink flows |
 | Persistence | Save/load project JSON, local AI chat history, and PNG export support in Electron |

@@ -1,5 +1,6 @@
 import React from 'react';
 import { useCircuitStore } from '../store/circuitStore';
+import { useHardwareStore } from '../store/hardwareStore';
 import { WIRE_COLORS } from '../models/types';
 import { CONTROLLER_BOARD_OPTIONS } from '../models/arduinoUno';
 import { getWireColorDisplayName, t } from '../lib/i18n';
@@ -19,9 +20,25 @@ const Toolbar: React.FC = () => {
   const setZoom = useCircuitStore((s) => s.setZoom);
   const boardType = useCircuitStore((s) => s.boardType);
   const setBoardType = useCircuitStore((s) => s.setBoardType);
+  const code = useCircuitStore((s) => s.code);
   const language = useCircuitStore((s) => s.language);
   const setLanguage = useCircuitStore((s) => s.setLanguage);
+  const preparingHardwareIde = useHardwareStore((s) => s.preparing);
+  const hardwareCliAvailable = useHardwareStore((s) => s.cliAvailable);
+  const hardwareCliVersion = useHardwareStore((s) => s.cliVersion);
+  const hardwarePorts = useHardwareStore((s) => s.ports);
+  const selectedHardwarePortPath = useHardwareStore((s) => s.selectedPortPath);
+  const detectedBoardName = useHardwareStore((s) => s.detectedBoardName);
+  const uploadInProgress = useHardwareStore((s) => s.uploadInProgress);
+  const prepareHardwareIde = useHardwareStore((s) => s.prepareHardwareIde);
+  const refreshDevices = useHardwareStore((s) => s.refreshDevices);
+  const setSelectedPortPath = useHardwareStore((s) => s.setSelectedPortPath);
+  const verifySketch = useHardwareStore((s) => s.verifySketch);
+  const uploadSketch = useHardwareStore((s) => s.uploadSketch);
   const isDesktop = Boolean(window.electronAPI);
+  const selectedHardwarePort =
+    hardwarePorts.find((port) => port.path === selectedHardwarePortPath) ?? null;
+  const effectiveBoardType = selectedHardwarePort?.boardType ?? boardType;
 
   const handleSave = async () => {
     const data = getProjectData();
@@ -164,6 +181,103 @@ const Toolbar: React.FC = () => {
           ))}
         </select>
       </div>
+
+      {isDesktop && (
+        <>
+          <div className="toolbar-separator" />
+
+          <div className="toolbar-group toolbar-group-wrap">
+            <span className="toolbar-label">{t(language, 'usbIde')}</span>
+            <select
+              className="toolbar-select hardware-port-select"
+              value={selectedHardwarePortPath ?? ''}
+              onChange={(event) =>
+                setSelectedPortPath(event.target.value || null)
+              }
+              title={t(language, 'usbDevice')}
+            >
+              <option value="">
+                {hardwarePorts.length > 0
+                  ? t(language, 'selectUsbDevice')
+                  : t(language, 'noUsbDevice')}
+              </option>
+              {hardwarePorts.map((port) => (
+                <option key={port.path} value={port.path}>
+                  {port.boardName || port.label || port.path}
+                </option>
+              ))}
+            </select>
+
+            <button
+              className="toolbar-btn"
+              onClick={() => void refreshDevices()}
+              title={t(language, 'refreshPorts')}
+            >
+              {t(language, 'refreshPortsShort')}
+            </button>
+
+            <button
+              className="toolbar-btn"
+              onClick={() => void prepareHardwareIde(true)}
+              disabled={preparingHardwareIde}
+              title={t(language, 'prepareIde')}
+            >
+              {preparingHardwareIde
+                ? t(language, 'preparing')
+                : t(language, 'prepareIde')}
+            </button>
+
+            <button
+              className="toolbar-btn"
+              onClick={() => void verifySketch(code, effectiveBoardType)}
+              disabled={!hardwareCliAvailable || uploadInProgress}
+              title={t(language, 'verifySketch')}
+            >
+              {t(language, 'verifySketch')}
+            </button>
+
+            <button
+              className="toolbar-btn success"
+              onClick={() => void uploadSketch(code, effectiveBoardType)}
+              disabled={
+                !hardwareCliAvailable ||
+                !selectedHardwarePortPath ||
+                uploadInProgress
+              }
+              title={t(language, 'uploadSketch')}
+            >
+              {uploadInProgress
+                ? t(language, 'uploadingSketch')
+                : t(language, 'uploadSketch')}
+            </button>
+
+            <span
+              className={`sim-status ${
+                hardwareCliAvailable ? 'running' : 'stopped'
+              }`}
+              title={hardwareCliVersion || t(language, 'usbIde')}
+            >
+              {preparingHardwareIde
+                ? t(language, 'preparing')
+                : hardwareCliAvailable
+                  ? t(language, 'ideReady')
+                  : t(language, 'ideOffline')}
+            </span>
+
+            {selectedHardwarePort && (
+              <span className="panel-pill">
+                {selectedHardwarePort.path}
+              </span>
+            )}
+
+            {detectedBoardName && (
+              <span className="panel-pill">
+                {t(language, 'detectedBoard')}: {detectedBoardName}
+              </span>
+            )}
+          </div>
+        </>
+      )}
 
       <div className="toolbar-separator" />
 

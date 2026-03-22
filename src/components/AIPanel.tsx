@@ -64,9 +64,21 @@ type ParsedCodeFence = {
 
 const DEFAULT_WIRE_COLOR = '#e74c3c';
 const MAX_CONVERSATION_TITLE_LENGTH = 42;
+const JSON_ARRAY_FIELD_ALIASES: Record<string, string[]> = {
+  circuit: ['circuit', 'components'],
+  wires: ['wires', 'connections', 'wireconnections'],
+};
+const STRUCTURED_AI_RESPONSE_PATTERN =
+  /```|"(?:circuit|components|wires|connections|wireConnections)"\s*:/i;
 
 const normalizeToken = (value: string) =>
-  value.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+  value
+    .trim()
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\u0131/g, 'i')
+    .replace(/[^a-z0-9_-]/g, '');
 
 const extractCodeFences = (content: string): ParsedCodeFence[] =>
   Array.from(content.matchAll(/```([a-zA-Z0-9_-]*)\s*\n([\s\S]*?)```/g)).map(
@@ -76,16 +88,46 @@ const extractCodeFences = (content: string): ParsedCodeFence[] =>
     })
   );
 
+const getJsonArrayFieldNames = (preferredLabel: string) =>
+  Array.from(
+    new Set([
+      preferredLabel,
+      ...(JSON_ARRAY_FIELD_ALIASES[preferredLabel] ?? []),
+    ])
+  );
+
+const extractJsonArray = <T,>(
+  parsed: unknown,
+  preferredLabel: string,
+  validator: (items: unknown[]) => items is T[]
+): T[] | null => {
+  if (Array.isArray(parsed) && validator(parsed)) {
+    return parsed;
+  }
+
+  if (!parsed || typeof parsed !== 'object') {
+    return null;
+  }
+
+  const candidate = parsed as Record<string, unknown>;
+  for (const fieldName of getJsonArrayFieldNames(preferredLabel)) {
+    const fieldValue = candidate[fieldName];
+    if (Array.isArray(fieldValue) && validator(fieldValue)) {
+      return fieldValue;
+    }
+  }
+
+  return null;
+};
+
 const parseJsonArray = <T,>(
   rawContent: string,
+  preferredLabel: string,
   validator: (items: unknown[]) => items is T[]
 ): T[] | null => {
   try {
     const parsed = JSON.parse(rawContent);
-    if (!Array.isArray(parsed) || !validator(parsed)) {
-      return null;
-    }
-    return parsed;
+    return extractJsonArray(parsed, preferredLabel, validator);
   } catch {
     return null;
   }
@@ -124,20 +166,31 @@ const extractTypedJsonArray = <T,>(
   validator: (items: unknown[]) => items is T[]
 ): T[] | null => {
   const fences = extractCodeFences(content);
+  const aliasLabels = getJsonArrayFieldNames(preferredLabel).filter(
+    (label) => label !== preferredLabel
+  );
   const orderedCandidates = [
     ...fences.filter((fence) => fence.label === preferredLabel),
+    ...fences.filter((fence) => aliasLabels.includes(fence.label)),
     ...fences.filter((fence) => fence.label === 'json'),
     ...fences.filter((fence) => !fence.label),
   ];
 
   for (const candidate of orderedCandidates) {
-    const parsed = parseJsonArray(candidate.content, validator);
+    const parsed = parseJsonArray(
+      candidate.content,
+      preferredLabel,
+      validator
+    );
     if (parsed) return parsed;
   }
 
   const trimmed = content.trim();
-  if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
-    return parseJsonArray(trimmed, validator);
+  if (
+    (trimmed.startsWith('[') && trimmed.endsWith(']')) ||
+    (trimmed.startsWith('{') && trimmed.endsWith('}'))
+  ) {
+    return parseJsonArray(trimmed, preferredLabel, validator);
   }
 
   return null;
@@ -269,17 +322,120 @@ const AIPanel: React.FC = () => {
     setInput(prompt);
   };
 
+  const getReferenceAliases = (value: string) => {
+    const trimmed = value.trim().toLowerCase();
+    const aliases = new Set<string>();
+    const normalized = normalizeToken(value);
+
+    if (trimmed) aliases.add(trimmed);
+    if (normalized) aliases.add(normalized);
+
+    switch (trimmed) {
+      case '+':
+      case 'plus':
+      case 'positive':
+        aliases.add('positive');
+        aliases.add('vcc');
+        aliases.add('power');
+        break;
+      case '-':
+      case 'minus':
+      case 'negative':
+        aliases.add('negative');
+        aliases.add('gnd');
+        aliases.add('ground');
+        break;
+      case 'g':
+        aliases.add('gnd');
+        aliases.add('ground');
+        break;
+      case 'sig':
+        aliases.add('signal');
+        break;
+      default:
+        break;
+    }
+
+    return aliases;
+  };
+
+  const getComponentReferenceAliases = (
+    component: CircuitComponent,
+    explicitRef?: string
+  ) => {
+    const info = COMPONENT_CATALOG.find((item) => item.type === component.type);
+    const localizedName = info
+      ? getComponentDisplayName(language, info.type, info.name)
+      : component.type;
+
+    return new Set(
+      [
+        explicitRef,
+        component.id,
+        component.id.slice(0, 6),
+        component.type,
+        info?.name,
+        localizedName,
+      ]
+        .map((value) => (value ? normalizeToken(value) : ''))
+        .filter(Boolean)
+    );
+  };
+
+  const resolveComponentReference = (
+    componentRef: string,
+    createdRefs: Map<string, string>,
+    availableComponents: CircuitComponent[]
+  ) => {
+    const normalizedComponentRef = normalizeToken(componentRef);
+    if (!normalizedComponentRef) return null;
+
+    const mappedId = createdRefs.get(normalizedComponentRef);
+    if (mappedId) {
+      return availableComponents.find((item) => item.id === mappedId) ?? null;
+    }
+
+    const aliasMatches = availableComponents.filter((component) =>
+      getComponentReferenceAliases(component).has(normalizedComponentRef)
+    );
+    if (aliasMatches.length === 0) return null;
+
+    return aliasMatches[aliasMatches.length - 1];
+  };
+
+  const registerCreatedComponentRefs = (
+    component: CircuitComponent,
+    item: AICircuitItem,
+    index: number,
+    createdRefs: Map<string, string>
+  ) => {
+    const aliases = getComponentReferenceAliases(
+      component,
+      item.ref || `c${index + 1}`
+    );
+
+    aliases.forEach((alias) => {
+      if (!createdRefs.has(alias)) {
+        createdRefs.set(alias, component.id);
+      }
+    });
+  };
+
   const findComponentPin = (component: CircuitComponent, pinRef: string) => {
-    const normalized = normalizeToken(pinRef);
+    const targetAliases = getReferenceAliases(pinRef);
     const exactMatch =
       component.pins.find((pin) => {
-        const pinId = normalizeToken(pin.id);
-        const pinName = normalizeToken(pin.name);
-        return pinId === normalized || pinName === normalized;
+        const pinAliases = new Set<string>([
+          ...getReferenceAliases(pin.id),
+          ...getReferenceAliases(pin.name),
+        ]);
+
+        return Array.from(targetAliases).some((alias) => pinAliases.has(alias));
       }) ?? null;
 
     if (exactMatch) return exactMatch;
 
+    const normalized = normalizeToken(pinRef);
     const looseMatch =
       component.pins.find((pin) => {
         const pinId = normalizeToken(pin.id);
@@ -329,26 +485,11 @@ const AIPanel: React.FC = () => {
       };
     }
 
-    const normalizedComponentRef = normalizeToken(endpointRef.component);
-    const mappedId = createdRefs.get(normalizedComponentRef);
-    const component = mappedId
-      ? availableComponents.find((item) => item.id === mappedId)
-      : availableComponents.find(
-          (item) =>
-            normalizeToken(item.id) === normalizedComponentRef ||
-            normalizeToken(item.id.slice(0, 6)) === normalizedComponentRef
-        );
-
-    const componentByType =
-      component ??
-      (() => {
-        const typedMatches = availableComponents.filter(
-          (item) => normalizeToken(item.type) === normalizedComponentRef
-        );
-        return typedMatches.length === 1 ? typedMatches[0] : null;
-      })();
-
-    const resolvedComponent = componentByType;
+    const resolvedComponent = resolveComponentReference(
+      endpointRef.component,
+      createdRefs,
+      availableComponents
+    );
     if (!resolvedComponent) return null;
 
     const pin = findComponentPin(resolvedComponent, endpointRef.pin);
@@ -553,9 +694,11 @@ const AIPanel: React.FC = () => {
           const allComponents = useCircuitStore.getState().components;
           const createdComponent = allComponents[allComponents.length - 1];
           if (createdComponent) {
-            createdRefs.set(
-              normalizeToken(item.ref || `c${index + 1}`),
-              createdComponent.id
+            registerCreatedComponentRefs(
+              createdComponent,
+              item,
+              index,
+              createdRefs
             );
           }
         });
@@ -739,6 +882,7 @@ Kurallar:
 - Bilesen pinleri icin bilesenin gercek pin id veya adini kullan.
 - x ve y koordinatlari breadboard ustundeki birakma konumudur. Bilesenleri ust uste bindirme.
 - Servo devrelerinde servo, 5V/VCC, GND ve tek bir PWM/dijital sinyal pini kullan; kodda acikca Servo.attach(...) ve Servo.write(...) veya Servo.writeMicroseconds(...) yaz.
+- Kullanici baska bir baslangic acisi istemediyse servo icin varsayilan baslangic acisini 90 derece kabul et; gereksiz yere Servo.write(0) ile baslatma.
 - DC motor devrelerinde simule edilmesi kolay topolojileri tercih et: dogrudan dc-motor + PWM/dijital pin veya l298n-driver + dc-motor. Gereksiz transistorlu topolojilerden kacin.
 
 Ornek bilesen blogu:
@@ -788,6 +932,7 @@ Rules:
 - For component pins, use the real pin id or pin name.
 - x and y coordinates are drop positions on the breadboard. Do not overlap components.
 - For servo circuits, prefer a direct servo + 5V/VCC + GND + one PWM/digital signal pin topology, and write explicit Servo.attach(...) plus Servo.write(...) or Servo.writeMicroseconds(...) code.
+- Unless the user asks for a different startup angle, treat 90 degrees as the default servo starting position and avoid initializing with Servo.write(0) unnecessarily.
 - For DC motor circuits, prefer simulation-friendly topologies: direct dc-motor + PWM/digital control or l298n-driver + dc-motor. Avoid unnecessary transistor-only topologies.
 
 Example component block:
@@ -832,6 +977,8 @@ Example wire block:
         content: assistantMessage,
       });
 
+      const hasStructuredAssistantResponse =
+        STRUCTURED_AI_RESPONSE_PATTERN.test(assistantMessage);
       const codeMatch = assistantMessage.match(/```(?:arduino|cpp|c)\n([\s\S]*?)```/);
       if (codeMatch) {
         setCode(codeMatch[1].trim());
@@ -845,7 +992,12 @@ Example wire block:
       );
 
       if (
-        (applyResult.hasCircuitBlock || codeMatch || applyResult.hasWiresBlock) &&
+        (
+          applyResult.hasCircuitBlock ||
+          codeMatch ||
+          applyResult.hasWiresBlock ||
+          hasStructuredAssistantResponse
+        ) &&
         applyResult.wiresAdded === 0
       ) {
         const wireRepairMessage = await requestAICompletion(

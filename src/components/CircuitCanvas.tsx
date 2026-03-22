@@ -538,6 +538,12 @@ const ComponentShape: React.FC<{
             !String(comp.properties.redProbeTargetPinId ?? '').trim())
         )
       : false;
+  const lcdDisplayOn =
+    comp.type === 'lcd-16x2' ? (readBooleanProperty(comp.properties.displayOn) ?? true) : false;
+  const lcdBacklight =
+    comp.type === 'lcd-16x2' ? (readBooleanProperty(comp.properties.backlight) ?? true) : false;
+  const servoAngle =
+    comp.type === 'servo' ? getNumericValue(comp.properties.angle, 90) : 90;
 
   if (!config || !image) {
     return <Circle radius={10} fill="#888" />;
@@ -634,7 +640,7 @@ const ComponentShape: React.FC<{
       {/* Servo angle */}
       {comp.type === 'servo' && (
         <>
-          <Group rotation={((Number(comp.properties.angle) || 90) - 90) * 0.9} listening={false}>
+          <Group rotation={(servoAngle - 90) * 0.9} listening={false}>
             <Line
               points={[0, -4, 0, -22]}
               stroke="#f5f5f5"
@@ -645,7 +651,7 @@ const ComponentShape: React.FC<{
           </Group>
           <Circle x={0} y={-4} radius={3.2} fill="#d9d9d9" listening={false} />
           <Text
-            text={`${(comp.properties.angle as number) || 90}°`}
+            text={`${Math.round(servoAngle)}°`}
             x={-10}
             y={-30}
             width={20}
@@ -921,6 +927,45 @@ const ComponentShape: React.FC<{
             align="center"
             fontSize={6}
             fill="#b7f7d4"
+            listening={false}
+          />
+        </>
+      )}
+
+      {comp.type === 'lcd-16x2' && (
+        <>
+          <Rect
+            x={-49}
+            y={-6}
+            width={98}
+            height={23}
+            cornerRadius={3}
+            fill={lcdBacklight ? '#c8e17a' : '#6d7851'}
+            opacity={lcdDisplayOn ? (lcdBacklight ? 0.42 : 0.18) : 0.08}
+            listening={false}
+          />
+          <Text
+            text={lcdDisplayOn ? String(comp.properties.text1 ?? '') : ''}
+            x={-45}
+            y={-4}
+            width={90}
+            align="left"
+            wrap="none"
+            fontFamily="monospace"
+            fontSize={7}
+            fill={lcdBacklight ? '#193b1b' : '#31412b'}
+            listening={false}
+          />
+          <Text
+            text={lcdDisplayOn ? String(comp.properties.text2 ?? '') : ''}
+            x={-45}
+            y={5}
+            width={90}
+            align="left"
+            wrap="none"
+            fontFamily="monospace"
+            fontSize={7}
+            fill={lcdBacklight ? '#193b1b' : '#31412b'}
             listening={false}
           />
         </>

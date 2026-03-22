@@ -53,6 +53,7 @@ type RuntimeExecutionContext = {
   clockMs: { value: number };
   pinValues: Map<string, number>;
   servoRuntime: Map<string, ServoRuntimeState>;
+  lcdRuntime: Map<string, LcdRuntimeState>;
   connectivity: Connectivity;
   measurementConnectivity: Connectivity;
   boardPins: Pin[];
@@ -97,6 +98,21 @@ type ServoRuntimeState = {
   pin: string | null;
   angle: number;
   pulseWidthUs: number | null;
+  hasWritten: boolean;
+};
+
+type LcdRuntimeState = {
+  rsPin: string | null;
+  rwPin: string | null;
+  enablePin: string | null;
+  dataPins: string[];
+  cols: number;
+  rows: number;
+  cursorCol: number;
+  cursorRow: number;
+  displayOn: boolean;
+  backlight: boolean;
+  lines: string[];
 };
 
 type DriverChannelDefinition = {
@@ -171,6 +187,22 @@ const NOOP_CALLBACKS: RuntimeCallbacks = {
 };
 
 let activeStop: (() => void) | null = null;
+const SUPPORTED_RUNTIME_BUILTINS = new Set([
+  'F',
+  'STRING',
+  'MILLIS',
+  'MICROS',
+  'ANALOGREAD',
+  'DIGITALREAD',
+  'ABS',
+  'MIN',
+  'MAX',
+  'CONSTRAIN',
+  'ROUND',
+  'FLOOR',
+  'CEIL',
+  'MAP',
+]);
 
 function endpointKey(componentId: string, pinId: string): string {
   return `${componentId}:${pinId}`;
@@ -511,6 +543,102 @@ function extractServoInstances(code: string): Set<string> {
   return instances;
 }
 
+function createLcdBuffer(cols: number, rows: number): string[] {
+  return Array.from({ length: Math.max(1, rows) }, () => ' '.repeat(Math.max(1, cols)));
+}
+
+function createDefaultLcdRuntimeState(
+  pins: Pick<LcdRuntimeState, 'rsPin' | 'rwPin' | 'enablePin' | 'dataPins'>
+): LcdRuntimeState {
+  return {
+    ...pins,
+    cols: 16,
+    rows: 2,
+    cursorCol: 0,
+    cursorRow: 0,
+    displayOn: true,
+    backlight: true,
+    lines: createLcdBuffer(16, 2),
+  };
+}
+
+function parseLiquidCrystalPins(
+  args: string,
+  variables: VariableTables
+): Pick<LcdRuntimeState, 'rsPin' | 'rwPin' | 'enablePin' | 'dataPins'> | null {
+  const parts = splitTopLevel(args, ',').map((part) => part.trim()).filter(Boolean);
+
+  if (![6, 7, 10, 11].includes(parts.length)) {
+    return null;
+  }
+
+  const hasRwPin = parts.length === 7 || parts.length === 11;
+  const isEightBit = parts.length === 10 || parts.length === 11;
+  const rsPin = normalizeArduinoPin(parts[0] ?? '', variables);
+  const rwPin = hasRwPin ? normalizeArduinoPin(parts[1] ?? '', variables) : null;
+  const enablePin = normalizeArduinoPin(parts[hasRwPin ? 2 : 1] ?? '', variables);
+  const dataStartIndex = hasRwPin ? 3 : 2;
+  const dataPins = parts
+    .slice(dataStartIndex, dataStartIndex + (isEightBit ? 8 : 4))
+    .map((pinExpr) => normalizeArduinoPin(pinExpr, variables))
+    .filter((pin): pin is string => Boolean(pin));
+
+  if (!rsPin || !enablePin || dataPins.length !== (isEightBit ? 8 : 4)) {
+    return null;
+  }
+
+  return {
+    rsPin,
+    rwPin,
+    enablePin,
+    dataPins,
+  };
+}
+
+function extractLcdInstances(code: string, variables: VariableTables): Map<string, LcdRuntimeState> {
+  const instances = new Map<string, LcdRuntimeState>();
+  const regex = /\b(LiquidCrystal(?:_I2C)?)\s+([^;]+)\s*;/gi;
+
+  for (const match of code.matchAll(regex)) {
+    const lcdType = match[1].trim();
+    for (const declaration of splitTopLevel(match[2], ',')) {
+      const cleaned = declaration.trim();
+      if (!cleaned) continue;
+
+      const directMatch = /^([A-Za-z_]\w*)\s*\(([\s\S]*)\)$/.exec(cleaned);
+      const assignedMatch =
+        /^([A-Za-z_]\w*)\s*=\s*LiquidCrystal(?:_I2C)?\s*\(([\s\S]*)\)$/i.exec(cleaned);
+      const resolvedMatch = directMatch ?? assignedMatch;
+      if (!resolvedMatch) continue;
+
+      if (/LiquidCrystal_I2C/i.test(lcdType)) {
+        const args = splitTopLevel(resolvedMatch[2], ',').map((part) => part.trim()).filter(Boolean);
+        const cols = Math.round(resolveNumericExpression(args[1] ?? '16', variables) ?? 16) || 16;
+        const rows = Math.round(resolveNumericExpression(args[2] ?? '2', variables) ?? 2) || 2;
+        const runtimeState = createDefaultLcdRuntimeState({
+          rsPin: null,
+          rwPin: null,
+          enablePin: null,
+          dataPins: [],
+        });
+        resizeLcdBuffer(runtimeState, cols, rows);
+        instances.set(normalizeVariableName(resolvedMatch[1]), runtimeState);
+        continue;
+      }
+
+      const pins = parseLiquidCrystalPins(resolvedMatch[2], variables);
+      if (!pins) continue;
+
+      instances.set(
+        normalizeVariableName(resolvedMatch[1]),
+        createDefaultLcdRuntimeState(pins)
+      );
+    }
+  }
+
+  return instances;
+}
+
 function extractFunctionBody(code: string, functionName: 'setup' | 'loop'): string {
   const signature = new RegExp(`void\\s+${functionName}\\s*\\(\\s*\\)\\s*\\{`, 'i');
   const match = signature.exec(code);
@@ -533,6 +661,67 @@ function extractFunctionBody(code: string, functionName: 'setup' | 'loop'): stri
 function pulseWidthToAngle(pulseWidthUs: number): number {
   const normalized = clamp(pulseWidthUs, 500, 2500);
   return Math.round(((normalized - 500) / 2000) * 180);
+}
+
+function resizeLcdBuffer(state: LcdRuntimeState, cols: number, rows: number): void {
+  const nextCols = Math.max(1, cols);
+  const nextRows = Math.max(1, rows);
+  const nextLines = createLcdBuffer(nextCols, nextRows);
+
+  for (let row = 0; row < Math.min(state.lines.length, nextRows); row += 1) {
+    const currentLine = state.lines[row] ?? '';
+    nextLines[row] = currentLine.padEnd(nextCols, ' ').slice(0, nextCols);
+  }
+
+  state.cols = nextCols;
+  state.rows = nextRows;
+  state.lines = nextLines;
+  state.cursorCol = clamp(state.cursorCol, 0, nextCols - 1);
+  state.cursorRow = clamp(state.cursorRow, 0, nextRows - 1);
+}
+
+function clearLcdBuffer(state: LcdRuntimeState): void {
+  state.lines = createLcdBuffer(state.cols, state.rows);
+  state.cursorCol = 0;
+  state.cursorRow = 0;
+}
+
+function writeLcdChar(state: LcdRuntimeState, char: string): void {
+  if (state.cursorRow < 0 || state.cursorRow >= state.rows) {
+    return;
+  }
+
+  if (char === '\r') {
+    return;
+  }
+
+  if (char === '\n') {
+    state.cursorCol = 0;
+    state.cursorRow = clamp(state.cursorRow + 1, 0, state.rows - 1);
+    return;
+  }
+
+  if (state.cursorCol < 0) {
+    state.cursorCol = 0;
+  }
+
+  if (state.cursorCol >= state.cols) {
+    if (state.cursorRow >= state.rows - 1) {
+      return;
+    }
+    state.cursorCol = 0;
+    state.cursorRow += 1;
+  }
+
+  const line = (state.lines[state.cursorRow] ?? '').padEnd(state.cols, ' ');
+  state.lines[state.cursorRow] =
+    `${line.slice(0, state.cursorCol)}${char}${line.slice(state.cursorCol + 1)}`.slice(0, state.cols);
+
+  state.cursorCol += 1;
+  if (state.cursorCol >= state.cols && state.cursorRow < state.rows - 1) {
+    state.cursorCol = 0;
+    state.cursorRow += 1;
+  }
 }
 
 function parseCommands(
@@ -998,19 +1187,161 @@ function resolveRuntimeIdentifier(
   return 0;
 }
 
+function hasUnsupportedRuntimeReferences(
+  expr: string,
+  variables: VariableTables,
+  scope: RuntimeScope
+): boolean {
+  const tokens = tokenizeRuntimeExpression(expr);
+
+  for (let index = 0; index < tokens.length; index += 1) {
+    const token = tokens[index];
+    if (token.type !== 'identifier') continue;
+
+    const normalized = normalizeVariableName(token.value);
+    if (
+      normalized === 'TRUE' ||
+      normalized === 'FALSE' ||
+      normalized === 'HIGH' ||
+      normalized === 'LOW'
+    ) {
+      continue;
+    }
+
+    const nextToken = tokens[index + 1];
+    if (nextToken?.type === 'paren' && nextToken.value === '(') {
+      if (!SUPPORTED_RUNTIME_BUILTINS.has(normalized)) {
+        return true;
+      }
+      continue;
+    }
+
+    if (getRuntimeScopeValue(token.value, variables, scope) !== undefined) {
+      continue;
+    }
+
+    if (isLikelyPinToken(token.value)) {
+      continue;
+    }
+
+    return true;
+  }
+
+  return false;
+}
+
+function evaluateStrictRuntimeNumericExpression(
+  expr: string,
+  variables: VariableTables,
+  scope: RuntimeScope,
+  clockMs?: { value: number },
+  runtimeContext?: RuntimeExecutionContext
+): number | null {
+  if (hasUnsupportedRuntimeReferences(expr, variables, scope)) {
+    return null;
+  }
+
+  return toRuntimeNumber(
+    evaluateRuntimeExpression(expr, variables, scope, clockMs, runtimeContext)
+  );
+}
+
+function buildRuntimeReadNetState(context: RuntimeExecutionContext): NetState {
+  const netState = buildBaseNetState(
+    context.connectivity,
+    context.pinValues,
+    context.boardPins,
+    context.logicHighVoltage
+  );
+  computeDriverStates(context.connectivity, netState, NOOP_CALLBACKS);
+  return netState;
+}
+
+function resolveRuntimeReadPin(
+  value: RuntimeValue | null | undefined,
+  context: RuntimeExecutionContext
+): string | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  return normalizeArduinoPin(String(value), context.baseVariables, context.scope);
+}
+
+function readRuntimeAnalogPin(
+  pinValue: RuntimeValue | null | undefined,
+  context: RuntimeExecutionContext
+): number {
+  const pin = resolveRuntimeReadPin(pinValue, context);
+  if (!pin) {
+    return 0;
+  }
+
+  const netState = buildRuntimeReadNetState(context);
+  const net = getEndpointNet(context.connectivity, ARDUINO_COMPONENT_ID, pin);
+  const voltage = getNetVoltage(netState, net);
+  if (voltage !== null) {
+    return clamp(
+      Math.round((voltage / Math.max(context.logicHighVoltage, 0.001)) * 1023),
+      0,
+      1023
+    );
+  }
+
+  const level = getNetLevel(netState, net);
+  if (level === null) {
+    return 0;
+  }
+
+  return clamp(Math.round((level / 255) * 1023), 0, 1023);
+}
+
+function readRuntimeDigitalPin(
+  pinValue: RuntimeValue | null | undefined,
+  context: RuntimeExecutionContext
+): number {
+  const pin = resolveRuntimeReadPin(pinValue, context);
+  if (!pin) {
+    return 0;
+  }
+
+  const netState = buildRuntimeReadNetState(context);
+  const net = getEndpointNet(context.connectivity, ARDUINO_COMPONENT_ID, pin);
+  const voltage = getNetVoltage(netState, net);
+  if (voltage !== null) {
+    return voltage >= context.logicHighVoltage * 0.5 ? 1 : 0;
+  }
+
+  const level = getNetLevel(netState, net);
+  return level !== null && level >= 128 ? 1 : 0;
+}
+
 function callRuntimeBuiltin(
   name: string,
   args: RuntimeValue[],
-  clockMs?: { value: number }
+  clockMs?: { value: number },
+  runtimeContext?: RuntimeExecutionContext
 ): RuntimeValue {
   const normalized = normalizeVariableName(name);
-  const numbers = args.map((arg) => toRuntimeNumber(arg) ?? 0);
 
   switch (normalized) {
+    case 'F':
+      return args[0] ?? '';
+    case 'STRING':
+      return toRuntimeString(args[0] ?? '');
     case 'MILLIS':
       return clockMs?.value ?? 0;
     case 'MICROS':
       return (clockMs?.value ?? 0) * 1000;
+    case 'ANALOGREAD':
+      return runtimeContext ? readRuntimeAnalogPin(args[0] ?? null, runtimeContext) : 0;
+    case 'DIGITALREAD':
+      return runtimeContext ? readRuntimeDigitalPin(args[0] ?? null, runtimeContext) : 0;
+  }
+
+  const numbers = args.map((arg) => toRuntimeNumber(arg) ?? 0);
+
+  switch (normalized) {
     case 'ABS':
       return Math.abs(numbers[0] ?? 0);
     case 'MIN':
@@ -1039,7 +1370,8 @@ function evaluateRuntimeExpression(
   expr: string,
   variables: VariableTables,
   scope: RuntimeScope,
-  clockMs?: { value: number }
+  clockMs?: { value: number },
+  runtimeContext?: RuntimeExecutionContext
 ): RuntimeValue | null {
   const tokens = tokenizeRuntimeExpression(expr);
   if (tokens.length === 0) return null;
@@ -1094,7 +1426,7 @@ function evaluateRuntimeExpression(
           } while (matchComma());
           matchParen(')');
         }
-        return callRuntimeBuiltin(token.value, args, clockMs);
+        return callRuntimeBuiltin(token.value, args, clockMs, runtimeContext);
       }
 
       return resolveRuntimeIdentifier(token.value, variables, scope);
@@ -1228,9 +1560,14 @@ function evaluateRuntimeCondition(
   expr: string,
   variables: VariableTables,
   scope: RuntimeScope,
-  clockMs?: { value: number }
+  clockMs?: { value: number },
+  runtimeContext?: RuntimeExecutionContext
 ): boolean {
-  return toRuntimeBoolean(evaluateRuntimeExpression(expr, variables, scope, clockMs)) ?? false;
+  return (
+    toRuntimeBoolean(
+      evaluateRuntimeExpression(expr, variables, scope, clockMs, runtimeContext)
+    ) ?? false
+  );
 }
 
 function appendRuntimeSerialOutput(
@@ -1248,10 +1585,169 @@ function updateRuntimeSimulationState(context: RuntimeExecutionContext): void {
     context.measurementConnectivity,
     context.pinValues,
     context.servoRuntime,
+    context.lcdRuntime,
     context.boardPins,
     context.logicHighVoltage,
     context.callbacks
   );
+}
+
+function resolveLcdPrintText(expr: string, context: RuntimeExecutionContext): string {
+  const trimmed = expr.trim();
+  if (!trimmed) return '';
+
+  const evaluated = evaluateRuntimeExpression(
+    trimmed,
+    context.baseVariables,
+    context.scope,
+    context.clockMs,
+    context
+  );
+
+  if (typeof evaluated === 'string') {
+    return evaluated;
+  }
+
+  if (typeof evaluated === 'number' || typeof evaluated === 'boolean') {
+    return toRuntimeString(evaluated);
+  }
+
+  return resolveSerialExpression(trimmed, context.baseVariables, context.scope);
+}
+
+function applyLcdMethodCall(
+  statement: string,
+  context: RuntimeExecutionContext
+): boolean {
+  const lcdMatch =
+    /^([A-Za-z_]\w*)\.(begin|init|clear|home|setCursor|print|println|display|noDisplay|backlight|noBacklight)\(([\s\S]*)\)$/i.exec(
+      statement
+    );
+  if (!lcdMatch) {
+    return false;
+  }
+
+  const instanceName = normalizeVariableName(lcdMatch[1]);
+  const method = lcdMatch[2].toLowerCase();
+  const args = lcdMatch[3].trim();
+  const runtimeState = context.lcdRuntime.get(instanceName);
+  if (!runtimeState) {
+    return false;
+  }
+
+  if (method === 'begin' || method === 'init') {
+    const [colsExpr = `${runtimeState.cols}`, rowsExpr = `${runtimeState.rows}`] = splitTopLevel(args, ',');
+    const cols =
+      Math.round(
+        toRuntimeNumber(
+          evaluateRuntimeExpression(
+            colsExpr,
+            context.baseVariables,
+            context.scope,
+            context.clockMs,
+            context
+          )
+        ) ?? 16
+      ) || 16;
+    const rows =
+      Math.round(
+        toRuntimeNumber(
+          evaluateRuntimeExpression(
+            rowsExpr,
+            context.baseVariables,
+            context.scope,
+            context.clockMs,
+            context
+          )
+        ) ?? 2
+      ) || 2;
+    resizeLcdBuffer(runtimeState, cols, rows);
+    clearLcdBuffer(runtimeState);
+    updateRuntimeSimulationState(context);
+    return true;
+  }
+
+  if (method === 'clear') {
+    clearLcdBuffer(runtimeState);
+    updateRuntimeSimulationState(context);
+    return true;
+  }
+
+  if (method === 'home') {
+    runtimeState.cursorCol = 0;
+    runtimeState.cursorRow = 0;
+    updateRuntimeSimulationState(context);
+    return true;
+  }
+
+  if (method === 'setcursor') {
+    const [colExpr = '0', rowExpr = '0'] = splitTopLevel(args, ',');
+    const col = Math.round(
+      toRuntimeNumber(
+        evaluateRuntimeExpression(
+          colExpr,
+          context.baseVariables,
+          context.scope,
+          context.clockMs,
+          context
+        )
+      ) ?? 0
+    );
+    const row = Math.round(
+      toRuntimeNumber(
+        evaluateRuntimeExpression(
+          rowExpr,
+          context.baseVariables,
+          context.scope,
+          context.clockMs,
+          context
+        )
+      ) ?? 0
+    );
+    runtimeState.cursorCol = clamp(col, 0, Math.max(0, runtimeState.cols - 1));
+    runtimeState.cursorRow = clamp(row, 0, Math.max(0, runtimeState.rows - 1));
+    updateRuntimeSimulationState(context);
+    return true;
+  }
+
+  if (method === 'display') {
+    runtimeState.displayOn = true;
+    updateRuntimeSimulationState(context);
+    return true;
+  }
+
+  if (method === 'nodisplay') {
+    runtimeState.displayOn = false;
+    updateRuntimeSimulationState(context);
+    return true;
+  }
+
+  if (method === 'backlight') {
+    runtimeState.backlight = true;
+    updateRuntimeSimulationState(context);
+    return true;
+  }
+
+  if (method === 'nobacklight') {
+    runtimeState.backlight = false;
+    updateRuntimeSimulationState(context);
+    return true;
+  }
+
+  if (method === 'print' || method === 'println') {
+    const [valueExpr = ''] = splitTopLevel(args, ',');
+    const text = resolveLcdPrintText(valueExpr, context);
+    for (const char of text) {
+      writeLcdChar(runtimeState, char);
+    }
+    if (method === 'println') {
+      writeLcdChar(runtimeState, '\n');
+    }
+    updateRuntimeSimulationState(context);
+    return true;
+  }
+
+  return false;
 }
 
 function applyRuntimeDeclaration(
@@ -1278,7 +1774,8 @@ function applyRuntimeDeclaration(
           assignment[2],
           context.baseVariables,
           context.scope,
-          context.clockMs
+          context.clockMs,
+          context
         ) ??
         (typeName.includes('bool') ? false : typeName.includes('string') || typeName.includes('char') ? '' : 0);
       context.scope.set(normalizeVariableName(assignment[1]), value);
@@ -1327,7 +1824,8 @@ function applyRuntimeAssignment(
         compoundMatch[3],
         context.baseVariables,
         context.scope,
-        context.clockMs
+        context.clockMs,
+        context
       )
     ) ?? 0;
 
@@ -1348,7 +1846,8 @@ function applyRuntimeAssignment(
       assignmentMatch[2],
       context.baseVariables,
       context.scope,
-      context.clockMs
+      context.clockMs,
+      context
     );
     if (value !== null) {
       context.scope.set(normalizeVariableName(assignmentMatch[1]), value);
@@ -1404,7 +1903,8 @@ function executeRuntimeExpressionStatement(
           delayMatch[1],
           context.baseVariables,
           context.scope,
-          context.clockMs
+          context.clockMs,
+          context
         )
       ) ?? 0;
     context.clockMs.value += Math.max(0, delayValue);
@@ -1423,7 +1923,8 @@ function executeRuntimeExpressionStatement(
                 writeMatch[3],
                 context.baseVariables,
                 context.scope,
-                context.clockMs
+                context.clockMs,
+                context
               )
             )
               ? 255
@@ -1435,7 +1936,8 @@ function executeRuntimeExpressionStatement(
                     writeMatch[3],
                     context.baseVariables,
                     context.scope,
-                    context.clockMs
+                    context.clockMs,
+                    context
                   )
                 ) ?? 0
               ),
@@ -1450,6 +1952,11 @@ function executeRuntimeExpressionStatement(
     return;
   }
 
+  if (applyLcdMethodCall(trimmed, context)) {
+    done();
+    return;
+  }
+
   const servoMatch =
     /^([A-Za-z_]\w*)\.(attach|detach|writeMicroseconds|write)\(([\s\S]*)\)$/i.exec(trimmed);
   if (servoMatch) {
@@ -1460,6 +1967,7 @@ function executeRuntimeExpressionStatement(
       pin: null,
       angle: 90,
       pulseWidthUs: null,
+      hasWritten: false,
     };
 
     if (action === 'attach') {
@@ -1483,13 +1991,12 @@ function executeRuntimeExpressionStatement(
     if (action === 'write') {
       const angle = clamp(
         Math.round(
-          toRuntimeNumber(
-            evaluateRuntimeExpression(
-              args,
-              context.baseVariables,
-              context.scope,
-              context.clockMs
-            )
+          evaluateStrictRuntimeNumericExpression(
+            args,
+            context.baseVariables,
+            context.scope,
+            context.clockMs,
+            context
           ) ?? current.angle
         ),
         0,
@@ -1499,6 +2006,7 @@ function executeRuntimeExpressionStatement(
         ...current,
         angle,
         pulseWidthUs: null,
+        hasWritten: true,
       });
       updateRuntimeSimulationState(context);
       done();
@@ -1507,19 +2015,19 @@ function executeRuntimeExpressionStatement(
 
     if (action === 'writemicroseconds') {
       const pulseWidthUs = Math.round(
-        toRuntimeNumber(
-          evaluateRuntimeExpression(
-            args,
-            context.baseVariables,
-            context.scope,
-            context.clockMs
-          )
+        evaluateStrictRuntimeNumericExpression(
+          args,
+          context.baseVariables,
+          context.scope,
+          context.clockMs,
+          context
         ) ?? (current.pulseWidthUs ?? 1500)
       );
       context.servoRuntime.set(instance, {
         ...current,
         angle: pulseWidthToAngle(pulseWidthUs),
         pulseWidthUs,
+        hasWritten: true,
       });
       updateRuntimeSimulationState(context);
       done();
@@ -1559,7 +2067,8 @@ function executeRuntimeStatement(
       statement.condition,
       context.baseVariables,
       context.scope,
-      context.clockMs
+      context.clockMs,
+      context
     )
       ? statement.consequent
       : statement.alternate;
@@ -1825,6 +2334,51 @@ function assignNetSignal(
   }
 }
 
+function applyInputComponentSignals(
+  connectivity: Connectivity,
+  netState: NetState,
+  logicHighVoltage: number
+): void {
+  for (const component of connectivity.components) {
+    if (component.type !== 'joystick') {
+      continue;
+    }
+
+    const vccNet = getEndpointNet(connectivity, component.id, 'vcc');
+    const gndNet = getEndpointNet(connectivity, component.id, 'gnd');
+    const supplyVoltage = getNetVoltage(netState, vccNet) ?? logicHighVoltage;
+    const powered = supplyVoltage > 0 && isNetHigh(netState, vccNet) && isNetLow(netState, gndNet);
+    if (!powered) {
+      continue;
+    }
+
+    const xAxis = clamp(Math.round(getNumericProperty(component, 'xAxis', 512)), 0, 1023);
+    const yAxis = clamp(Math.round(getNumericProperty(component, 'yAxis', 512)), 0, 1023);
+    const xRatio = xAxis / 1023;
+    const yRatio = yAxis / 1023;
+    const pressed = Boolean(component.properties.pressed);
+
+    assignNetSignal(
+      netState,
+      getEndpointNet(connectivity, component.id, 'vrx'),
+      Math.round(xRatio * 255),
+      xRatio * supplyVoltage
+    );
+    assignNetSignal(
+      netState,
+      getEndpointNet(connectivity, component.id, 'vry'),
+      Math.round(yRatio * 255),
+      yRatio * supplyVoltage
+    );
+    assignNetSignal(
+      netState,
+      getEndpointNet(connectivity, component.id, 'sw'),
+      pressed ? 0 : 255,
+      pressed ? 0 : supplyVoltage
+    );
+  }
+}
+
 function buildBaseNetState(
   connectivity: Connectivity,
   pinValues: Map<string, number>,
@@ -1863,6 +2417,8 @@ function buildBaseNetState(
     const net = getEndpointNet(connectivity, ARDUINO_COMPONENT_ID, pinId);
     assignNetSignal(netState, net, value, normalizeLevelToVoltage(value, logicHighVoltage));
   }
+
+  applyInputComponentSignals(connectivity, netState, logicHighVoltage);
 
   return netState;
 }
@@ -2001,9 +2557,100 @@ function computeServoStates(
     const gndNet = getEndpointNet(connectivity, servo.id, 'gnd');
     const powered = isNetHigh(netState, vccNet) && isNetLow(netState, gndNet);
     const runtimeState = signalNet !== undefined ? servoNetState.get(signalNet) : undefined;
+    const fallbackAngle = getNumericProperty(servo, 'angle', 90);
 
     callbacks.setComponentState(servo.id, {
-      angle: powered && runtimeState ? runtimeState.angle : 90,
+      angle:
+        powered && runtimeState?.hasWritten
+          ? runtimeState.angle
+          : fallbackAngle,
+    });
+  }
+}
+
+function computeLcdStates(
+  connectivity: Connectivity,
+  lcdRuntime: Map<string, LcdRuntimeState>,
+  netState: NetState,
+  callbacks: RuntimeCallbacks
+): void {
+  const runtimeEntries = Array.from(lcdRuntime.values());
+  const lcdComponents = connectivity.components.filter((component) => component.type === 'lcd-16x2');
+
+  const getBoardNet = (pinId: string | null) =>
+    pinId ? getEndpointNet(connectivity, ARDUINO_COMPONENT_ID, pinId) : undefined;
+
+  for (const lcd of lcdComponents) {
+    const powered =
+      isNetHigh(netState, getEndpointNet(connectivity, lcd.id, 'pin2')) &&
+      isNetLow(netState, getEndpointNet(connectivity, lcd.id, 'pin1'));
+    const backlightPositiveNet = getEndpointNet(connectivity, lcd.id, 'pin15');
+    const backlightNegativeNet = getEndpointNet(connectivity, lcd.id, 'pin16');
+    const backlightPinsConnected =
+      backlightPositiveNet !== undefined || backlightNegativeNet !== undefined;
+    const hardwareBacklightReady = backlightPinsConnected
+      ? isNetHigh(netState, backlightPositiveNet) && isNetLow(netState, backlightNegativeNet)
+      : true;
+
+    let matchedRuntime: LcdRuntimeState | null = null;
+    let bestScore = -1;
+
+    for (const candidate of runtimeEntries) {
+      const fourBitDataPins = candidate.dataPins.length >= 4 ? candidate.dataPins.slice(-4) : [];
+      const expectedPairs: Array<[string, number | undefined]> = [
+        ['pin4', getBoardNet(candidate.rsPin)],
+        ['pin6', getBoardNet(candidate.enablePin)],
+        ['pin11', getBoardNet(fourBitDataPins[0] ?? null)],
+        ['pin12', getBoardNet(fourBitDataPins[1] ?? null)],
+        ['pin13', getBoardNet(fourBitDataPins[2] ?? null)],
+        ['pin14', getBoardNet(fourBitDataPins[3] ?? null)],
+      ];
+
+      if (candidate.rwPin) {
+        expectedPairs.push(['pin5', getBoardNet(candidate.rwPin)]);
+      }
+
+      if (candidate.dataPins.length >= 8) {
+        const eightBitPairs: Array<[string, number | undefined]> = [
+          ['pin7', getBoardNet(candidate.dataPins[0] ?? null)],
+          ['pin8', getBoardNet(candidate.dataPins[1] ?? null)],
+          ['pin9', getBoardNet(candidate.dataPins[2] ?? null)],
+          ['pin10', getBoardNet(candidate.dataPins[3] ?? null)],
+        ];
+        expectedPairs.push(...eightBitPairs);
+      }
+
+      let score = 0;
+      let mismatch = false;
+
+      for (const [componentPinId, expectedNet] of expectedPairs) {
+        const componentNet = getEndpointNet(connectivity, lcd.id, componentPinId);
+        if (expectedNet === undefined || componentNet === undefined || expectedNet !== componentNet) {
+          mismatch = true;
+          break;
+        }
+        score += 1;
+      }
+
+      if (!mismatch && score > bestScore) {
+        bestScore = score;
+        matchedRuntime = candidate;
+      }
+    }
+
+    if (!matchedRuntime && runtimeEntries.length === 1 && lcdComponents.length === 1) {
+      matchedRuntime = runtimeEntries[0];
+    }
+
+    const displayOn = powered && Boolean(matchedRuntime?.displayOn);
+    const text1 = displayOn ? (matchedRuntime?.lines[0] ?? '').replace(/\s+$/u, '') : '';
+    const text2 = displayOn ? (matchedRuntime?.lines[1] ?? '').replace(/\s+$/u, '') : '';
+
+    callbacks.setComponentState(lcd.id, {
+      text1,
+      text2,
+      backlight: displayOn && Boolean(matchedRuntime?.backlight) && hardwareBacklightReady,
+      displayOn,
     });
   }
 }
@@ -2724,6 +3371,7 @@ function updateActuatorStates(
   measurementConnectivity: Connectivity,
   pinValues: Map<string, number>,
   servoRuntime: Map<string, ServoRuntimeState>,
+  lcdRuntime: Map<string, LcdRuntimeState>,
   boardPins: Pin[],
   logicHighVoltage: number,
   callbacks: RuntimeCallbacks
@@ -2735,6 +3383,7 @@ function updateActuatorStates(
   computeDriverStates(connectivity, netState, callbacks);
   computeLedStates(connectivity, netState, callbacks);
   computeServoStates(connectivity, servoRuntime, netState, callbacks);
+  computeLcdStates(connectivity, lcdRuntime, netState, callbacks);
   computeDcMotorStates(connectivity, netState, callbacks);
 
   const measurementNetState = buildBaseNetState(
@@ -2768,6 +3417,7 @@ export function startMockArduinoRuntime(
 
   const variables = buildVariableTables(code);
   const servoInstances = extractServoInstances(code);
+  const lcdRuntime = extractLcdInstances(code, variables);
   const setupStatements = parseRuntimeStatements(extractFunctionBody(code, 'setup'));
   const loopStatements = parseRuntimeStatements(extractFunctionBody(code, 'loop'));
   const connectivity = buildConnectivity(components, wires, boardPins);
@@ -2788,6 +3438,7 @@ export function startMockArduinoRuntime(
       pin: null,
       angle: 90,
       pulseWidthUs: null,
+      hasWritten: false,
     });
   }
 
@@ -2818,6 +3469,7 @@ export function startMockArduinoRuntime(
     clockMs,
     pinValues,
     servoRuntime,
+    lcdRuntime,
     connectivity,
     measurementConnectivity,
     boardPins,
@@ -2847,6 +3499,7 @@ export function startMockArduinoRuntime(
     measurementConnectivity,
     pinValues,
     servoRuntime,
+    lcdRuntime,
     boardPins,
     logicHighVoltage,
     callbacks

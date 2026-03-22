@@ -1,6 +1,16 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, Menu } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const {
+  setArduinoIdeWindowGetter,
+  prepareArduinoIde,
+  getHardwareList,
+  verifyHardwareSketch,
+  uploadHardwareSketch,
+  openHardwareSerialMonitor,
+  closeHardwareSerialMonitor,
+  disposeArduinoIde,
+} = require('./arduino-ide');
 
 let mainWindow = null;
 
@@ -32,6 +42,7 @@ async function loadApplication(window, isDev) {
 
 async function createWindow() {
   const isDev = !app.isPackaged || process.argv.includes('--dev');
+  const useCustomWindowChrome = process.platform !== 'darwin';
 
   mainWindow = new BrowserWindow({
     width: 1400,
@@ -39,8 +50,10 @@ async function createWindow() {
     minWidth: 1100,
     minHeight: 700,
     show: false,
-    title: 'AI Arduino Circuit',
+    title: 'OtisIDE',
     icon: resolveIconPath(),
+    frame: !useCustomWindowChrome,
+    titleBarStyle: useCustomWindowChrome ? undefined : 'hiddenInset',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -48,6 +61,12 @@ async function createWindow() {
     },
     backgroundColor: '#1a1a2e',
   });
+
+  if (useCustomWindowChrome) {
+    Menu.setApplicationMenu(null);
+    mainWindow.setMenuBarVisibility(false);
+    mainWindow.setMenu(null);
+  }
 
   mainWindow.once('ready-to-show', () => {
     mainWindow?.show();
@@ -105,16 +124,22 @@ function readDialogOptions(options) {
 }
 
 app.whenReady().then(() => {
-  app.setAppUserModelId('com.otis21.aiarduinocircuit');
+  app.setAppUserModelId('com.otis21.otiside');
+  setArduinoIdeWindowGetter(() => mainWindow);
   return createWindow();
 });
 
 app.on('window-all-closed', () => {
+  void disposeArduinoIde();
   if (process.platform !== 'darwin') app.quit();
 });
 
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) createWindow();
+});
+
+app.on('before-quit', () => {
+  void disposeArduinoIde();
 });
 
 process.on('uncaughtException', (error) => {
@@ -135,6 +160,28 @@ ipcMain.on('set-window-title', (_event, title) => {
   if (mainWindow && typeof title === 'string') {
     mainWindow.setTitle(title);
   }
+});
+
+ipcMain.handle('window-minimize', () => {
+  mainWindow?.minimize();
+  return true;
+});
+
+ipcMain.handle('window-toggle-maximize', () => {
+  if (!mainWindow) return false;
+
+  if (mainWindow.isMaximized()) {
+    mainWindow.unmaximize();
+    return false;
+  }
+
+  mainWindow.maximize();
+  return true;
+});
+
+ipcMain.handle('window-close', () => {
+  mainWindow?.close();
+  return true;
 });
 
 ipcMain.handle('save-project', async (_event, payload) => {
@@ -225,4 +272,26 @@ ipcMain.handle(
       return { error: error?.message || 'Connection error' };
     }
   }
+);
+
+ipcMain.handle('ide-prepare', async (_event, payload) =>
+  prepareArduinoIde(payload)
+);
+
+ipcMain.handle('ide-list-devices', async () => getHardwareList());
+
+ipcMain.handle('ide-verify-sketch', async (_event, payload) =>
+  verifyHardwareSketch(payload)
+);
+
+ipcMain.handle('ide-upload-sketch', async (_event, payload) =>
+  uploadHardwareSketch(payload)
+);
+
+ipcMain.handle('ide-open-serial-monitor', async (_event, payload) =>
+  openHardwareSerialMonitor(payload)
+);
+
+ipcMain.handle('ide-close-serial-monitor', async () =>
+  closeHardwareSerialMonitor()
 );

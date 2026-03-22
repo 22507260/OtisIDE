@@ -47,8 +47,8 @@ interface CircuitStore {
   setRightTab: (tab: RightTab) => void;
   bottomPanelCollapsed: boolean;
   toggleBottomPanel: () => void;
-  bottomTab: 'code' | 'serial';
-  setBottomTab: (tab: 'code' | 'serial') => void;
+  bottomTab: 'code' | 'serial' | 'device';
+  setBottomTab: (tab: 'code' | 'serial' | 'device') => void;
   language: AppLanguage;
   setLanguage: (language: AppLanguage) => void;
 
@@ -161,7 +161,11 @@ const MAX_UNDO_HISTORY = 100;
 
 function getBoardLogicHighVoltage(boardType: ControllerBoardType): number {
   switch (boardType) {
+    case 'deneyap-kart-1a':
     case 'deneyap-kart-1a-v2':
+    case 'deneyap-kart-g':
+    case 'deneyap-mini':
+    case 'deneyap-mini-v2':
     case 'nodemcu':
     case 'nodemcu-v3':
     case 'wemos-d1-mini':
