@@ -23,6 +23,12 @@ const BOARD_UPLOAD_PROFILES = {
     searchQueries: ['Arduino Uno'],
     fallbackFqbn: 'arduino:avr:uno',
   },
+  'uno-r4-wifi': {
+    label: 'Arduino UNO R4 WiFi',
+    aliases: ['unor4wifi', 'unor4', 'arduinounor4wifi', 'uno r4 wifi'],
+    searchQueries: ['Arduino UNO R4 WiFi', 'UNO R4 WiFi'],
+    fallbackFqbn: 'arduino:renesas_uno:unor4wifi',
+  },
   nano: {
     label: 'Arduino Nano',
     aliases: ['nano', 'arduinonano'],
@@ -120,6 +126,19 @@ const BOARD_UPLOAD_PROFILES = {
     aliases: ['huzzah32', 'featherhuzzah32', 'adafruithuzzah32'],
     searchQueries: ['Adafruit HUZZAH32 Feather', 'Feather ESP32'],
     fallbackFqbn: 'esp32:esp32:featheresp32',
+    additionalUrls: [ESP32_PACKAGE_URL],
+  },
+  'esp32-s3-devkitc-1': {
+    label: 'ESP32-S3 DevKitC-1',
+    aliases: [
+      'esp32s3',
+      'esp32s3devkitc1',
+      'esp32s3devmodule',
+      'devkitc1',
+      'esp32 s3',
+    ],
+    searchQueries: ['ESP32S3 Dev Module', 'ESP32-S3 DevKitC-1', 'ESP32 S3 Dev Module'],
+    fallbackFqbn: 'esp32:esp32:esp32s3',
     additionalUrls: [ESP32_PACKAGE_URL],
   },
 };

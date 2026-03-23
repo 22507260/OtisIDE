@@ -11,6 +11,9 @@ const UI_STRINGS = {
   en: {
     appTitle: 'OtisIDE',
     componentsPanel: 'Components',
+    searchComponents: 'Search Components',
+    searchComponentsPlaceholder: 'Search components...',
+    noComponentsFound: 'No matching components found.',
     propertiesTab: 'Properties',
     aiAssistantTab: 'AI Assistant',
     save: 'Save',
@@ -51,12 +54,21 @@ const UI_STRINGS = {
     arduinoCode: 'Arduino Code',
     serialMonitor: 'Serial Monitor',
     deviceConsole: 'Device Console',
+    oscilloscope: 'Oscilloscope',
     clear: 'Clear',
     codePlaceholder: '// Write your Arduino sketch here...',
     serialWaiting: 'Waiting for serial output...',
     serialStartPrompt: 'Start the simulation to see serial output.',
     codeWorkspace: 'Code Workspace',
     serialFeed: 'Serial Feed',
+    oscilloscopeHint:
+      'Watch the CH1 waveform from a wired oscilloscope component in real time.',
+    oscilloscopeAddPrompt:
+      'Add an oscilloscope from the palette, then wire CH1 and GND to the circuit.',
+    oscilloscopeConnectPrompt:
+      'Wire the oscilloscope CH1 and GND pins to the circuit to start capturing.',
+    oscilloscopeWaiting:
+      'Simulation is running. Waiting for waveform updates from the oscilloscope...',
     deviceConsoleHint:
       'Watch real upload logs and USB serial output from the connected board.',
     deviceConsoleEmpty:
@@ -75,8 +87,13 @@ const UI_STRINGS = {
     lineCount: '{{count}} lines',
     charCount: '{{count}} chars',
     logCount: '{{count}} logs',
+    sampleCount: '{{count}} samples',
     serialLive: 'Serial live',
     serialIdle: 'Serial idle',
+    oscilloscopeLive: 'Scope live',
+    oscilloscopeIdle: 'Scope idle',
+    oscilloscopeOpen: 'Probe open',
+    timeWindow: 'Time Window',
     selectComponentPrompt: 'Select a component\nor drag one from the palette',
     id: 'ID',
     position: 'Position',
@@ -185,6 +202,9 @@ const UI_STRINGS = {
   tr: {
     appTitle: 'OtisIDE',
     componentsPanel: 'Bilesenler',
+    searchComponents: 'Bilesen Ara',
+    searchComponentsPlaceholder: 'Bilesen ara...',
+    noComponentsFound: 'Eslesen bilesen bulunamadi.',
     propertiesTab: 'Ozellikler',
     aiAssistantTab: 'AI Asistan',
     save: 'Kaydet',
@@ -225,12 +245,21 @@ const UI_STRINGS = {
     arduinoCode: 'Arduino Kodu',
     serialMonitor: 'Serial Monitor',
     deviceConsole: 'Cihaz Konsolu',
+    oscilloscope: 'Osiloskop',
     clear: 'Temizle',
     codePlaceholder: '// Arduino kodunuzu buraya yazin...',
     serialWaiting: 'Serial cikti bekleniyor...',
     serialStartPrompt: 'Serial cikti icin simulasyonu baslatin.',
     codeWorkspace: 'Kod Alani',
     serialFeed: 'Serial Akisi',
+    oscilloscopeHint:
+      'Kablolanmis osiloskop bileseninin CH1 dalga formunu canli izleyin.',
+    oscilloscopeAddPrompt:
+      'Paletten bir osiloskop ekleyin, sonra CH1 ve GND pinlerini devreye baglayin.',
+    oscilloscopeConnectPrompt:
+      'Kayit baslatmak icin osiloskobun CH1 ve GND pinlerini devreye baglayin.',
+    oscilloscopeWaiting:
+      'Simulasyon calisiyor. Osiloskoptan dalga formu verisi bekleniyor...',
     deviceConsoleHint:
       'Gercek yukleme loglarini ve USB serial ciktisini burada izleyin.',
     deviceConsoleEmpty:
@@ -249,8 +278,13 @@ const UI_STRINGS = {
     lineCount: '{{count}} satir',
     charCount: '{{count}} karakter',
     logCount: '{{count}} log',
+    sampleCount: '{{count}} ornek',
     serialLive: 'Serial canli',
     serialIdle: 'Serial beklemede',
+    oscilloscopeLive: 'Scope canli',
+    oscilloscopeIdle: 'Scope beklemede',
+    oscilloscopeOpen: 'Prob acik',
+    timeWindow: 'Zaman Penceresi',
     selectComponentPrompt: 'Bir bilesen secin\nveya paletten surukleyin',
     id: 'ID',
     position: 'Konum',
@@ -415,10 +449,15 @@ const COMPONENT_NAME_TR: Partial<Record<ComponentType, string>> = {
   'deneyap-rain-sensor-center': 'Deneyap Yagmur Merkezi',
   'deneyap-rain-sensor-surface': 'Deneyap Yagmur Yuzeyi',
   'esp8266-module': 'ESP8266 Modul',
+  bme280: 'BME280 Cevre Sensoru',
+  ina219: 'INA219 Akim Sensoru',
+  'sx1276-lora': 'SX1276 LoRa Modulu',
+  'a4988-driver': 'A4988 Step Motor Surucu',
   relay: 'Role',
   'transistor-npn': 'NPN Transistor',
   'transistor-pnp': 'PNP Transistor',
   multimeter: 'Dijital Avometre',
+  oscilloscope: 'Osiloskop',
   'motor-driver': 'Motor Surucu',
 };
 
@@ -451,6 +490,8 @@ const PROPERTY_NAME_EN: Record<string, string> = {
   lightLevel: 'Light Level',
   temperature: 'Temperature (°C)',
   humidity: 'Humidity (%)',
+  pressure: 'Pressure (hPa)',
+  address: 'Address',
   distance: 'Distance (cm)',
   detected: 'Detected',
   segments: 'Segments',
@@ -490,15 +531,21 @@ const PROPERTY_NAME_EN: Record<string, string> = {
   rightRail: 'Right Rail',
   enabled: 'Enabled',
   current: 'Current',
+  busVoltage: 'Bus Voltage (V)',
+  power: 'Power (W)',
   sensitivityMvPerA: 'Sensitivity (mV/A)',
   lowVoltage: 'Low Voltage',
   highVoltage: 'High Voltage',
   signal: 'Signal',
   frequencyMHz: 'Frequency (MHz)',
+  spreadingFactor: 'Spreading Factor',
+  bandwidthKhz: 'Bandwidth (kHz)',
   level: 'Level',
   value: 'Value',
   brightness: 'Brightness',
   stepIndex: 'Step Index',
+  currentLimit: 'Current Limit (A)',
+  stepMode: 'Step Mode',
   transmitting: 'Transmitting',
   ssid: 'SSID',
   mode: 'Mode',
@@ -529,6 +576,7 @@ const PROPERTY_NAME_EN: Record<string, string> = {
   displayText: 'Display',
   continuity: 'Continuity',
   status: 'Status',
+  timeWindowMs: 'Time Window (ms)',
 };
 
 const PROPERTY_NAME_TR: Partial<Record<string, string>> = {
@@ -546,6 +594,8 @@ const PROPERTY_NAME_TR: Partial<Record<string, string>> = {
   lightLevel: 'Isik Seviyesi',
   temperature: 'Sicaklik (°C)',
   humidity: 'Nem (%)',
+  pressure: 'Basinc (hPa)',
+  address: 'Adres',
   distance: 'Mesafe (cm)',
   detected: 'Algilandi',
   segments: 'Segmentler',
@@ -581,15 +631,21 @@ const PROPERTY_NAME_TR: Partial<Record<string, string>> = {
   rightRail: 'Sag Hat',
   enabled: 'Etkin',
   current: 'Akim',
+  busVoltage: 'Hat Gerilimi (V)',
+  power: 'Guc (W)',
   sensitivityMvPerA: 'Hassasiyet (mV/A)',
   lowVoltage: 'Dusuk Gerilim',
   highVoltage: 'Yuksek Gerilim',
   signal: 'Sinyal',
   frequencyMHz: 'Frekans (MHz)',
+  spreadingFactor: 'Yayilim Faktoru',
+  bandwidthKhz: 'Bant Genisligi (kHz)',
   level: 'Seviye',
   value: 'Deger',
   brightness: 'Parlaklik',
   stepIndex: 'Adim Indeksi',
+  currentLimit: 'Akim Limiti (A)',
+  stepMode: 'Adim Modu',
   transmitting: 'Yayinda',
   mode: 'Mod',
   uvIndex: 'UV Indeksi',
@@ -619,6 +675,7 @@ const PROPERTY_NAME_TR: Partial<Record<string, string>> = {
   displayText: 'Ekran',
   continuity: 'Sureklilik',
   status: 'Durum',
+  timeWindowMs: 'Zaman Penceresi (ms)',
 };
 
 const WIRE_COLOR_NAME_TR: Record<string, string> = {
@@ -729,6 +786,34 @@ export function getMultimeterStatusLabel(
   }
 
   return t(language, 'multimeterReady');
+}
+
+export function getOscilloscopeStatusLabel(
+  language: AppLanguage,
+  status: string
+): string {
+  const normalized = status.trim().toLowerCase();
+
+  if (normalized === 'live') {
+    return t(language, 'oscilloscopeLive');
+  }
+  if (normalized === 'open') {
+    return t(language, 'oscilloscopeOpen');
+  }
+
+  return t(language, 'oscilloscopeIdle');
+}
+
+export function getLocalizedOscilloscopeDisplayText(
+  language: AppLanguage,
+  text: string
+): string {
+  const normalized = text.trim().toLowerCase();
+  if (normalized === 'open') {
+    return t(language, 'oscilloscopeOpen');
+  }
+
+  return text;
 }
 
 export function getExamplePrompts(language: AppLanguage): string[] {

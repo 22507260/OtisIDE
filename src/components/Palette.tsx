@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useDeferredValue, useMemo, useState } from 'react';
 import { COMPONENT_CATALOG, ComponentType } from '../models/types';
 import { useCircuitStore } from '../store/circuitStore';
 import {
@@ -10,6 +10,7 @@ import {
 const Palette: React.FC = () => {
   const addComponent = useCircuitStore((s) => s.addComponent);
   const language = useCircuitStore((s) => s.language);
+  const [searchQuery, setSearchQuery] = useState('');
   const [openCategories, setOpenCategories] = useState<Record<string, boolean>>({
     Passive: true,
     Active: true,
@@ -18,9 +19,62 @@ const Palette: React.FC = () => {
     Display: false,
     Other: false,
   });
+  const deferredSearchQuery = useDeferredValue(searchQuery);
 
-  const categories = Array.from(
-    new Set(COMPONENT_CATALOG.map((item) => item.category))
+  const normalizeSearchValue = (value: string) =>
+    value
+      .trim()
+      .toLowerCase()
+      .normalize('NFKD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/\u0131/g, 'i');
+
+  const normalizedSearchQuery = normalizeSearchValue(deferredSearchQuery);
+
+  const categories = useMemo(
+    () => Array.from(new Set(COMPONENT_CATALOG.map((item) => item.category))),
+    []
+  );
+
+  const filteredByCategory = useMemo(
+    () =>
+      categories
+        .map((category) => {
+          const items = COMPONENT_CATALOG.filter((item) => {
+            if (item.category !== category) return false;
+            if (!normalizedSearchQuery) return true;
+
+            const displayName = getComponentDisplayName(
+              language,
+              item.type,
+              item.name
+            );
+            const haystack = [
+              item.name,
+              displayName,
+              item.type,
+              item.icon,
+              getCategoryDisplayName(language, item.category),
+            ]
+              .map(normalizeSearchValue)
+              .join(' ');
+
+            return haystack.includes(normalizedSearchQuery);
+          });
+
+          return {
+            category,
+            items,
+          };
+        })
+        .filter(({ items }) => items.length > 0),
+    [categories, language, normalizedSearchQuery]
+  );
+
+  const hasSearchQuery = normalizedSearchQuery.length > 0;
+  const visibleCategoryCount = filteredByCategory.reduce(
+    (total, { items }) => total + items.length,
+    0
   );
 
   const toggleCategory = (category: string) => {
@@ -37,12 +91,25 @@ const Palette: React.FC = () => {
   };
 
   return (
-    <div style={{ flex: 1, overflowY: 'auto' }}>
-      {categories.map((category) => {
-        const items = COMPONENT_CATALOG.filter(
-          (item) => item.category === category
-        );
-        const isOpen = openCategories[category] ?? false;
+    <div className="palette-scroll">
+      <div className="palette-search-wrap">
+        <div className="palette-search-label">{t(language, 'searchComponents')}</div>
+        <input
+          className="palette-search-input"
+          type="search"
+          value={searchQuery}
+          onChange={(event) => setSearchQuery(event.target.value)}
+          placeholder={t(language, 'searchComponentsPlaceholder')}
+          aria-label={t(language, 'searchComponents')}
+        />
+      </div>
+
+      {visibleCategoryCount === 0 && (
+        <div className="palette-empty-state">{t(language, 'noComponentsFound')}</div>
+      )}
+
+      {filteredByCategory.map(({ category, items }) => {
+        const isOpen = hasSearchQuery ? true : (openCategories[category] ?? false);
 
         return (
           <div className="palette-category" key={category}>

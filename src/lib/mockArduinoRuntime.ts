@@ -1,4 +1,9 @@
-import type { CircuitComponent, Pin, Wire } from '../models/types';
+import type {
+  CircuitComponent,
+  OscilloscopeSample,
+  Pin,
+  Wire,
+} from '../models/types';
 import { ARDUINO_COMPONENT_ID } from '../models/arduinoUno';
 import {
   BREADBOARD_COMPONENT_ID,
@@ -10,6 +15,7 @@ type SimulationPropertyValue = string | number | boolean;
 
 type RuntimeCallbacks = {
   addSerialOutput: (text: string) => void;
+  pushOscilloscopeSample: (componentId: string, sample: OscilloscopeSample) => void;
   setLedState: (componentId: string, on: boolean, brightness: number) => void;
   clearLedStates: () => void;
   setComponentState: (
@@ -180,6 +186,7 @@ const DRIVER_DEFINITIONS: Partial<Record<CircuitComponent['type'], DriverDefinit
 
 const NOOP_CALLBACKS: RuntimeCallbacks = {
   addSerialOutput: () => {},
+  pushOscilloscopeSample: () => {},
   setLedState: () => {},
   clearLedStates: () => {},
   setComponentState: () => {},
@@ -1588,7 +1595,8 @@ function updateRuntimeSimulationState(context: RuntimeExecutionContext): void {
     context.lcdRuntime,
     context.boardPins,
     context.logicHighVoltage,
-    context.callbacks
+    context.callbacks,
+    context.clockMs.value
   );
 }
 
@@ -3096,6 +3104,20 @@ function formatMultimeterReading(
   };
 }
 
+function formatOscilloscopeDisplayText(voltage: number): string {
+  if (!Number.isFinite(voltage)) {
+    return 'OPEN';
+  }
+
+  const magnitude = Math.abs(voltage);
+  if (magnitude < 1) {
+    const scaled = voltage * 1000;
+    return `${formatDisplayNumber(scaled, magnitude < 0.1 ? 1 : 0)} mV`;
+  }
+
+  return `${formatDisplayNumber(voltage, magnitude >= 10 ? 1 : 2)} V`;
+}
+
 function computeMultimeterStates(
   connectivity: Connectivity,
   netVoltages: Map<number, number>,
@@ -3366,6 +3388,56 @@ function computeProbeDrivenMultimeterStates(
   }
 }
 
+function computeOscilloscopeStates(
+  connectivity: Connectivity,
+  netVoltages: Map<number, number>,
+  callbacks: RuntimeCallbacks,
+  clockMs: number
+): void {
+  for (const scope of connectivity.components.filter(
+    (component) => component.type === 'oscilloscope'
+  )) {
+    const signalNet = getEndpointNet(connectivity, scope.id, 'ch1');
+    const groundNet = getEndpointNet(connectivity, scope.id, 'gnd');
+
+    if (signalNet === undefined || groundNet === undefined) {
+      callbacks.setComponentState(scope.id, {
+        reading: 0,
+        displayText: 'OPEN',
+        status: 'open',
+      });
+      continue;
+    }
+
+    const voltage =
+      signalNet === groundNet
+        ? 0
+        : netVoltages.has(signalNet) && netVoltages.has(groundNet)
+          ? (netVoltages.get(signalNet) ?? 0) - (netVoltages.get(groundNet) ?? 0)
+          : null;
+
+    if (voltage === null) {
+      callbacks.setComponentState(scope.id, {
+        reading: 0,
+        displayText: 'OPEN',
+        status: 'open',
+      });
+      continue;
+    }
+
+    const roundedVoltage = Number(voltage.toFixed(4));
+    callbacks.setComponentState(scope.id, {
+      reading: roundedVoltage,
+      displayText: formatOscilloscopeDisplayText(roundedVoltage),
+      status: 'live',
+    });
+    callbacks.pushOscilloscopeSample(scope.id, {
+      timeMs: Math.max(0, Math.round(clockMs)),
+      voltage: roundedVoltage,
+    });
+  }
+}
+
 function updateActuatorStates(
   connectivity: Connectivity,
   measurementConnectivity: Connectivity,
@@ -3374,7 +3446,8 @@ function updateActuatorStates(
   lcdRuntime: Map<string, LcdRuntimeState>,
   boardPins: Pin[],
   logicHighVoltage: number,
-  callbacks: RuntimeCallbacks
+  callbacks: RuntimeCallbacks,
+  clockMs: number
 ): void {
   callbacks.clearLedStates();
   callbacks.clearComponentStates();
@@ -3398,6 +3471,7 @@ function updateActuatorStates(
     measurementNetState
   );
   computeProbeDrivenMultimeterStates(measurementConnectivity, voltages, resistiveEdges, callbacks);
+  computeOscilloscopeStates(measurementConnectivity, voltages, callbacks, clockMs);
 }
 
 export function stopMockArduinoRuntime(): void {
@@ -3502,7 +3576,8 @@ export function startMockArduinoRuntime(
     lcdRuntime,
     boardPins,
     logicHighVoltage,
-    callbacks
+    callbacks,
+    clockMs.value
   );
   executeRuntimeStatements(setupStatements, executionContext, () => {
     flushSerialBuffer();

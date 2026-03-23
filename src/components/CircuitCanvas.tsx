@@ -37,6 +37,8 @@ import {
 import {
   getMultimeterModeLabel,
   getMultimeterStatusLabel,
+  getLocalizedOscilloscopeDisplayText,
+  getOscilloscopeStatusLabel,
   t,
 } from '../lib/i18n';
 import multimeterProbeRedSvg from '../assets/components/multimeter-probe-red.svg';
@@ -502,6 +504,16 @@ function getWirePinHandles(pins: Pin[]): WirePinHandle[] {
   });
 }
 
+function getCanvasComponentLabel(type: ComponentType): string {
+  if (type === 'oscilloscope') return 'SCOPE';
+  if (type === 'multimeter') return 'DMM';
+  if (type === 'bme280') return 'BME280';
+  if (type === 'ina219') return 'INA219';
+  if (type === 'sx1276-lora') return 'LORA';
+  if (type === 'a4988-driver') return 'A4988';
+  return type.toUpperCase();
+}
+
 // ===== SVG-Based Component Shape =====
 const ComponentShape: React.FC<{
   comp: CircuitComponent;
@@ -811,6 +823,71 @@ const ComponentShape: React.FC<{
             fill="#214a60"
             listening={false}
           />
+        </>
+      )}
+
+      {comp.type === 'oscilloscope' && (
+        <>
+          <Rect
+            x={-46}
+            y={-28}
+            width={92}
+            height={38}
+            cornerRadius={6}
+            fill="#8fd7c2"
+            opacity={0.88}
+            stroke="#c7fff1"
+            strokeWidth={1}
+            listening={false}
+          />
+          <Text
+            text={getLocalizedOscilloscopeDisplayText(
+              language,
+              String(comp.properties.displayText ?? '0.00 V')
+            )}
+            x={-40}
+            y={-20}
+            width={80}
+            align="center"
+            fontSize={12}
+            fontStyle="bold"
+            fill="#083239"
+            listening={false}
+          />
+          <Text
+            text={getOscilloscopeStatusLabel(
+              language,
+              String(comp.properties.status ?? 'idle')
+            )}
+            x={-40}
+            y={-5}
+            width={80}
+            align="center"
+            fontSize={6}
+            fill="#1a5560"
+            listening={false}
+          />
+          {comp.pins.map((pin) => (
+            <Group key={`oscilloscope-pin-${pin.id}`} listening={false}>
+              <Circle
+                x={pin.x}
+                y={pin.y}
+                radius={6}
+                fill={pin.id === 'gnd' ? '#11171e' : '#151b12'}
+                stroke={pin.id === 'gnd' ? '#e3ebf5' : '#f4d35e'}
+                strokeWidth={1.2}
+              />
+              <Text
+                text={pin.name}
+                x={pin.x - 16}
+                y={pin.y - 18}
+                width={32}
+                align="center"
+                fontSize={7}
+                fill={pin.id === 'gnd' ? '#dbe7f3' : '#f4d35e'}
+              />
+            </Group>
+          ))}
         </>
       )}
 
@@ -1502,6 +1579,8 @@ const CircuitCanvas: React.FC = () => {
   const isStagePanning = toolMode === 'pan' || middlePanActive;
   const currentBoard = useMemo(() => getControllerBoardDefinition(boardType), [boardType]);
   const boardPins = useMemo(() => getControllerBoardPins(boardType), [boardType]);
+  const boardPinRadius = currentBoard.pinDefs.length > 30 ? 4 : 6;
+  const boardPinHoverRadius = currentBoard.pinDefs.length > 30 ? 5.5 : 8;
   const canUndo = useCircuitStore((s) => s.canUndo());
   const multimeterRedProbeImage = useAssetImage(multimeterProbeRedSvg);
   const multimeterBlackProbeImage = useAssetImage(multimeterProbeBlackSvg);
@@ -2161,9 +2240,7 @@ const CircuitCanvas: React.FC = () => {
   }, [breadboardPosition, updateComponent]);
 
   useEffect(() => {
-    const win = window as Window & {
-      snapToBreadboard?: typeof snapToBreadboard;
-    };
+    const win = window;
 
     win.snapToBreadboard = (
       x: number,
@@ -2721,7 +2798,7 @@ const CircuitCanvas: React.FC = () => {
                 key={pin.id}
                 x={pin.x}
                 y={pin.y}
-                radius={6}
+                radius={boardPinRadius}
                 fill="transparent"
                 stroke={wiringStart?.componentId === ARDUINO_COMPONENT_ID && wiringStart?.pinId === pin.id ? '#fff' : 'transparent'}
                 strokeWidth={1}
@@ -2742,13 +2819,13 @@ const CircuitCanvas: React.FC = () => {
                 onMouseEnter={(e) => {
                   const target = e.target as Konva.Circle;
                   target.stroke('#4ecca3');
-                  target.radius(8);
+                  target.radius(boardPinHoverRadius);
                   target.getLayer()?.batchDraw();
                 }}
                 onMouseLeave={(e) => {
                   const target = e.target as Konva.Circle;
                   target.stroke('transparent');
-                  target.radius(6);
+                  target.radius(boardPinRadius);
                   target.getLayer()?.batchDraw();
                 }}
               />
@@ -2965,7 +3042,7 @@ const CircuitCanvas: React.FC = () => {
 
               {/* Component name label */}
               <Text
-                text={comp.type.toUpperCase()}
+                text={getCanvasComponentLabel(comp.type)}
                 x={-20}
                 y={25}
                 width={40}

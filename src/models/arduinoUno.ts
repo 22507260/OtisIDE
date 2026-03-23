@@ -1,5 +1,6 @@
 import type { Pin, PinType } from './types';
 import arduinoUnoImage from '../assets/arduino-uno-fritzing.svg';
+import arduinoUnoR4WifiImage from '../assets/boards/arduino-uno-r4-wifi-fritzing.svg';
 import arduinoNanoImage from '../assets/boards/arduino-nano-fritzing.svg';
 import arduinoMegaImage from '../assets/boards/arduino-mega-fritzing.svg';
 import arduinoLeonardoImage from '../assets/boards/arduino-leonardo-fritzing.svg';
@@ -15,9 +16,11 @@ import arduinoFioImage from '../assets/boards/arduino-fio-fritzing.svg';
 import proMicroImage from '../assets/boards/pro-micro-fritzing.svg';
 import picoImage from '../assets/boards/pico-fritzing.svg';
 import featherHuzzah32Image from '../assets/boards/feather-huzzah32-fritzing.svg';
+import esp32S3DevKitC1Image from '../assets/boards/esp32-s3-devkitc-1-fritzing.svg';
 
 export type ControllerBoardType =
   | 'uno'
+  | 'uno-r4-wifi'
   | 'nano'
   | 'mega'
   | 'leonardo'
@@ -32,7 +35,8 @@ export type ControllerBoardType =
   | 'arduino-fio'
   | 'pro-micro'
   | 'pico'
-  | 'feather-huzzah32';
+  | 'feather-huzzah32'
+  | 'esp32-s3-devkitc-1';
 
 type ArduinoPinDef = {
   id: string;
@@ -91,6 +95,21 @@ function scaleUnoX(rawX: number): number {
 
 function scaleUnoY(rawY: number): number {
   return rawY * UNO_SCALE_Y;
+}
+
+const UNO_R4_W = 300;
+const UNO_R4_H = 227;
+const UNO_R4_RAW_W = 2772.3795;
+const UNO_R4_RAW_H = 2099.9442;
+const UNO_R4_SCALE_X = UNO_R4_W / UNO_R4_RAW_W;
+const UNO_R4_SCALE_Y = UNO_R4_H / UNO_R4_RAW_H;
+
+function scaleUnoR4X(rawX: number): number {
+  return rawX * UNO_R4_SCALE_X;
+}
+
+function scaleUnoR4Y(rawY: number): number {
+  return rawY * UNO_R4_SCALE_Y;
 }
 
 function normalizeToken(value: string): string {
@@ -945,11 +964,108 @@ const FEATHER_HUZZAH32_PIN_DEFS: ArduinoPinDef[] = [
   makePin('RESET', scaleFeatherX(-53.85), scaleFeatherY(54.302), 'digital', ['RST']),
 ];
 
+const UNO_R4_WIFI_PIN_DEFS: ArduinoPinDef[] = [
+  makePin('SCL', scaleUnoR4X(806.809), scaleUnoR4Y(100), 'digital'),
+  makePin('SDA', scaleUnoR4X(906.823), scaleUnoR4Y(100), 'digital'),
+  makePin('AREF', scaleUnoR4X(1006.823), scaleUnoR4Y(100), 'power'),
+  makePin('GND_TOP', scaleUnoR4X(1106.823), scaleUnoR4Y(100), 'ground', ['GND']),
+  makePin('D13', scaleUnoR4X(1206.823), scaleUnoR4Y(100), 'digital', ['13', 'LED_BUILTIN']),
+  makePin('D12', scaleUnoR4X(1306.823), scaleUnoR4Y(100), 'digital', ['12']),
+  makePin('D11', scaleUnoR4X(1406.823), scaleUnoR4Y(100), 'digital', ['11']),
+  makePin('D10', scaleUnoR4X(1506.823), scaleUnoR4Y(100), 'digital', ['10']),
+  makePin('D9', scaleUnoR4X(1606.823), scaleUnoR4Y(100), 'digital', ['9']),
+  makePin('D8', scaleUnoR4X(1706.809), scaleUnoR4Y(100), 'digital', ['8']),
+  makePin('D7', scaleUnoR4X(1866.837), scaleUnoR4Y(100), 'digital', ['7']),
+  makePin('D6', scaleUnoR4X(1966.823), scaleUnoR4Y(100), 'digital', ['6']),
+  makePin('D5', scaleUnoR4X(2066.823), scaleUnoR4Y(100), 'digital', ['5']),
+  makePin('D4', scaleUnoR4X(2166.823), scaleUnoR4Y(100), 'digital', ['4']),
+  makePin('D3', scaleUnoR4X(2266.823), scaleUnoR4Y(100), 'digital', ['3']),
+  makePin('D2', scaleUnoR4X(2366.837), scaleUnoR4Y(100), 'digital', ['2']),
+  makePin('D1', scaleUnoR4X(2466.823), scaleUnoR4Y(100), 'digital', ['1', 'TX']),
+  makePin('D0', scaleUnoR4X(2566.823), scaleUnoR4Y(100), 'digital', ['0', 'RX']),
+  makePin('IOREF', scaleUnoR4X(1266.823), scaleUnoR4Y(2000), 'power'),
+  makePin('RESET', scaleUnoR4X(1366.837), scaleUnoR4Y(2000), 'digital', ['RST']),
+  makePin('3V3', scaleUnoR4X(1466.823), scaleUnoR4Y(2000), 'power', ['3.3V', '3V']),
+  makePin('5V', scaleUnoR4X(1566.823), scaleUnoR4Y(2000), 'power'),
+  makePin('GND', scaleUnoR4X(1666.823), scaleUnoR4Y(2000), 'ground'),
+  makePin('GND_2', scaleUnoR4X(1766.823), scaleUnoR4Y(2000), 'ground', ['GROUND']),
+  makePin('VIN', scaleUnoR4X(1866.837), scaleUnoR4Y(2000), 'power'),
+  makePin('A0', scaleUnoR4X(2066.823), scaleUnoR4Y(2000), 'analog'),
+  makePin('A1', scaleUnoR4X(2166.823), scaleUnoR4Y(2000), 'analog'),
+  makePin('A2', scaleUnoR4X(2266.823), scaleUnoR4Y(2000), 'analog'),
+  makePin('A3', scaleUnoR4X(2366.837), scaleUnoR4Y(2000), 'analog'),
+  makePin('A4', scaleUnoR4X(2466.823), scaleUnoR4Y(2000), 'analog'),
+  makePin('A5', scaleUnoR4X(2566.823), scaleUnoR4Y(2000), 'analog'),
+];
+
+const ESP32_S3_DEVKITC1_W = 84;
+const ESP32_S3_DEVKITC1_H = 236;
+const ESP32_S3_DEVKITC1_RAW_W = 989.00021;
+const ESP32_S3_DEVKITC1_RAW_H = 2773.7591;
+const ESP32_S3_DEVKITC1_SCALE_X = ESP32_S3_DEVKITC1_W / ESP32_S3_DEVKITC1_RAW_W;
+const ESP32_S3_DEVKITC1_SCALE_Y = ESP32_S3_DEVKITC1_H / ESP32_S3_DEVKITC1_RAW_H;
+
+function scaleEsp32S3X(rawX: number): number {
+  return rawX * ESP32_S3_DEVKITC1_SCALE_X;
+}
+
+function scaleEsp32S3Y(rawY: number): number {
+  return rawY * ESP32_S3_DEVKITC1_SCALE_Y;
+}
+
+const ESP32_S3_DEVKITC1_PIN_DEFS: ArduinoPinDef[] = [
+  makePin('3V3', scaleEsp32S3X(44.467), scaleEsp32S3Y(300.598), 'power', ['3.3V', '3V', 'VCC']),
+  makePin('3V3_2', scaleEsp32S3X(45.983), scaleEsp32S3Y(400.596), 'power', ['3V3', '3.3V']),
+  makePin('RST', scaleEsp32S3X(44.65), scaleEsp32S3Y(500.598), 'digital', ['RESET', 'EN', 'CHIP_EN']),
+  makePin('IO4', scaleEsp32S3X(44.65), scaleEsp32S3Y(600.598), 'digital', gpioAliases(4)),
+  makePin('IO5', scaleEsp32S3X(44.65), scaleEsp32S3Y(700.598), 'digital', gpioAliases(5)),
+  makePin('IO6', scaleEsp32S3X(44.65), scaleEsp32S3Y(800.598), 'digital', gpioAliases(6)),
+  makePin('IO7', scaleEsp32S3X(44.65), scaleEsp32S3Y(900.598), 'digital', gpioAliases(7)),
+  makePin('IO15', scaleEsp32S3X(44.65), scaleEsp32S3Y(1000.598), 'digital', gpioAliases(15)),
+  makePin('IO16', scaleEsp32S3X(44.65), scaleEsp32S3Y(1100.598), 'digital', gpioAliases(16)),
+  makePin('IO17', scaleEsp32S3X(44.65), scaleEsp32S3Y(1200.598), 'digital', gpioAliases(17)),
+  makePin('IO18', scaleEsp32S3X(44.65), scaleEsp32S3Y(1300.598), 'digital', gpioAliases(18)),
+  makePin('IO8', scaleEsp32S3X(44.65), scaleEsp32S3Y(1400.598), 'digital', gpioAliases(8)),
+  makePin('IO3', scaleEsp32S3X(44.65), scaleEsp32S3Y(1500.598), 'digital', gpioAliases(3)),
+  makePin('IO46', scaleEsp32S3X(44.65), scaleEsp32S3Y(1600.598), 'digital', gpioAliases(46)),
+  makePin('IO9', scaleEsp32S3X(44.467), scaleEsp32S3Y(1700.598), 'digital', gpioAliases(9)),
+  makePin('IO10', scaleEsp32S3X(44.65), scaleEsp32S3Y(1800.545), 'digital', gpioAliases(10, 'CS', 'SS', 'NSS')),
+  makePin('IO11', scaleEsp32S3X(44.65), scaleEsp32S3Y(1900.545), 'digital', gpioAliases(11, 'MOSI')),
+  makePin('IO12', scaleEsp32S3X(44.65), scaleEsp32S3Y(2000.545), 'digital', gpioAliases(12, 'SCK', 'CLK')),
+  makePin('IO13', scaleEsp32S3X(44.65), scaleEsp32S3Y(2100.545), 'digital', gpioAliases(13, 'MISO')),
+  makePin('IO14', scaleEsp32S3X(44.65), scaleEsp32S3Y(2200.545), 'digital', gpioAliases(14)),
+  makePin('5V', scaleEsp32S3X(44.467), scaleEsp32S3Y(2300.545), 'power', ['VIN', 'VBUS', 'USB']),
+  makePin('GND', scaleEsp32S3X(44.467), scaleEsp32S3Y(2400.807), 'ground'),
+  makePin('GND_2', scaleEsp32S3X(944.319), scaleEsp32S3Y(2400.807), 'ground', ['GND', 'GROUND']),
+  makePin('GND_3', scaleEsp32S3X(944.319), scaleEsp32S3Y(2300.545), 'ground', ['GND']),
+  makePin('IO19', scaleEsp32S3X(944.502), scaleEsp32S3Y(2200.545), 'digital', gpioAliases(19)),
+  makePin('IO20', scaleEsp32S3X(944.194), scaleEsp32S3Y(2100.545), 'digital', gpioAliases(20)),
+  makePin('IO21', scaleEsp32S3X(944.319), scaleEsp32S3Y(2000.545), 'digital', gpioAliases(21)),
+  makePin('IO47', scaleEsp32S3X(944.277), scaleEsp32S3Y(1900.545), 'digital', gpioAliases(47)),
+  makePin('IO48', scaleEsp32S3X(944.319), scaleEsp32S3Y(1800.545), 'digital', gpioAliases(48)),
+  makePin('IO45', scaleEsp32S3X(944.319), scaleEsp32S3Y(1700.598), 'digital', gpioAliases(45)),
+  makePin('IO0', scaleEsp32S3X(944.502), scaleEsp32S3Y(1600.598), 'digital', gpioAliases(0)),
+  makePin('IO35', scaleEsp32S3X(944.194), scaleEsp32S3Y(1500.598), 'digital', gpioAliases(35)),
+  makePin('IO36', scaleEsp32S3X(944.319), scaleEsp32S3Y(1400.598), 'digital', gpioAliases(36)),
+  makePin('IO37', scaleEsp32S3X(944.277), scaleEsp32S3Y(1300.598), 'digital', gpioAliases(37)),
+  makePin('IO38', scaleEsp32S3X(944.319), scaleEsp32S3Y(1200.598), 'digital', gpioAliases(38)),
+  makePin('IO39', scaleEsp32S3X(944.319), scaleEsp32S3Y(1100.598), 'digital', gpioAliases(39)),
+  makePin('IO40', scaleEsp32S3X(945.402), scaleEsp32S3Y(1000.598), 'digital', gpioAliases(40)),
+  makePin('IO41', scaleEsp32S3X(944.319), scaleEsp32S3Y(900.598), 'digital', gpioAliases(41)),
+  makePin('IO42', scaleEsp32S3X(944.277), scaleEsp32S3Y(800.598), 'digital', gpioAliases(42)),
+  makePin('IO2', scaleEsp32S3X(944.319), scaleEsp32S3Y(700.598), 'digital', gpioAliases(2)),
+  makePin('IO1', scaleEsp32S3X(944.319), scaleEsp32S3Y(600.067), 'digital', gpioAliases(1)),
+  makePin('RX', scaleEsp32S3X(944.319), scaleEsp32S3Y(500.157), 'digital', gpioAliases(44, 'RXD', 'U0RXD', 'IO44')),
+  makePin('TX', scaleEsp32S3X(944.194), scaleEsp32S3Y(400.246), 'digital', gpioAliases(43, 'TXD', 'U0TXD', 'IO43')),
+  makePin('GND_TOP', scaleEsp32S3X(944.319), scaleEsp32S3Y(300.335), 'ground', ['GND']),
+];
+
 export const CONTROLLER_BOARD_OPTIONS: Array<{
   value: ControllerBoardType;
   label: string;
 }> = [
   { value: 'uno', label: 'Arduino Uno' },
+  { value: 'uno-r4-wifi', label: 'Arduino UNO R4 WiFi' },
   { value: 'nano', label: 'Arduino Nano' },
   { value: 'mega', label: 'Arduino Mega' },
   { value: 'leonardo', label: 'Arduino Leonardo' },
@@ -965,6 +1081,7 @@ export const CONTROLLER_BOARD_OPTIONS: Array<{
   { value: 'pro-micro', label: 'SparkFun Pro Micro' },
   { value: 'pico', label: 'Raspberry Pi Pico' },
   { value: 'feather-huzzah32', label: 'Adafruit HUZZAH32 Feather' },
+  { value: 'esp32-s3-devkitc-1', label: 'ESP32-S3 DevKitC-1' },
 ];
 
 const BOARD_DEFINITIONS: Record<ControllerBoardType, ControllerBoardDefinition> = {
@@ -986,6 +1103,33 @@ const BOARD_DEFINITIONS: Record<ControllerBoardType, ControllerBoardDefinition> 
       chip: '#1d2534',
       pin: '#1b1f29',
       usb: '#d6dee7',
+    },
+  },
+  'uno-r4-wifi': {
+    type: 'uno-r4-wifi',
+    name: 'Arduino UNO R4 WiFi',
+    shortName: 'UNO R4',
+    width: UNO_R4_W,
+    height: UNO_R4_H,
+    imageUrl: arduinoUnoR4WifiImage,
+    pinDefs: UNO_R4_WIFI_PIN_DEFS,
+    aliases: [
+      'uno r4',
+      'uno r4 wifi',
+      'unor4',
+      'unor4wifi',
+      'arduino uno r4',
+      'arduino uno r4 wifi',
+    ],
+    pinSummary: 'D0-D13, A0-A5, 5V, GND, 3V3, VIN, RESET, SDA, SCL',
+    theme: {
+      body: '#177aa0',
+      accent: '#115f7f',
+      outline: '#80d2e6',
+      text: '#e3f8ff',
+      chip: '#1d2534',
+      pin: '#1b1f29',
+      usb: '#d9e1e8',
     },
   },
   nano: {
@@ -1317,6 +1461,35 @@ const BOARD_DEFINITIONS: Record<ControllerBoardType, ControllerBoardDefinition> 
       chip: '#1a2230',
       pin: '#171b23',
       usb: '#dfe5ec',
+    },
+  },
+  'esp32-s3-devkitc-1': {
+    type: 'esp32-s3-devkitc-1',
+    name: 'ESP32-S3 DevKitC-1',
+    shortName: 'ESP32-S3',
+    width: ESP32_S3_DEVKITC1_W,
+    height: ESP32_S3_DEVKITC1_H,
+    imageUrl: esp32S3DevKitC1Image,
+    pinDefs: ESP32_S3_DEVKITC1_PIN_DEFS,
+    aliases: [
+      'esp32 s3',
+      'esp32-s3',
+      'esp32s3',
+      'esp32 s3 devkitc-1',
+      'esp32-s3-devkitc-1',
+      'esp32s3devkitc1',
+      'esp32s3devmodule',
+      'devkitc1',
+    ],
+    pinSummary: '3V3, 5V, GND, RST, TX, RX, IO0-IO21, IO35-IO48',
+    theme: {
+      body: '#2d3138',
+      accent: '#20262d',
+      outline: '#9aa8b7',
+      text: '#eef3f8',
+      chip: '#161b21',
+      pin: '#12161a',
+      usb: '#dce4eb',
     },
   },
 };

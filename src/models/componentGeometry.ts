@@ -112,6 +112,14 @@ import sevenSegmentSvg from '../assets/components/seven-segment.svg';
 import sevenSegmentSvgRaw from '../assets/components/seven-segment.svg?raw';
 import lcdSvg from '../assets/components/lcd.svg';
 import lcdSvgRaw from '../assets/components/lcd.svg?raw';
+import bme280Svg from '../assets/components/bme280.svg';
+import bme280SvgRaw from '../assets/components/bme280.svg?raw';
+import ina219Svg from '../assets/components/ina219.svg';
+import ina219SvgRaw from '../assets/components/ina219.svg?raw';
+import sx1276LoraSvg from '../assets/components/sx1276-lora.svg';
+import sx1276LoraSvgRaw from '../assets/components/sx1276-lora.svg?raw';
+import a4988DriverSvg from '../assets/components/a4988-driver.svg';
+import a4988DriverSvgRaw from '../assets/components/a4988-driver.svg?raw';
 import transistorNpnSvg from '../assets/components/transistor-npn.svg';
 import transistorNpnSvgRaw from '../assets/components/transistor-npn.svg?raw';
 import transistorPnpSvg from '../assets/components/transistor-pnp.svg';
@@ -120,6 +128,8 @@ import relaySvg from '../assets/components/relay.svg';
 import relaySvgRaw from '../assets/components/relay.svg?raw';
 import multimeterSvg from '../assets/components/multimeter.svg';
 import multimeterSvgRaw from '../assets/components/multimeter.svg?raw';
+import oscilloscopeSvg from '../assets/components/oscilloscope.svg';
+import oscilloscopeSvgRaw from '../assets/components/oscilloscope.svg?raw';
 import motorDriverSvg from '../assets/components/motor-driver.svg';
 import motorDriverSvgRaw from '../assets/components/motor-driver.svg?raw';
 
@@ -302,10 +312,15 @@ export const SVG_CONFIGS: Record<ComponentType, SvgConfig> = {
   'ir-sensor':    { url: irSensorSvg,      raw: irSensorSvgRaw,      width: 20,  height: 64, offsetX: 10,  offsetY: 22 },
   'seven-segment':{ url: sevenSegmentSvg,  raw: sevenSegmentSvgRaw,  width: 32,  height: 49, offsetX: 16,  offsetY: 22 },
   'lcd-16x2':     { url: lcdSvg,           raw: lcdSvgRaw,           width: 130, height: 58, offsetX: 65,  offsetY: 24 },
+  bme280:         { url: bme280Svg,        raw: bme280SvgRaw,        width: 84,  height: 58, offsetX: 40,  offsetY: 33 },
+  ina219:         { url: ina219Svg,        raw: ina219SvgRaw,        width: 78,  height: 68, offsetX: 39,  offsetY: 32 },
+  'sx1276-lora':  { url: sx1276LoraSvg,    raw: sx1276LoraSvgRaw,    width: 104, height: 62, offsetX: 48,  offsetY: 29 },
+  'a4988-driver': { url: a4988DriverSvg,   raw: a4988DriverSvgRaw,   width: 78,  height: 102, offsetX: 39,  offsetY: 30 },
   'transistor-npn': { url: transistorNpnSvg, raw: transistorNpnSvgRaw, width: 22, height: 32, offsetX: 11, offsetY: 8 },
   'transistor-pnp': { url: transistorPnpSvg, raw: transistorPnpSvgRaw, width: 22, height: 32, offsetX: 11, offsetY: 8 },
   relay:          { url: relaySvg,         raw: relaySvgRaw,         width: 52,  height: 42, offsetX: 26,  offsetY: 14 },
   multimeter:     { url: multimeterSvg,    raw: multimeterSvgRaw,    width: 160, height: 248, offsetX: 80,  offsetY: 124 },
+  oscilloscope:   { url: oscilloscopeSvg,  raw: oscilloscopeSvgRaw,  width: 164, height: 104, offsetX: 82,  offsetY: 52 },
   'motor-driver': { url: motorDriverSvg,   raw: motorDriverSvgRaw,   width: 72,  height: 30, offsetX: 36,  offsetY: 8  },
 };
 

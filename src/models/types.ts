@@ -62,7 +62,12 @@ export type ComponentType =
   | 'relay'
   | 'transistor-npn'
   | 'transistor-pnp'
+  | 'bme280'
+  | 'ina219'
+  | 'sx1276-lora'
+  | 'a4988-driver'
   | 'multimeter'
+  | 'oscilloscope'
   | 'motor-driver';
 
 export type PinType = 'digital' | 'analog' | 'power' | 'ground' | 'pwm' | 'passive';
@@ -95,6 +100,11 @@ export interface Wire {
   points: number[];
 }
 
+export interface OscilloscopeSample {
+  timeMs: number;
+  voltage: number;
+}
+
 export type ToolMode = 'select' | 'wire' | 'pan' | 'delete';
 
 export type RightTab = 'properties' | 'ai';
@@ -105,6 +115,7 @@ export interface SimulationState {
   ledStates: Record<string, { on: boolean; brightness: number }>;
   componentStates: Record<string, Record<string, string | number | boolean>>;
   serialOutput: string[];
+  oscilloscopeTraces: Record<string, OscilloscopeSample[]>;
 }
 
 export interface AIMessage {
@@ -726,6 +737,62 @@ export function getDefaultPins(type: ComponentType): Pin[] {
       ]);
     case 'multimeter':
       return withSvgLayout([]);
+    case 'bme280':
+      return [
+        { id: 'vin', name: 'VIN', type: 'power', x: -24, y: 16 },
+        { id: 'gnd', name: 'GND', type: 'ground', x: -16, y: 16 },
+        { id: 'sck', name: 'SCK', type: 'digital', x: -8, y: 16 },
+        { id: 'sdo', name: 'SDO', type: 'digital', x: 0, y: 16 },
+        { id: 'sdi', name: 'SDI', type: 'digital', x: 8, y: 16 },
+        { id: 'cs', name: 'CS', type: 'digital', x: 16, y: 16 },
+        { id: '3vo', name: '3Vo', type: 'power', x: 24, y: 16 },
+      ];
+    case 'ina219':
+      return [
+        { id: 'vin_plus', name: 'VIN+', type: 'passive', x: -14, y: -18 },
+        { id: 'vin_minus', name: 'VIN-', type: 'passive', x: 14, y: -18 },
+        { id: 'vin', name: 'VIN', type: 'power', x: -18, y: 18 },
+        { id: 'gnd', name: 'GND', type: 'ground', x: -6, y: 18 },
+        { id: 'scl', name: 'SCL', type: 'digital', x: 6, y: 18 },
+        { id: 'sda', name: 'SDA', type: 'digital', x: 18, y: 18 },
+      ];
+    case 'sx1276-lora':
+      return [
+        { id: 'gnd', name: 'GND', type: 'ground', x: -36, y: 18 },
+        { id: 'vcc', name: 'VCC', type: 'power', x: -28, y: 18 },
+        { id: 'miso', name: 'MISO', type: 'digital', x: -20, y: 18 },
+        { id: 'mosi', name: 'MOSI', type: 'digital', x: -12, y: 18 },
+        { id: 'sck', name: 'SCK', type: 'digital', x: -4, y: 18 },
+        { id: 'nss', name: 'NSS', type: 'digital', x: 4, y: 18 },
+        { id: 'reset', name: 'RST', type: 'digital', x: 12, y: 18 },
+        { id: 'dio0', name: 'DIO0', type: 'digital', x: 20, y: 18 },
+        { id: 'dio1', name: 'DIO1', type: 'digital', x: 28, y: 18 },
+        { id: 'ant', name: 'ANT', type: 'passive', x: 36, y: 18 },
+      ];
+    case 'a4988-driver':
+      return [
+        { id: 'enable', name: 'EN', type: 'digital', x: -24, y: -28 },
+        { id: 'ms1', name: 'MS1', type: 'digital', x: -24, y: -18 },
+        { id: 'ms2', name: 'MS2', type: 'digital', x: -24, y: -8 },
+        { id: 'ms3', name: 'MS3', type: 'digital', x: -24, y: 2 },
+        { id: 'reset', name: 'RST', type: 'digital', x: -24, y: 12 },
+        { id: 'sleep', name: 'SLP', type: 'digital', x: -24, y: 22 },
+        { id: 'step', name: 'STEP', type: 'digital', x: 24, y: -28 },
+        { id: 'dir', name: 'DIR', type: 'digital', x: 24, y: -18 },
+        { id: 'vdd', name: 'VDD', type: 'power', x: 24, y: -8 },
+        { id: 'gnd_logic', name: 'GND', type: 'ground', x: 24, y: 2 },
+        { id: '1a', name: '1A', type: 'passive', x: 24, y: 12 },
+        { id: '1b', name: '1B', type: 'passive', x: 24, y: 22 },
+        { id: '2a', name: '2A', type: 'passive', x: 24, y: 32 },
+        { id: '2b', name: '2B', type: 'passive', x: 24, y: 42 },
+        { id: 'vmot', name: 'VMOT', type: 'power', x: -24, y: 32 },
+        { id: 'gnd_motor', name: 'GND', type: 'ground', x: -24, y: 42 },
+      ];
+    case 'oscilloscope':
+      return [
+        { id: 'ch1', name: 'CH1', type: 'analog', x: -28, y: 44 },
+        { id: 'gnd', name: 'GND', type: 'ground', x: 28, y: 44 },
+      ];
     default:
       return [];
   }
@@ -851,6 +918,33 @@ export function getDefaultProperties(type: ComponentType): Record<string, string
       return { hfe: 100 };
     case 'transistor-pnp':
       return { hfe: 100 };
+    case 'bme280':
+      return {
+        temperature: 24,
+        humidity: 46,
+        pressure: 1013.2,
+        address: '0x77',
+      };
+    case 'ina219':
+      return {
+        busVoltage: 5.0,
+        current: 0.12,
+        power: 0.6,
+        address: '0x40',
+      };
+    case 'sx1276-lora':
+      return {
+        frequencyMHz: 868,
+        spreadingFactor: 7,
+        bandwidthKhz: 125,
+        signal: false,
+      };
+    case 'a4988-driver':
+      return {
+        enabled: false,
+        currentLimit: 1.0,
+        stepMode: '1/16',
+      };
     case 'multimeter':
       return {
         mode: 'voltage',
@@ -870,6 +964,13 @@ export function getDefaultProperties(type: ComponentType): Record<string, string
         blackProbeTargetPinId: '',
         redProbeTargetComponentId: '',
         redProbeTargetPinId: '',
+      };
+    case 'oscilloscope':
+      return {
+        reading: 0,
+        displayText: '0.00 V',
+        status: 'idle',
+        timeWindowMs: 4000,
       };
     case 'motor-driver':
       return { type: 'L293D' };
@@ -945,6 +1046,8 @@ export const COMPONENT_CATALOG: ComponentInfo[] = [
   { type: 'rc522', name: 'RC522 RFID', category: 'Sensor', icon: 'RFID' },
   { type: 'hc-sr04', name: 'HC-SR04 Ultrasonic', category: 'Sensor', icon: 'US' },
   { type: 'ir-sensor', name: 'IR Sensor', category: 'Sensor', icon: 'IR' },
+  { type: 'bme280', name: 'BME280 Env Sensor', category: 'Sensor', icon: 'BME' },
+  { type: 'ina219', name: 'INA219 Current Sensor', category: 'Sensor', icon: 'INA' },
   // Display
   { type: 'seven-segment', name: '7 Segment', category: 'Display', icon: '7SEG' },
   { type: 'lcd-16x2', name: 'LCD 16x2', category: 'Display', icon: 'LCD' },
@@ -973,7 +1076,10 @@ export const COMPONENT_CATALOG: ComponentInfo[] = [
   { type: 'relay', name: 'Relay', category: 'Other', icon: 'RLY' },
   { type: 'transistor-npn', name: 'NPN Transistor', category: 'Other', icon: 'NPN' },
   { type: 'transistor-pnp', name: 'PNP Transistor', category: 'Other', icon: 'PNP' },
+  { type: 'sx1276-lora', name: 'SX1276 LoRa Module', category: 'Other', icon: 'LORA' },
+  { type: 'a4988-driver', name: 'A4988 Stepper Driver', category: 'Other', icon: 'A4988' },
   { type: 'multimeter', name: 'Digital Multimeter', category: 'Other', icon: 'DMM' },
+  { type: 'oscilloscope', name: 'Oscilloscope', category: 'Other', icon: 'OSC' },
   { type: 'motor-driver', name: 'Motor Driver', category: 'Other', icon: 'DRV' },
 ];
 

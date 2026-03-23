@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import {
   CircuitComponent,
+  OscilloscopeSample,
   Wire,
   ToolMode,
   RightTab,
@@ -47,8 +48,8 @@ interface CircuitStore {
   setRightTab: (tab: RightTab) => void;
   bottomPanelCollapsed: boolean;
   toggleBottomPanel: () => void;
-  bottomTab: 'code' | 'serial' | 'device';
-  setBottomTab: (tab: 'code' | 'serial' | 'device') => void;
+  bottomTab: 'code' | 'serial' | 'device' | 'oscilloscope';
+  setBottomTab: (tab: 'code' | 'serial' | 'device' | 'oscilloscope') => void;
   language: AppLanguage;
   setLanguage: (language: AppLanguage) => void;
 
@@ -85,6 +86,8 @@ interface CircuitStore {
   updateLedState: (componentId: string, on: boolean, brightness: number) => void;
   addSerialOutput: (text: string) => void;
   clearSerialOutput: () => void;
+  addOscilloscopeSample: (componentId: string, sample: OscilloscopeSample) => void;
+  clearOscilloscopeTraces: () => void;
 
   // Code
   code: string;
@@ -172,6 +175,7 @@ function getBoardLogicHighVoltage(boardType: ControllerBoardType): number {
     case 'arduino-fio':
     case 'pico':
     case 'feather-huzzah32':
+    case 'esp32-s3-devkitc-1':
       return 3.3;
     default:
       return 5;
@@ -344,6 +348,27 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
             serialOutput: [...s.simulation.serialOutput, text].slice(-200),
           },
         })),
+      pushOscilloscopeSample: (componentId, sample) =>
+        set((s) => {
+          const currentTrace = s.simulation.oscilloscopeTraces[componentId] ?? [];
+          const lastSample = currentTrace[currentTrace.length - 1];
+          const nextTrace =
+            lastSample &&
+            lastSample.timeMs === sample.timeMs &&
+            Math.abs(lastSample.voltage - sample.voltage) < 0.0001
+              ? currentTrace
+              : [...currentTrace, sample].slice(-600);
+
+          return {
+            simulation: {
+              ...s.simulation,
+              oscilloscopeTraces: {
+                ...s.simulation.oscilloscopeTraces,
+                [componentId]: nextTrace,
+              },
+            },
+          };
+        }),
       setLedState: (componentId, on, brightness) =>
         set((s) => ({
           simulation: {
@@ -412,12 +437,14 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
             ledStates: {},
             componentStates: {},
             serialOutput: [],
+            oscilloscopeTraces: {},
           }
         : {
             ...state.simulation,
             pinStates: {},
             ledStates: {},
             componentStates: {},
+            oscilloscopeTraces: {},
           },
     }));
 
@@ -577,6 +604,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
     ledStates: {},
     componentStates: {},
     serialOutput: [],
+    oscilloscopeTraces: {},
   },
 
   startSimulation: () => {
@@ -590,6 +618,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
           ledStates: {},
           componentStates: {},
           serialOutput: [],
+          oscilloscopeTraces: {},
         },
       };
     });
@@ -633,6 +662,33 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
   clearSerialOutput: () =>
     set((s) => ({
       simulation: { ...s.simulation, serialOutput: [] },
+    })),
+
+  addOscilloscopeSample: (componentId, sample) =>
+    set((s) => {
+      const currentTrace = s.simulation.oscilloscopeTraces[componentId] ?? [];
+      const lastSample = currentTrace[currentTrace.length - 1];
+      const nextTrace =
+        lastSample &&
+        lastSample.timeMs === sample.timeMs &&
+        Math.abs(lastSample.voltage - sample.voltage) < 0.0001
+          ? currentTrace
+          : [...currentTrace, sample].slice(-600);
+
+      return {
+        simulation: {
+          ...s.simulation,
+          oscilloscopeTraces: {
+            ...s.simulation.oscilloscopeTraces,
+            [componentId]: nextTrace,
+          },
+        },
+      };
+    }),
+
+  clearOscilloscopeTraces: () =>
+    set((s) => ({
+      simulation: { ...s.simulation, oscilloscopeTraces: {} },
     })),
 
   // Code
@@ -765,6 +821,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
         ledStates: {},
         componentStates: {},
         serialOutput: [],
+        oscilloscopeTraces: {},
       },
     });
   },
@@ -795,6 +852,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
         ledStates: {},
         componentStates: {},
         serialOutput: [],
+        oscilloscopeTraces: {},
       },
     });
   },

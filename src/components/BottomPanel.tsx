@@ -1,11 +1,17 @@
 import Editor, { type Monaco } from '@monaco-editor/react';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useCircuitStore } from '../store/circuitStore';
+import type { CircuitComponent, OscilloscopeSample } from '../models/types';
 import {
   HARDWARE_BAUD_RATE_OPTIONS,
   useHardwareStore,
 } from '../store/hardwareStore';
-import { t } from '../lib/i18n';
+import {
+  getLocalizedOscilloscopeDisplayText,
+  getOscilloscopeStatusLabel,
+  getPropertyDisplayName,
+  t,
+} from '../lib/i18n';
 
 const configureEditorTheme = (monaco: Monaco) => {
   monaco.editor.defineTheme('ai-circuit-dark', {
@@ -48,15 +54,129 @@ const clampPanelHeight = (height: number) => {
   return Math.min(Math.max(height, MIN_PANEL_HEIGHT), maxHeight);
 };
 
+const SCOPE_CHART_WIDTH = 760;
+const SCOPE_CHART_HEIGHT = 236;
+const SCOPE_CHART_PADDING = {
+  top: 16,
+  right: 18,
+  bottom: 24,
+  left: 42,
+};
+const MIN_SCOPE_TIME_WINDOW_MS = 250;
+
+type ScopeChartData = {
+  latestVoltage: number;
+  latestTimeMs: number;
+  minVoltage: number;
+  maxVoltage: number;
+  rms: number;
+  visibleSamples: OscilloscopeSample[];
+  polylinePoints: string;
+  yMin: number;
+  yMax: number;
+  zeroLineY: number;
+};
+
+function getScopeNumericProperty(value: unknown, fallback: number): number {
+  const parsed = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function getScopeDisplayName(scope: CircuitComponent): string {
+  return `Scope ${scope.id.slice(0, 4).toUpperCase()}`;
+}
+
+function buildScopeChartData(
+  trace: OscilloscopeSample[],
+  rawWindowMs: number
+): ScopeChartData {
+  const timeWindowMs = Math.max(MIN_SCOPE_TIME_WINDOW_MS, rawWindowMs);
+  const innerWidth =
+    SCOPE_CHART_WIDTH - SCOPE_CHART_PADDING.left - SCOPE_CHART_PADDING.right;
+  const innerHeight =
+    SCOPE_CHART_HEIGHT - SCOPE_CHART_PADDING.top - SCOPE_CHART_PADDING.bottom;
+
+  if (trace.length === 0) {
+    const defaultMin = -1;
+    const defaultMax = 1;
+    return {
+      latestVoltage: 0,
+      latestTimeMs: 0,
+      minVoltage: 0,
+      maxVoltage: 0,
+      rms: 0,
+      visibleSamples: [],
+      polylinePoints: '',
+      yMin: defaultMin,
+      yMax: defaultMax,
+      zeroLineY:
+        SCOPE_CHART_PADDING.top +
+        ((defaultMax - 0) / (defaultMax - defaultMin)) * innerHeight,
+    };
+  }
+
+  const latestTimeMs = trace[trace.length - 1]?.timeMs ?? 0;
+  const windowStartMs = Math.max(0, latestTimeMs - timeWindowMs);
+  let firstVisibleIndex = trace.findIndex((sample) => sample.timeMs >= windowStartMs);
+
+  if (firstVisibleIndex === -1) {
+    firstVisibleIndex = Math.max(0, trace.length - 1);
+  } else if (firstVisibleIndex > 0) {
+    firstVisibleIndex -= 1;
+  }
+
+  const visibleSamples = trace.slice(firstVisibleIndex);
+  const voltages = visibleSamples.map((sample) => sample.voltage);
+  const minVoltage = Math.min(0, ...voltages);
+  const maxVoltage = Math.max(0, ...voltages);
+  const spread = Math.max(0.4, maxVoltage - minVoltage);
+  const padding = Math.max(0.2, spread * 0.16);
+  const yMin = minVoltage - padding;
+  const yMax = maxVoltage + padding;
+  const voltageSpan = Math.max(0.001, yMax - yMin);
+  const polylinePoints = visibleSamples
+    .map((sample) => {
+      const x =
+        SCOPE_CHART_PADDING.left +
+        ((sample.timeMs - windowStartMs) / timeWindowMs) * innerWidth;
+      const y =
+        SCOPE_CHART_PADDING.top +
+        ((yMax - sample.voltage) / voltageSpan) * innerHeight;
+      return `${x.toFixed(2)},${y.toFixed(2)}`;
+    })
+    .join(' ');
+
+  return {
+    latestVoltage: visibleSamples[visibleSamples.length - 1]?.voltage ?? 0,
+    latestTimeMs,
+    minVoltage,
+    maxVoltage,
+    rms: Math.sqrt(
+      voltages.reduce((sum, voltage) => sum + voltage * voltage, 0) /
+        Math.max(1, voltages.length)
+    ),
+    visibleSamples,
+    polylinePoints,
+    yMin,
+    yMax,
+    zeroLineY:
+      SCOPE_CHART_PADDING.top + ((yMax - 0) / voltageSpan) * innerHeight,
+  };
+}
+
 const BottomPanel: React.FC = () => {
   const bottomPanelCollapsed = useCircuitStore((s) => s.bottomPanelCollapsed);
   const toggleBottomPanel = useCircuitStore((s) => s.toggleBottomPanel);
   const bottomTab = useCircuitStore((s) => s.bottomTab);
   const setBottomTab = useCircuitStore((s) => s.setBottomTab);
+  const components = useCircuitStore((s) => s.components);
+  const selectedComponentId = useCircuitStore((s) => s.selectedComponentId);
   const code = useCircuitStore((s) => s.code);
   const setCode = useCircuitStore((s) => s.setCode);
   const serialOutput = useCircuitStore((s) => s.simulation.serialOutput);
+  const oscilloscopeTraces = useCircuitStore((s) => s.simulation.oscilloscopeTraces);
   const clearSerialOutput = useCircuitStore((s) => s.clearSerialOutput);
+  const clearOscilloscopeTraces = useCircuitStore((s) => s.clearOscilloscopeTraces);
   const simulation = useCircuitStore((s) => s.simulation);
   const language = useCircuitStore((s) => s.language);
 
@@ -77,10 +197,79 @@ const BottomPanel: React.FC = () => {
   const [panelHeight, setPanelHeight] = useState(() =>
     clampPanelHeight(DEFAULT_PANEL_HEIGHT)
   );
+  const [preferredScopeId, setPreferredScopeId] = useState<string | null>(null);
   const codeLineCount = Math.max(1, code.split(/\r?\n/).length);
   const codeCharCount = code.length;
   const selectedHardwarePort =
     hardwarePorts.find((port) => port.path === selectedHardwarePortPath) ?? null;
+  const oscilloscopeComponents = useMemo(
+    () => components.filter((component) => component.type === 'oscilloscope'),
+    [components]
+  );
+  const selectedOscilloscope =
+    components.find(
+      (component) =>
+        component.id === selectedComponentId && component.type === 'oscilloscope'
+    ) ?? null;
+
+  useEffect(() => {
+    if (selectedOscilloscope) {
+      setPreferredScopeId(selectedOscilloscope.id);
+    }
+  }, [selectedOscilloscope]);
+
+  useEffect(() => {
+    if (
+      preferredScopeId &&
+      oscilloscopeComponents.some((component) => component.id === preferredScopeId)
+    ) {
+      return;
+    }
+
+    setPreferredScopeId(oscilloscopeComponents[0]?.id ?? null);
+  }, [oscilloscopeComponents, preferredScopeId]);
+
+  const activeOscilloscope =
+    oscilloscopeComponents.find((component) => component.id === preferredScopeId) ??
+    oscilloscopeComponents[0] ??
+    null;
+  const activeOscilloscopeLiveProperties = activeOscilloscope
+    ? simulation.componentStates[activeOscilloscope.id] ?? null
+    : null;
+  const activeOscilloscopeDisplay = activeOscilloscope
+    ? simulation.running && activeOscilloscopeLiveProperties
+      ? {
+          ...activeOscilloscope,
+          properties: {
+            ...activeOscilloscope.properties,
+            ...activeOscilloscopeLiveProperties,
+          },
+        }
+      : activeOscilloscope
+    : null;
+  const activeOscilloscopeTrace = activeOscilloscope
+    ? oscilloscopeTraces[activeOscilloscope.id] ?? []
+    : [];
+  const activeOscilloscopeWindowMs = activeOscilloscopeDisplay
+    ? Math.max(
+        MIN_SCOPE_TIME_WINDOW_MS,
+        getScopeNumericProperty(activeOscilloscopeDisplay.properties.timeWindowMs, 4000)
+      )
+    : 4000;
+  const scopeChart = useMemo(
+    () => buildScopeChartData(activeOscilloscopeTrace, activeOscilloscopeWindowMs),
+    [activeOscilloscopeTrace, activeOscilloscopeWindowMs]
+  );
+  const activeOscilloscopeStatus = String(
+    activeOscilloscopeDisplay?.properties.status ?? 'idle'
+  );
+  const oscilloscopeEmptyMessage = !activeOscilloscope
+    ? t(language, 'oscilloscopeAddPrompt')
+    : activeOscilloscopeStatus === 'open'
+      ? t(language, 'oscilloscopeConnectPrompt')
+      : simulation.running
+        ? t(language, 'oscilloscopeWaiting')
+        : t(language, 'oscilloscopeConnectPrompt');
 
   useEffect(() => {
     serialEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -183,6 +372,23 @@ const BottomPanel: React.FC = () => {
             {serialOutput.length > 0 ? ` (${serialOutput.length})` : ''}
           </button>
           <button
+            className={`tab-btn ${bottomTab === 'oscilloscope' ? 'active' : ''}`}
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              setBottomTab('oscilloscope');
+              if (bottomPanelCollapsed) toggleBottomPanel();
+            }}
+            style={{ padding: '4px 10px', fontSize: 11 }}
+          >
+            {t(language, 'oscilloscope')}
+            {activeOscilloscopeTrace.length > 0
+              ? ` (${activeOscilloscopeTrace.length})`
+              : oscilloscopeComponents.length > 0
+                ? ` (${oscilloscopeComponents.length})`
+                : ''}
+          </button>
+          <button
             className={`tab-btn ${bottomTab === 'device' ? 'active' : ''}`}
             type="button"
             onClick={(event) => {
@@ -220,6 +426,26 @@ const BottomPanel: React.FC = () => {
                 {t(language, 'logCount', { count: serialOutput.length })}
               </span>
             </>
+          ) : bottomTab === 'oscilloscope' ? (
+            <>
+              <span
+                className={`panel-pill ${
+                  simulation.running && activeOscilloscopeStatus === 'live' ? 'live' : ''
+                }`}
+              >
+                {getOscilloscopeStatusLabel(language, activeOscilloscopeStatus)}
+              </span>
+              <span className="panel-pill">
+                {activeOscilloscope
+                  ? getScopeDisplayName(activeOscilloscope)
+                  : t(language, 'oscilloscope')}
+              </span>
+              <span className="panel-pill">
+                {t(language, 'sampleCount', {
+                  count: activeOscilloscopeTrace.length,
+                })}
+              </span>
+            </>
           ) : (
             <>
               <span className={`panel-pill ${hardwareCliAvailable ? 'live' : ''}`}>
@@ -243,7 +469,9 @@ const BottomPanel: React.FC = () => {
             </>
           )}
 
-          {(bottomTab === 'serial' || bottomTab === 'device') &&
+          {(bottomTab === 'serial' ||
+            bottomTab === 'device' ||
+            bottomTab === 'oscilloscope') &&
             !bottomPanelCollapsed && (
               <button
                 className="toolbar-btn"
@@ -252,6 +480,8 @@ const BottomPanel: React.FC = () => {
                   event.stopPropagation();
                   if (bottomTab === 'serial') {
                     clearSerialOutput();
+                  } else if (bottomTab === 'oscilloscope') {
+                    clearOscilloscopeTraces();
                   } else {
                     clearHardwareConsole();
                   }
@@ -354,6 +584,150 @@ const BottomPanel: React.FC = () => {
                 )}
                 <div ref={serialEndRef} />
               </div>
+            </div>
+          ) : bottomTab === 'oscilloscope' ? (
+            <div className="serial-shell oscilloscope-shell">
+              <div className="serial-shell-head">
+                <div>
+                  <div className="serial-shell-title">
+                    {t(language, 'oscilloscope')}
+                  </div>
+                  <div className="serial-shell-text">
+                    {t(language, 'oscilloscopeHint')}
+                  </div>
+                </div>
+
+                {oscilloscopeComponents.length > 1 && (
+                  <select
+                    className="property-select oscilloscope-select"
+                    value={activeOscilloscope?.id ?? ''}
+                    onChange={(event) => setPreferredScopeId(event.target.value)}
+                  >
+                    {oscilloscopeComponents.map((component) => (
+                      <option key={component.id} value={component.id}>
+                        {getScopeDisplayName(component)}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+
+              {activeOscilloscopeDisplay ? (
+                <div className="oscilloscope-workspace">
+                  <div className="oscilloscope-chart-card">
+                    <svg
+                      className="oscilloscope-chart"
+                      viewBox={`0 0 ${SCOPE_CHART_WIDTH} ${SCOPE_CHART_HEIGHT}`}
+                      aria-label={t(language, 'oscilloscope')}
+                      role="img"
+                    >
+                      {Array.from({ length: 9 }, (_, index) => {
+                        const usableWidth =
+                          SCOPE_CHART_WIDTH -
+                          SCOPE_CHART_PADDING.left -
+                          SCOPE_CHART_PADDING.right;
+                        const x =
+                          SCOPE_CHART_PADDING.left + (usableWidth / 8) * index;
+                        return (
+                          <line
+                            key={`scope-grid-v-${index}`}
+                            x1={x}
+                            y1={SCOPE_CHART_PADDING.top}
+                            x2={x}
+                            y2={SCOPE_CHART_HEIGHT - SCOPE_CHART_PADDING.bottom}
+                            className="oscilloscope-grid-line"
+                          />
+                        );
+                      })}
+                      {Array.from({ length: 7 }, (_, index) => {
+                        const usableHeight =
+                          SCOPE_CHART_HEIGHT -
+                          SCOPE_CHART_PADDING.top -
+                          SCOPE_CHART_PADDING.bottom;
+                        const y =
+                          SCOPE_CHART_PADDING.top + (usableHeight / 6) * index;
+                        return (
+                          <line
+                            key={`scope-grid-h-${index}`}
+                            x1={SCOPE_CHART_PADDING.left}
+                            y1={y}
+                            x2={SCOPE_CHART_WIDTH - SCOPE_CHART_PADDING.right}
+                            y2={y}
+                            className="oscilloscope-grid-line"
+                          />
+                        );
+                      })}
+                      <line
+                        x1={SCOPE_CHART_PADDING.left}
+                        y1={scopeChart.zeroLineY}
+                        x2={SCOPE_CHART_WIDTH - SCOPE_CHART_PADDING.right}
+                        y2={scopeChart.zeroLineY}
+                        className="oscilloscope-zero-line"
+                      />
+                      {scopeChart.polylinePoints && (
+                        <polyline
+                          points={scopeChart.polylinePoints}
+                          className="oscilloscope-trace-line"
+                        />
+                      )}
+                    </svg>
+
+                    {activeOscilloscopeTrace.length === 0 ? (
+                      <div className="oscilloscope-empty-state">
+                        {oscilloscopeEmptyMessage}
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <div className="oscilloscope-stats">
+                    <div className="oscilloscope-stat">
+                      <span className="oscilloscope-stat-label">
+                        {getPropertyDisplayName(language, 'reading')}
+                      </span>
+                      <strong>
+                        {getLocalizedOscilloscopeDisplayText(
+                          language,
+                          String(activeOscilloscopeDisplay.properties.displayText ?? '0.00 V')
+                        )}
+                      </strong>
+                    </div>
+                    <div className="oscilloscope-stat">
+                      <span className="oscilloscope-stat-label">Vpp</span>
+                      <strong>
+                        {(scopeChart.maxVoltage - scopeChart.minVoltage).toFixed(2)} V
+                      </strong>
+                    </div>
+                    <div className="oscilloscope-stat">
+                      <span className="oscilloscope-stat-label">RMS</span>
+                      <strong>{scopeChart.rms.toFixed(2)} V</strong>
+                    </div>
+                    <div className="oscilloscope-stat">
+                      <span className="oscilloscope-stat-label">
+                        {t(language, 'timeWindow')}
+                      </span>
+                      <strong>{activeOscilloscopeWindowMs} ms</strong>
+                    </div>
+                    <div className="oscilloscope-stat">
+                      <span className="oscilloscope-stat-label">Min / Max</span>
+                      <strong>
+                        {scopeChart.minVoltage.toFixed(2)} V / {scopeChart.maxVoltage.toFixed(2)} V
+                      </strong>
+                    </div>
+                    <div className="oscilloscope-stat">
+                      <span className="oscilloscope-stat-label">
+                        {t(language, 'sampleCount', {
+                          count: scopeChart.visibleSamples.length,
+                        })}
+                      </span>
+                      <strong>{scopeChart.latestTimeMs} ms</strong>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="oscilloscope-empty-state">
+                  {oscilloscopeEmptyMessage}
+                </div>
+              )}
             </div>
           ) : (
             <div className="serial-shell">

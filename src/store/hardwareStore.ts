@@ -311,7 +311,7 @@ export const useHardwareStore = create<HardwareStore>((set, get) => ({
         nextPorts.find((port) => port.boardName)?.boardName ||
         '',
       serialMonitorOpen:
-        state.serialMonitorOpen && Boolean(nextSelectedPort) && nextSelectedPort.serialCapable,
+        state.serialMonitorOpen && Boolean(nextSelectedPort?.serialCapable),
       lastError: null,
     }));
   },
@@ -431,8 +431,13 @@ export const useHardwareStore = create<HardwareStore>((set, get) => ({
       return;
     }
 
+    const selectedPortPath = get().selectedPortPath;
+    if (!selectedPortPath) {
+      return;
+    }
+
     const result = await window.electronAPI.openHardwareSerialMonitor({
-      portPath: get().selectedPortPath,
+      portPath: selectedPortPath,
       baudRate: get().serialBaudRate,
     });
 

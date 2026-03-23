@@ -5,6 +5,7 @@ import {
   getComponentDisplayName,
   getMultimeterModeLabel,
   getMultimeterStatusLabel,
+  getOscilloscopeStatusLabel,
   getPropertyDisplayName,
   t,
 } from '../lib/i18n';
@@ -61,6 +62,7 @@ const PropertiesPanel: React.FC = () => {
     'redProbeTargetComponentId',
     'redProbeTargetPinId',
   ]);
+  const oscilloscopeReadOnlyKeys = new Set(['reading', 'displayText', 'status']);
   const liveProperties = simulation.componentStates[selectedComp.id] ?? null;
   const displayComp =
     simulation.running && liveProperties
@@ -133,7 +135,9 @@ const PropertiesPanel: React.FC = () => {
           {simulation.running && liveProperties ? ' (Live)' : ''}
         </div>
         {Object.entries(displayComp.properties)
-          .filter(([key]) => !multimeterHiddenKeys.has(key))
+          .filter(([key]) =>
+            displayComp.type === 'multimeter' ? !multimeterHiddenKeys.has(key) : true
+          )
           .map(([key, value]) => (
           <div className="property-row" key={key}>
             <span className="property-label">
@@ -159,6 +163,12 @@ const PropertiesPanel: React.FC = () => {
                   : typeof value === 'boolean'
                     ? (value ? 'ON' : 'OFF')
                     : String(value)}
+              </span>
+            ) : displayComp.type === 'oscilloscope' && oscilloscopeReadOnlyKeys.has(key) ? (
+              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                {key === 'status'
+                  ? getOscilloscopeStatusLabel(language, String(value))
+                  : String(value)}
               </span>
             ) : typeof value === 'boolean' ? (
               <input
