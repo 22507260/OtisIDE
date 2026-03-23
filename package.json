@@ -1,12 +1,14 @@
 {
   "name": "otiside",
   "version": "1.2.0",
-  "description": "AI-assisted Arduino and breadboard circuit builder for web and Electron",
+  "description": "AI-assisted Arduino and breadboard designer with visual wiring, code generation, and Electron desktop support",
   "main": "electron/main.js",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "build:icons": "powershell -ExecutionPolicy Bypass -File scripts/generate-icons.ps1",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "preview": "vite preview",
+    "build:icons": "node scripts/ensure-icons.cjs",
     "electron:dev": "concurrently \"vite\" \"wait-on http://localhost:5173 && node scripts/run-electron-command.cjs . --dev\"",
     "electron:build": "npm run build:icons && vite build && electron-builder --publish never",
     "desktop:dev": "npm run electron:dev",
@@ -34,6 +36,10 @@
   "funding": {
     "type": "Buy Me a Coffee",
     "url": "https://buymeacoffee.com/otis21"
+  },
+  "engines": {
+    "node": ">=20",
+    "npm": ">=10"
   },
   "build": {
     "appId": "com.otis21.otiside",

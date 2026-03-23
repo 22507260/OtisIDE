@@ -1,10 +1,13 @@
 # OtisIDE
 
 <p align="center">
-  <img src="https://github.com/22507260/OtisIDE/raw/main/docs/otis-mascot.png" alt="OtisIDE mascot" width="720" />
+  <img src="https://raw.githubusercontent.com/22507260/OtisIDE/main/docs/otis-mascot.png" alt="OtisIDE mascot" width="720" />
 </p>
 
 <p align="center">
+  <a href="https://github.com/22507260/OtisIDE/releases/latest">
+    <img alt="Latest release" src="https://img.shields.io/github/v/release/22507260/OtisIDE?display_name=tag&label=release" />
+  </a>
   <a href="https://github.com/22507260/OtisIDE/actions/workflows/ci.yml">
     <img alt="Build status" src="https://img.shields.io/github/actions/workflow/status/22507260/OtisIDE/ci.yml?branch=main&label=build" />
   </a>
@@ -39,6 +42,8 @@
   <a href="#feature-set"><strong>Feature set</strong></a>
   |
   <a href="#workspace-layout"><strong>Workspace layout</strong></a>
+  |
+  <a href="CONTRIBUTING.md"><strong>Contributing</strong></a>
   |
   <a href="https://github.com/22507260/OtisIDE/releases"><strong>Releases</strong></a>
   |
@@ -97,12 +102,15 @@ Inspect the current circuit and complete any missing wires
 ### Requirements
 
 - Node.js 20+
-- npm
+- npm 10+
+- Git
 
-### Install
+### Clone and install
 
 ```bash
-npm install
+git clone https://github.com/22507260/OtisIDE.git
+cd OtisIDE
+npm ci
 ```
 
 ### Run the web app
@@ -117,6 +125,12 @@ npm run dev
 npm run electron:dev
 ```
 
+### Type-check
+
+```bash
+npm run typecheck
+```
+
 ### Build the web bundle
 
 ```bash
@@ -128,6 +142,12 @@ npm run build
 ```bash
 npm run electron:build
 ```
+
+### Build notes
+
+- `npm run build` works on Windows, macOS, and Linux.
+- `npm run electron:build` currently targets Windows installer output in `release/`.
+- Desktop icon files are committed in `build/`, so a fresh clone does not need a manual icon generation step before packaging.
 
 ## AI Setup
 
@@ -206,6 +226,7 @@ That makes the app especially useful for prototyping, teaching, and fast circuit
 This repository includes a GitHub Actions workflow at `.github/workflows/ci.yml` that runs:
 
 - `npm ci`
+- `npm run typecheck`
 - `npm run build`
 
 ## Support The Project
