@@ -1,7 +1,7 @@
 # OtisIDE
 
 <p align="center">
-  <img src="docs/otis-mascot.png" alt="OtisIDE mascot" width="720" />
+  <img src="https://github.com/22507260/OtisIDE/raw/main/docs/otis-mascot.png" alt="OtisIDE mascot" width="720" />
 </p>
 
 <p align="center">
