@@ -1,7 +1,7 @@
 # OtisIDE
 
 <p align="center">
-  <img src="docs/hero.svg" alt="OtisIDE banner" width="100%" />
+  <img src="docs/otis-mascot.png" alt="OtisIDE mascot" width="720" />
 </p>
 
 <p align="center">
@@ -27,10 +27,6 @@
 
 <p align="center">
   AI-assisted Arduino and breadboard design workspace with drag-and-drop components, board-aware wiring, lightweight runtime feedback, and OpenAI-compatible circuit help.
-</p>
-
-<p align="center">
-  <img src="docs/otis-mascot.png" alt="OtisIDE mascot" width="420" />
 </p>
 
 <p align="center">
