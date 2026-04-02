@@ -3,7 +3,7 @@ import type { RightTab } from '../models/types';
 
 export type AppVariant = 'ide' | 'learn';
 
-export const BRANCH_APP_VARIANT: AppVariant = 'learn';
+export const BRANCH_APP_VARIANT: AppVariant = 'ide';
 
 const rawVariant = (import.meta.env.VITE_APP_VARIANT || BRANCH_APP_VARIANT)
   .trim()

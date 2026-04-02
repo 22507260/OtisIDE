@@ -50,7 +50,7 @@ async function createWindow() {
     minWidth: 1100,
     minHeight: 700,
     show: false,
-    title: 'OtisLearn',
+    title: 'OtisIDE',
     icon: resolveIconPath(),
     frame: !useCustomWindowChrome,
     titleBarStyle: useCustomWindowChrome ? undefined : 'hiddenInset',
@@ -124,7 +124,7 @@ function readDialogOptions(options) {
 }
 
 app.whenReady().then(() => {
-  app.setAppUserModelId('com.otis21.otislearn');
+  app.setAppUserModelId('com.otis21.otiside');
   setArduinoIdeWindowGetter(() => mainWindow);
   return createWindow();
 });

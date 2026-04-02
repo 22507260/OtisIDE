@@ -1,5 +1,5 @@
 {
-  "name": "otislearn",
+  "name": "otiside",
   "version": "1.2.0",
   "description": "AI-assisted Arduino and breadboard designer with visual wiring, code generation, and Electron desktop support",
   "main": "electron/main.js",
@@ -43,8 +43,8 @@
     "npm": ">=10"
   },
   "build": {
-    "appId": "com.otis21.otislearn",
-    "productName": "OtisLearn",
+    "appId": "com.otis21.otiside",
+    "productName": "OtisIDE",
     "artifactName": "${productName}-${version}-${arch}.${ext}",
     "directories": {
       "output": "release",
@@ -73,7 +73,7 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "OtisLearn",
+      "shortcutName": "OtisIDE",
       "installerIcon": "build/icon.ico",
       "uninstallerIcon": "build/icon.ico",
       "installerHeaderIcon": "build/icon.ico"
