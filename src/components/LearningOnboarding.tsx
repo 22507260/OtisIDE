@@ -27,11 +27,15 @@ const LearningOnboarding: React.FC = () => {
           title: getAppDisplayName(language),
           subtitle:
             'Baslangic seviyesine uygun bir ders sec ve devreyi adim adim kur.',
-          freeMode:
-            'Simdilik serbest modda devam et',
+          freeMode: 'Simdilik serbest modda devam et',
           startLesson: 'Dersi Baslat',
           minutes: 'dk',
           quickStart: 'Hizli baslangic',
+          highlights: [
+            'Parca secimini ve kablolamayi adim adim gor.',
+            'Kod ve devre hatalarini aninda yakala.',
+            'Istersen AI ogretmenden ipucu al.',
+          ],
         }
       : {
           title: getAppDisplayName(language),
@@ -41,6 +45,11 @@ const LearningOnboarding: React.FC = () => {
           startLesson: 'Start lesson',
           minutes: 'min',
           quickStart: 'Quick start',
+          highlights: [
+            'Follow a clear build order for parts and wiring.',
+            'Catch code and circuit mistakes as you go.',
+            'Open the AI tutor whenever you need a hint.',
+          ],
         };
 
   return (
@@ -50,6 +59,13 @@ const LearningOnboarding: React.FC = () => {
           <div>
             <div className="learn-onboarding-title">{labels.title}</div>
             <div className="learn-onboarding-subtitle">{labels.subtitle}</div>
+            <div className="learn-onboarding-highlight-list">
+              {labels.highlights.map((item) => (
+                <div className="learn-onboarding-highlight" key={item}>
+                  {item}
+                </div>
+              ))}
+            </div>
           </div>
           <button
             className="toolbar-btn"
@@ -63,12 +79,14 @@ const LearningOnboarding: React.FC = () => {
         <div className="learn-onboarding-grid">
           {LESSONS.map((lesson) => (
             <div className="learn-onboarding-lesson" key={lesson.id}>
-              <div className="learn-onboarding-chip">{labels.quickStart}</div>
+              <div className="learn-onboarding-lesson-top">
+                <div className="learn-onboarding-chip">{labels.quickStart}</div>
+                <div className="learn-onboarding-lesson-meta">
+                  {lesson.estimatedMinutes} {labels.minutes}
+                </div>
+              </div>
               <div className="learn-onboarding-lesson-title">
                 {resolveLessonText(language, lesson.title)}
-              </div>
-              <div className="learn-onboarding-lesson-meta">
-                {lesson.estimatedMinutes} {labels.minutes}
               </div>
               <p className="learn-copy">
                 {resolveLessonText(language, lesson.description)}

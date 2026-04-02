@@ -348,10 +348,10 @@ body::after {
 
 .toolbar {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 14px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  padding: 12px;
   min-height: 58px;
   border: 1px solid var(--border);
   border-radius: 20px;
@@ -362,22 +362,77 @@ body::after {
   z-index: 100;
 }
 
-.toolbar-group {
+.toolbar-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.toolbar-row-secondary {
+  padding-top: 2px;
+  border-top: 1px solid rgba(145, 185, 214, 0.08);
+}
+
+.toolbar-row-spacer {
+  flex: 1;
+}
+
+.toolbar-section {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  min-height: 62px;
+  border: 1px solid rgba(145, 185, 214, 0.12);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.toolbar-section-app {
+  margin-left: auto;
+}
+
+.toolbar-section-hardware {
+  width: 100%;
+}
+
+.toolbar-section-title {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  padding: 6px 10px;
+  border: 1px solid rgba(145, 185, 214, 0.14);
+  border-radius: 999px;
+  background: rgba(7, 18, 30, 0.68);
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  white-space: nowrap;
+}
+
+.toolbar-section-body {
   display: flex;
   align-items: center;
-  gap: 6px;
-}
-
-.toolbar-group-wrap {
+  gap: 8px;
   flex-wrap: wrap;
+  min-height: 40px;
 }
 
-.toolbar-group-right {
-  justify-content: flex-end;
+.toolbar-inline-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-left: 2px;
 }
 
-.toolbar-spacer {
-  flex: 1;
+.toolbar-inline-label {
+  font-size: 11px;
+  color: var(--text-muted);
 }
 
 .toolbar-label {
@@ -413,14 +468,7 @@ body::after {
 }
 
 .hardware-port-select {
-  min-width: 180px;
-}
-
-.toolbar-separator {
-  width: 1px;
-  height: 28px;
-  background: var(--border);
-  margin: 0 6px;
+  min-width: 220px;
 }
 
 .toolbar-btn {
@@ -472,6 +520,17 @@ body::after {
   opacity: 0.45;
   cursor: not-allowed;
   transform: none;
+}
+
+.toolbar-value {
+  min-width: 56px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: rgba(8, 18, 28, 0.9);
+  color: var(--text-secondary);
+  font-size: 12px;
+  text-align: center;
 }
 
 .main-content {
@@ -872,10 +931,12 @@ body::after {
 
 .property-group {
   margin-bottom: 18px;
-  padding: 12px;
+  padding: 14px;
   border: 1px solid rgba(145, 185, 214, 0.12);
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.02);
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.02));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
 }
 
 .property-group-title {
@@ -1204,13 +1265,7 @@ body::after {
   align-items: center;
   justify-content: flex-start;
   gap: 8px;
-  flex: 0 0 250px;
-  min-width: 250px;
-}
-
-.sim-controls .toolbar-btn {
-  min-width: 150px;
-  justify-content: center;
+  flex-wrap: wrap;
 }
 
 .sim-status {
@@ -1255,17 +1310,18 @@ body::after {
 
 .tab-bar {
   display: flex;
-  padding: 8px 8px 0;
+  padding: 10px;
   gap: 6px;
   background: rgba(255, 255, 255, 0.02);
   border-bottom: 1px solid var(--border);
 }
 
 .tab-btn {
-  padding: 9px 14px;
-  border: 1px solid transparent;
-  border-radius: 12px 12px 0 0;
-  background: transparent;
+  flex: 1;
+  padding: 10px 14px;
+  border: 1px solid rgba(145, 185, 214, 0.08);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.02);
   color: var(--text-secondary);
   font-size: 12px;
   cursor: pointer;
@@ -1279,8 +1335,9 @@ body::after {
 
 .tab-btn.active {
   color: #ffd7bf;
-  background: rgba(255, 140, 66, 0.12);
-  border-color: rgba(255, 140, 66, 0.2);
+  background: rgba(255, 140, 66, 0.14);
+  border-color: rgba(255, 140, 66, 0.28);
+  box-shadow: 0 10px 22px rgba(255, 140, 66, 0.14);
 }
 
 .learn-panel {
@@ -1304,6 +1361,27 @@ body::after {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+.learn-home-hero {
+  margin-bottom: 18px;
+  padding: 18px;
+  border: 1px solid rgba(145, 185, 214, 0.12);
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at top right, rgba(255, 140, 66, 0.1), transparent 28%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.02));
+}
+
+.learn-library-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.lesson-library-card {
+  margin-bottom: 0;
+  min-height: 100%;
 }
 
 .lesson-card-top,
@@ -1461,6 +1539,22 @@ body::after {
   color: var(--text-secondary);
 }
 
+.learn-onboarding-highlight-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.learn-onboarding-highlight {
+  padding: 9px 12px;
+  border: 1px solid rgba(145, 185, 214, 0.12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.03);
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
 .learn-onboarding-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -1477,6 +1571,13 @@ body::after {
   background: rgba(255, 255, 255, 0.03);
 }
 
+.learn-onboarding-lesson-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
 .learn-onboarding-lesson-title {
   font-size: 16px;
   font-weight: 700;
@@ -1486,6 +1587,32 @@ body::after {
 .learn-onboarding-lesson-meta {
   font-size: 11px;
   color: var(--text-muted);
+}
+
+.panel-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 220px;
+  padding: 22px;
+  border: 1px dashed rgba(145, 185, 214, 0.16);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.02);
+  text-align: center;
+}
+
+.panel-empty-state strong {
+  font-size: 18px;
+  color: var(--text-primary);
+}
+
+.panel-empty-state span {
+  max-width: 260px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-secondary);
 }
 
 .zoom-info {
@@ -1749,6 +1876,24 @@ body::after {
 @media (max-width: 1080px) {
   .oscilloscope-workspace {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 1200px) {
+  .toolbar-section-app {
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 980px) {
+  .main-content {
+    flex-direction: column;
+  }
+
+  .left-panel,
+  .right-panel {
+    width: 100%;
+    min-width: 0;
   }
 }
 

@@ -39,6 +39,26 @@ const Toolbar: React.FC = () => {
   const selectedHardwarePort =
     hardwarePorts.find((port) => port.path === selectedHardwarePortPath) ?? null;
   const effectiveBoardType = selectedHardwarePort?.boardType ?? boardType;
+  const labels =
+    language === 'tr'
+      ? {
+          project: 'Proje',
+          tools: 'Araclar',
+          wireColor: 'Kablo rengi',
+          run: 'Calistir',
+          view: 'Gorunum',
+          app: 'Uygulama',
+          hardware: 'Cihaza yukleme',
+        }
+      : {
+          project: 'Project',
+          tools: 'Tools',
+          wireColor: 'Wire color',
+          run: 'Run',
+          view: 'View',
+          app: 'App',
+          hardware: 'Device upload',
+        };
 
   const handleSave = async () => {
     const data = getProjectData();
@@ -99,101 +119,151 @@ const Toolbar: React.FC = () => {
 
   return (
     <div className="toolbar">
-      <div className="toolbar-group">
-        <button className="toolbar-btn" onClick={handleSave}>
-          {t(language, 'save')}
-        </button>
-        <button className="toolbar-btn" onClick={handleLoad}>
-          {t(language, 'open')}
-        </button>
-        <button className="toolbar-btn" onClick={clearProject}>
-          {t(language, 'newProject')}
-        </button>
-        <button className="toolbar-btn" onClick={handleExportPng}>
-          {t(language, 'exportPng')}
-        </button>
-      </div>
+      <div className="toolbar-row">
+        <ToolbarSection title={labels.project}>
+          <button className="toolbar-btn" onClick={handleSave}>
+            {t(language, 'save')}
+          </button>
+          <button className="toolbar-btn" onClick={handleLoad}>
+            {t(language, 'open')}
+          </button>
+          <button className="toolbar-btn" onClick={clearProject}>
+            {t(language, 'newProject')}
+          </button>
+          <button className="toolbar-btn" onClick={handleExportPng}>
+            {t(language, 'exportPng')}
+          </button>
+        </ToolbarSection>
 
-      <div className="toolbar-separator" />
+        <ToolbarSection title={labels.tools}>
+          <button
+            className={`toolbar-btn ${toolMode === 'select' ? 'active' : ''}`}
+            onClick={() => setToolMode('select')}
+            title={t(language, 'selectToolTitle')}
+          >
+            {t(language, 'selectTool')}
+          </button>
+          <button
+            className={`toolbar-btn ${toolMode === 'wire' ? 'active' : ''}`}
+            onClick={() => setToolMode('wire')}
+            title={t(language, 'wireToolTitle')}
+          >
+            {t(language, 'wireTool')}
+          </button>
+          <button
+            className={`toolbar-btn ${toolMode === 'pan' ? 'active' : ''}`}
+            onClick={() => setToolMode('pan')}
+            title={t(language, 'panToolTitle')}
+          >
+            {t(language, 'panTool')}
+          </button>
+          <button
+            className={`toolbar-btn ${toolMode === 'delete' ? 'active' : ''}`}
+            onClick={() => setToolMode('delete')}
+            title={t(language, 'deleteToolTitle')}
+          >
+            {t(language, 'deleteTool')}
+          </button>
 
-      <div className="toolbar-group">
-        <button
-          className={`toolbar-btn ${toolMode === 'select' ? 'active' : ''}`}
-          onClick={() => setToolMode('select')}
-          title={t(language, 'selectToolTitle')}
-        >
-          {t(language, 'selectTool')}
-        </button>
-        <button
-          className={`toolbar-btn ${toolMode === 'wire' ? 'active' : ''}`}
-          onClick={() => setToolMode('wire')}
-          title={t(language, 'wireToolTitle')}
-        >
-          {t(language, 'wireTool')}
-        </button>
-        <button
-          className={`toolbar-btn ${toolMode === 'pan' ? 'active' : ''}`}
-          onClick={() => setToolMode('pan')}
-          title={t(language, 'panToolTitle')}
-        >
-          {t(language, 'panTool')}
-        </button>
-        <button
-          className={`toolbar-btn ${toolMode === 'delete' ? 'active' : ''}`}
-          onClick={() => setToolMode('delete')}
-          title={t(language, 'deleteToolTitle')}
-        >
-          {t(language, 'deleteTool')}
-        </button>
-      </div>
+          {toolMode === 'wire' && (
+            <div className="toolbar-inline-group">
+              <span className="toolbar-inline-label">{labels.wireColor}</span>
+              <div className="wire-colors">
+                {WIRE_COLORS.map((color) => (
+                  <button
+                    key={color.value}
+                    className={`wire-color-btn ${wireColor === color.value ? 'active' : ''}`}
+                    style={{ background: color.value }}
+                    onClick={() => setWireColor(color.value)}
+                    title={getWireColorDisplayName(language, color.name)}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        </ToolbarSection>
 
-      <div className="toolbar-separator" />
-
-      {toolMode === 'wire' && (
-        <>
-          <div className="wire-colors">
-            {WIRE_COLORS.map((color) => (
-              <button
-                key={color.value}
-                className={`wire-color-btn ${wireColor === color.value ? 'active' : ''}`}
-                style={{ background: color.value }}
-                onClick={() => setWireColor(color.value)}
-                title={getWireColorDisplayName(language, color.name)}
-              />
+        <ToolbarSection title={t(language, 'board')}>
+          <span className="toolbar-label">{t(language, 'board')}</span>
+          <select
+            className="toolbar-select"
+            value={boardType}
+            onChange={(event) => setBoardType(event.target.value as typeof boardType)}
+            title={t(language, 'selectBoard')}
+          >
+            {CONTROLLER_BOARD_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
             ))}
-          </div>
-          <div className="toolbar-separator" />
-        </>
-      )}
+          </select>
+        </ToolbarSection>
 
-      <div className="toolbar-group">
-        <span className="toolbar-label">{t(language, 'board')}</span>
-        <select
-          className="toolbar-select"
-          value={boardType}
-          onChange={(event) => setBoardType(event.target.value as typeof boardType)}
-          title={t(language, 'selectBoard')}
-        >
-          {CONTROLLER_BOARD_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
+        <ToolbarSection title={labels.run}>
+          <div className="sim-controls">
+            {!simulation.running ? (
+              <button className="toolbar-btn success" onClick={startSimulation}>
+                {t(language, 'startSimulation')}
+              </button>
+            ) : (
+              <button className="toolbar-btn danger" onClick={stopSimulation}>
+                {t(language, 'stopSimulation')}
+              </button>
+            )}
+            <span
+              className={`sim-status ${simulation.running ? 'running' : 'stopped'}`}
+            >
+              {simulation.running
+                ? t(language, 'running')
+                : t(language, 'stopped')}
+            </span>
+          </div>
+        </ToolbarSection>
+
+        <ToolbarSection title={labels.view}>
+          <button className="toolbar-btn" onClick={() => setZoom(zoom - 0.1)}>
+            -
+          </button>
+          <span className="toolbar-value">{Math.round(zoom * 100)}%</span>
+          <button className="toolbar-btn" onClick={() => setZoom(zoom + 0.1)}>
+            +
+          </button>
+          <button
+            className="toolbar-btn"
+            onClick={() => setZoom(1)}
+            title={t(language, 'zoomReset')}
+          >
+            100%
+          </button>
+        </ToolbarSection>
+
+        <div className="toolbar-row-spacer" />
+
+        <ToolbarSection title={labels.app} className="toolbar-section-app">
+          {isDesktop && <span className="panel-pill">Desktop</span>}
+          <span className="toolbar-label">{t(language, 'language')}</span>
+          <select
+            className="toolbar-select toolbar-select-compact"
+            value={language}
+            onChange={(event) => setLanguage(event.target.value as 'en' | 'tr')}
+          >
+            <option value="en">{language === 'tr' ? 'Ingilizce' : 'English'}</option>
+            <option value="tr">{language === 'tr' ? 'Turkce' : 'Turkish'}</option>
+          </select>
+        </ToolbarSection>
       </div>
 
       {isDesktop && (
-        <>
-          <div className="toolbar-separator" />
-
-          <div className="toolbar-group toolbar-group-wrap">
-            <span className="toolbar-label">{t(language, 'usbIde')}</span>
+        <div className="toolbar-row toolbar-row-secondary">
+          <ToolbarSection
+            title={labels.hardware}
+            className="toolbar-section-hardware"
+          >
+            <span className="toolbar-label">{t(language, 'usbDevice')}</span>
             <select
               className="toolbar-select hardware-port-select"
               value={selectedHardwarePortPath ?? ''}
-              onChange={(event) =>
-                setSelectedPortPath(event.target.value || null)
-              }
+              onChange={(event) => setSelectedPortPath(event.target.value || null)}
               title={t(language, 'usbDevice')}
             >
               <option value="">
@@ -265,9 +335,7 @@ const Toolbar: React.FC = () => {
             </span>
 
             {selectedHardwarePort && (
-              <span className="panel-pill">
-                {selectedHardwarePort.path}
-              </span>
+              <span className="panel-pill">{selectedHardwarePort.path}</span>
             )}
 
             {detectedBoardName && (
@@ -275,66 +343,22 @@ const Toolbar: React.FC = () => {
                 {t(language, 'detectedBoard')}: {detectedBoardName}
               </span>
             )}
-          </div>
-        </>
+          </ToolbarSection>
+        </div>
       )}
-
-      <div className="toolbar-separator" />
-
-      <div className="toolbar-group">
-        <button className="toolbar-btn" onClick={() => setZoom(zoom - 0.1)}>
-          -
-        </button>
-        <span style={{ fontSize: 12, minWidth: 40, textAlign: 'center' }}>
-          {Math.round(zoom * 100)}%
-        </span>
-        <button className="toolbar-btn" onClick={() => setZoom(zoom + 0.1)}>
-          +
-        </button>
-        <button
-          className="toolbar-btn"
-          onClick={() => setZoom(1)}
-          title={t(language, 'zoomReset')}
-        >
-          100%
-        </button>
-      </div>
-
-      <div className="toolbar-separator" />
-
-      <div className="sim-controls">
-        {!simulation.running ? (
-          <button className="toolbar-btn success" onClick={startSimulation}>
-            {t(language, 'startSimulation')}
-          </button>
-        ) : (
-          <button className="toolbar-btn danger" onClick={stopSimulation}>
-            {t(language, 'stopSimulation')}
-          </button>
-        )}
-        <span className={`sim-status ${simulation.running ? 'running' : 'stopped'}`}>
-          {simulation.running
-            ? t(language, 'running')
-            : t(language, 'stopped')}
-        </span>
-      </div>
-
-      <div className="toolbar-spacer" />
-
-      <div className="toolbar-group toolbar-group-right">
-        {isDesktop && <span className="toolbar-label">Desktop</span>}
-        <span className="toolbar-label">{t(language, 'language')}</span>
-        <select
-          className="toolbar-select toolbar-select-compact"
-          value={language}
-          onChange={(event) => setLanguage(event.target.value as 'en' | 'tr')}
-        >
-          <option value="en">{language === 'tr' ? 'Ingilizce' : 'English'}</option>
-          <option value="tr">{language === 'tr' ? 'Turkce' : 'Turkish'}</option>
-        </select>
-      </div>
     </div>
   );
 };
+
+const ToolbarSection: React.FC<{
+  title: string;
+  className?: string;
+  children: React.ReactNode;
+}> = ({ title, className, children }) => (
+  <div className={`toolbar-section ${className ?? ''}`.trim()}>
+    <div className="toolbar-section-title">{title}</div>
+    <div className="toolbar-section-body">{children}</div>
+  </div>
+);
 
 export default Toolbar;

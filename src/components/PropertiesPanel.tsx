@@ -22,19 +22,23 @@ const PropertiesPanel: React.FC = () => {
   const selectedComp = components.find((component) => component.id === selectedComponentId);
 
   if (!selectedComp) {
+    const emptyLabels =
+      language === 'tr'
+        ? {
+            title: 'Inspektor hazir',
+            text: 'Bir bilesen sec veya paletten yeni bir parca surukle. Konum, deger ve pin bilgileri burada duzenlenecek.',
+          }
+        : {
+            title: 'Inspector ready',
+            text: 'Select a component or drag a new part from the palette. Position, values, and pin details will appear here.',
+          };
+
     return (
       <div className="properties-content">
-        <p
-          style={{
-            color: 'var(--text-muted)',
-            fontSize: 13,
-            textAlign: 'center',
-            marginTop: 40,
-            whiteSpace: 'pre-line',
-          }}
-        >
-          {t(language, 'selectComponentPrompt')}
-        </p>
+        <div className="panel-empty-state">
+          <strong>{emptyLabels.title}</strong>
+          <span>{emptyLabels.text}</span>
+        </div>
       </div>
     );
   }

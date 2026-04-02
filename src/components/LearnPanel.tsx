@@ -59,6 +59,7 @@ const LearnPanel: React.FC = () => {
             'Ders modunda baslangic seviyesi parcalar one cikarilir. Istersen gelismis gorunumu acabilirsin.',
           guidedPalette: 'Rehberli palet',
           advancedPalette: 'Gelismis palet',
+          library: 'Ders kutuphanesi',
           done: 'Tamamlandi',
           current: 'Aktif',
           pending: 'Bekliyor',
@@ -86,6 +87,7 @@ const LearnPanel: React.FC = () => {
             'Lesson mode favors a beginner-friendly subset. Switch to advanced if you want the full catalog.',
           guidedPalette: 'Guided palette',
           advancedPalette: 'Advanced palette',
+          library: 'Lesson library',
           done: 'Done',
           current: 'Current',
           pending: 'Pending',
@@ -109,39 +111,45 @@ const LearnPanel: React.FC = () => {
         </div>
 
         <div className="properties-content">
-          <div className="property-group">
+          <div className="learn-home-hero">
             <div className="property-group-title">{labels.introTitle}</div>
+            <div className="lesson-card-title">{labels.title}</div>
             <p className="learn-copy">{labels.introText}</p>
           </div>
 
-          {LESSONS.map((lesson) => (
-            <div className="property-group lesson-card" key={lesson.id}>
-              <div className="lesson-card-top">
-                <div>
-                  <div className="lesson-card-title">
-                    {resolveLessonText(language, lesson.title)}
+          <div className="property-group">
+            <div className="property-group-title">{labels.library}</div>
+            <div className="learn-library-grid">
+              {LESSONS.map((lesson) => (
+                <div className="property-group lesson-card lesson-library-card" key={lesson.id}>
+                  <div className="lesson-card-top">
+                    <div>
+                      <div className="lesson-card-title">
+                        {resolveLessonText(language, lesson.title)}
+                      </div>
+                      <div className="lesson-card-meta">
+                        {lesson.estimatedMinutes} {labels.minutes}
+                      </div>
+                    </div>
+                    <button
+                      className="toolbar-btn success"
+                      onClick={() => startLesson(lesson.id)}
+                      type="button"
+                    >
+                      {labels.startLesson}
+                    </button>
                   </div>
-                  <div className="lesson-card-meta">
-                    {lesson.estimatedMinutes} {labels.minutes}
+                  <p className="learn-copy">
+                    {resolveLessonText(language, lesson.description)}
+                  </p>
+                  <div className="lesson-card-outcome">
+                    <strong>{labels.outcome}</strong>
+                    <span>{resolveLessonText(language, lesson.outcome)}</span>
                   </div>
                 </div>
-                <button
-                  className="toolbar-btn success"
-                  onClick={() => startLesson(lesson.id)}
-                  type="button"
-                >
-                  {labels.startLesson}
-                </button>
-              </div>
-              <p className="learn-copy">
-                {resolveLessonText(language, lesson.description)}
-              </p>
-              <div className="lesson-card-outcome">
-                <strong>{labels.outcome}</strong>
-                <span>{resolveLessonText(language, lesson.outcome)}</span>
-              </div>
+              ))}
             </div>
-          ))}
+          </div>
         </div>
       </div>
     );
