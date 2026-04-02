@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+﻿import React, { useEffect, useRef, useState } from 'react';
 import {
   ARDUINO_COMPONENT_ID,
   getArduinoPinGlobal,
@@ -8,6 +8,7 @@ import {
   isArduinoReference,
   type ControllerBoardType,
 } from '../models/arduinoUno';
+import { ENABLE_LESSON_TUTOR_TOOLS } from '../config/appVariant';
 import {
   BREADBOARD_COMPONENT_ID,
   getBreadboardHoleGlobal,
@@ -24,6 +25,12 @@ import {
   type ComponentType,
 } from '../models/types';
 import { useCircuitStore } from '../store/circuitStore';
+import { LESSONS_BY_ID } from '../education/lessons';
+import {
+  getLessonStepById,
+  resolveLessonText,
+} from '../education/types';
+import { summarizeLessonFailures } from '../education/validation';
 import {
   getComponentDisplayName,
   getConversationLocale,
@@ -260,6 +267,11 @@ const AIPanel: React.FC = () => {
   const breadboardPosition = useCircuitStore((s) => s.breadboardPosition);
   const setBoardType = useCircuitStore((s) => s.setBoardType);
   const language = useCircuitStore((s) => s.language);
+  const activeLessonId = useCircuitStore((s) => s.activeLessonId);
+  const activeStepId = useCircuitStore((s) => s.activeStepId);
+  const lessonCheckResults = useCircuitStore((s) => s.lessonCheckResults);
+  const applyLessonSolution = useCircuitStore((s) => s.applyLessonSolution);
+  const setRightTab = useCircuitStore((s) => s.setRightTab);
 
   const examplePrompts = getExamplePrompts(language);
   const providerConfig = AI_PROVIDER_CONFIGS[aiProvider];
@@ -269,6 +281,16 @@ const AIPanel: React.FC = () => {
       (conversation) => conversation.id === currentAIConversationId
     ) ?? null;
   const aiMessages = currentConversation?.messages ?? [];
+  const activeLesson =
+    ENABLE_LESSON_TUTOR_TOOLS && activeLessonId
+      ? LESSONS_BY_ID[activeLessonId]
+      : null;
+  const activeLessonStep = activeLesson
+    ? getLessonStepById(activeLesson, activeStepId)
+    : null;
+  const lessonFailureSummary = ENABLE_LESSON_TUTOR_TOOLS
+    ? summarizeLessonFailures(lessonCheckResults)
+    : '';
 
   const [input, setInput] = useState('');
   const [showSettings, setShowSettings] = useState(false);
@@ -320,6 +342,61 @@ const AIPanel: React.FC = () => {
     }
 
     setInput(prompt);
+  };
+
+  const ensureConversation = (title?: string) => {
+    if (currentConversation?.id) {
+      return currentConversation.id;
+    }
+
+    const conversationTitle =
+      title?.trim() || getDefaultConversationTitle(language);
+    const conversationId = createAIConversation(conversationTitle);
+    setShowHistory(false);
+    return conversationId;
+  };
+
+  const appendLocalAssistantMessage = (content: string) => {
+    const conversationId = ensureConversation(
+      activeLesson ? resolveLessonText(language, activeLesson.title) : undefined
+    );
+    addAIMessage(conversationId, {
+      role: 'assistant',
+      content,
+    });
+    setShowHistory(false);
+  };
+
+  const handleLessonHint = () => {
+    if (!activeLessonStep) return;
+    const prefix = language === 'tr' ? 'Ipucu' : 'Hint';
+    appendLocalAssistantMessage(
+      `${prefix}:\n${resolveLessonText(language, activeLessonStep.hint)}`
+    );
+  };
+
+  const handleLessonExplain = () => {
+    if (!activeLessonStep) return;
+    const prefix = language === 'tr' ? 'Aciklama' : 'Explanation';
+    const failureBlock = lessonFailureSummary
+      ? `\n\n${language === 'tr' ? 'Su anki eksikler:' : 'Current gaps:'}\n${lessonFailureSummary}`
+      : '';
+    appendLocalAssistantMessage(
+      `${prefix}:\n${resolveLessonText(
+        language,
+        activeLessonStep.explanation
+      )}${failureBlock}`
+    );
+  };
+
+  const handleLessonSolution = () => {
+    if (!activeLessonStep) return;
+    applyLessonSolution();
+    setRightTab('learn');
+    const prefix = language === 'tr' ? 'Cozum uygulandi.' : 'Solution applied.';
+    appendLocalAssistantMessage(
+      `${prefix}\n${resolveLessonText(language, activeLessonStep.success)}`
+    );
   };
 
   const getReferenceAliases = (value: string) => {
@@ -852,6 +929,42 @@ ${componentLines}
         (item) =>
           `${item.type} (${getComponentDisplayName(language, item.type, item.name)})`
       ).join(', ');
+      const lessonContext =
+        ENABLE_LESSON_TUTOR_TOOLS && activeLesson && activeLessonStep
+          ? language === 'tr'
+            ? `\n\nAktif ders:
+${resolveLessonText(language, activeLesson.title)}
+
+Aktif adim:
+${resolveLessonText(language, activeLessonStep.title)}
+
+Adim gorevi:
+${resolveLessonText(language, activeLessonStep.instruction)}
+
+Bilinen eksikler:
+${lessonFailureSummary || 'Yok'}
+
+Kurallar:
+- Kullanici acikca tam cozumu istemedikce tum devreyi tek seferde verme.
+- Once yonlendirici, ogretici ve parcali yardim sun.
+- Hata nedenini kisa ve net acikla.`
+            : `\n\nActive lesson:
+${resolveLessonText(language, activeLesson.title)}
+
+Active step:
+${resolveLessonText(language, activeLessonStep.title)}
+
+Step goal:
+${resolveLessonText(language, activeLessonStep.instruction)}
+
+Known gaps:
+${lessonFailureSummary || 'None'}
+
+Rules:
+- Do not reveal the full answer unless the user explicitly asks for the full solution.
+- Prefer guided, teacher-like help in small steps.
+- Briefly explain why the current wiring or code is missing something.`
+          : '';
       const systemPrompt =
         language === 'tr'
           ? `Sen bir elektronik devre asistanisin. ${activeBoard.name} ve breadboard tabanli devreler konusunda uzmansin.
@@ -903,7 +1016,7 @@ Ornek kablo blogu:
 \`\`\`
 
 - Eger kod veriyorsan \`\`\`arduino ... \`\`\` blogu kullan.
-- Metin aciklamanda baglantilarin ne yaptigini da kisaca anlat.`
+- Metin aciklamanda baglantilarin ne yaptigini da kisaca anlat.${lessonContext}`
           : `You are an electronics circuit assistant. You are an expert in ${activeBoard.name} and breadboard-based circuits.
 
 Your tasks:
@@ -953,7 +1066,7 @@ Example wire block:
 \`\`\`
 
 - If you provide code, use an \`\`\`arduino ... \`\`\` block.
-- Briefly explain what the connections do in your response.`;
+- Briefly explain what the connections do in your response.${lessonContext}`;
 
       const baseUrl = aiBaseUrl.trim() || providerConfig.baseUrl || DEFAULT_AI_BASE_URL;
       const model = aiModel.trim() || providerConfig.model || DEFAULT_AI_MODEL;
@@ -1259,6 +1372,40 @@ Example wire block:
         </div>
       ) : (
         <>
+          {ENABLE_LESSON_TUTOR_TOOLS && activeLesson && activeLessonStep && (
+            <div className="ai-lesson-tools">
+              <div className="ai-lesson-tools-copy">
+                <strong>{resolveLessonText(language, activeLesson.title)}</strong>
+                <span>
+                  {resolveLessonText(language, activeLessonStep.title)}
+                </span>
+              </div>
+              <div className="learn-toggle-row">
+                <button
+                  className="toolbar-btn ai-header-btn"
+                  onClick={handleLessonHint}
+                  type="button"
+                >
+                  {language === 'tr' ? 'Ipucu' : 'Hint'}
+                </button>
+                <button
+                  className="toolbar-btn ai-header-btn"
+                  onClick={handleLessonExplain}
+                  type="button"
+                >
+                  {language === 'tr' ? 'Acikla' : 'Explain'}
+                </button>
+                <button
+                  className="toolbar-btn ai-header-btn"
+                  onClick={handleLessonSolution}
+                  type="button"
+                >
+                  {language === 'tr' ? 'Cozumu Goster' : 'Show Solution'}
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="ai-messages">
             {aiMessages.length === 0 && (
               <div className="ai-empty-chat">
@@ -1341,3 +1488,7 @@ Example wire block:
 };
 
 export default AIPanel;
+
+
+
+

@@ -1,6 +1,14 @@
 /// <reference types="vite/client" />
 import type { ControllerBoardType } from './models/arduinoUno';
 
+interface ImportMetaEnv {
+  readonly VITE_APP_VARIANT?: 'ide' | 'learn';
+}
+
+interface ImportMeta {
+  readonly env: ImportMetaEnv;
+}
+
 declare global {
 interface ElectronDialogOptions {
   title?: string;

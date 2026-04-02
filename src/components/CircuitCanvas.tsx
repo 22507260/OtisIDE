@@ -1559,6 +1559,7 @@ const CircuitCanvas: React.FC = () => {
   const boardPosition = useCircuitStore((s) => s.boardPosition);
   const breadboardPosition = useCircuitStore((s) => s.breadboardPosition);
   const language = useCircuitStore((s) => s.language);
+  const lessonCheckResults = useCircuitStore((s) => s.lessonCheckResults);
 
   const setZoom = useCircuitStore((s) => s.setZoom);
   const setStagePos = useCircuitStore((s) => s.setStagePos);
@@ -1581,6 +1582,68 @@ const CircuitCanvas: React.FC = () => {
   const boardPins = useMemo(() => getControllerBoardPins(boardType), [boardType]);
   const boardPinRadius = currentBoard.pinDefs.length > 30 ? 4 : 6;
   const boardPinHoverRadius = currentBoard.pinDefs.length > 30 ? 5.5 : 8;
+  const lessonHighlightTargets = useMemo(
+    () =>
+      lessonCheckResults
+        .filter((result) => result.status !== 'pass' && result.target)
+        .slice(0, 3)
+        .flatMap((result) => {
+          const target = result.target;
+          if (!target) return [];
+
+          const stroke =
+            result.status === 'hint' ? '#f7c948' : '#f97316';
+
+          if (target.kind === 'board-pin') {
+            const pin = boardPins.find((item) => item.id === target.pinId);
+            if (!pin) return [];
+
+            return [{
+              x: boardPosition.x + pin.x,
+              y: boardPosition.y + pin.y,
+              radius: 14,
+              stroke,
+            }];
+          }
+
+          if (target.kind === 'component') {
+            const component = components.find(
+              (item) => item.id === target.componentId
+            );
+            if (!component) return [];
+
+            return [{
+              x: component.x,
+              y: component.y,
+              radius: 34,
+              stroke,
+            }];
+          }
+
+          if (target.kind === 'component-pin') {
+            const component = components.find(
+              (item) => item.id === target.componentId
+            );
+            if (!component) return [];
+
+            const pinPosition = getComponentPinWorldPosition(
+              component,
+              target.pinId
+            );
+            if (!pinPosition) return [];
+
+            return [{
+              x: pinPosition.x,
+              y: pinPosition.y,
+              radius: 14,
+              stroke,
+            }];
+          }
+
+          return [];
+        }),
+    [boardPins, boardPosition.x, boardPosition.y, components, lessonCheckResults]
+  );
   const canUndo = useCircuitStore((s) => s.canUndo());
   const multimeterRedProbeImage = useAssetImage(multimeterProbeRedSvg);
   const multimeterBlackProbeImage = useAssetImage(multimeterProbeBlackSvg);
@@ -2878,6 +2941,26 @@ const CircuitCanvas: React.FC = () => {
               listening={false}
             />
           )}
+
+          {lessonHighlightTargets.map((target, index) => (
+            <Group key={`lesson-highlight-${index}`} listening={false}>
+              <Circle
+                x={target.x}
+                y={target.y}
+                radius={target.radius + 6}
+                fill={target.stroke}
+                opacity={0.12}
+              />
+              <Circle
+                x={target.x}
+                y={target.y}
+                radius={target.radius}
+                stroke={target.stroke}
+                strokeWidth={2}
+                dash={[6, 4]}
+              />
+            </Group>
+          ))}
 
           {/* Wires â€” 3D style */}
           {wires.map((wire) => {

@@ -28,6 +28,22 @@ import {
 import { DEFAULT_BREADBOARD_POSITION } from '../models/breadboard';
 import { v4 as uuidv4 } from 'uuid';
 import { startMockArduinoRuntime, stopMockArduinoRuntime } from '../lib/mockArduinoRuntime';
+import {
+  DEFAULT_RIGHT_TAB,
+  IS_LEARN_APP,
+  SHOW_LEARNING_ONBOARDING,
+} from '../config/appVariant';
+import { LESSONS_BY_ID } from '../education/lessons';
+import {
+  type LessonCheckResult,
+  type LessonProgressState,
+  getLessonStepById,
+} from '../education/types';
+import { buildLessonProjectData } from '../lib/circuitAnalysis';
+import {
+  evaluateLessonStep,
+  getNextLessonStep,
+} from '../education/validation';
 
 interface CircuitStore {
   // Components
@@ -52,6 +68,21 @@ interface CircuitStore {
   setBottomTab: (tab: 'code' | 'serial' | 'device' | 'oscilloscope') => void;
   language: AppLanguage;
   setLanguage: (language: AppLanguage) => void;
+  learningMode: boolean;
+  setLearningMode: (enabled: boolean) => void;
+  learningAdvancedPalette: boolean;
+  setLearningAdvancedPalette: (enabled: boolean) => void;
+  activeLessonId: string | null;
+  activeStepId: string | null;
+  lessonProgress: Record<string, LessonProgressState>;
+  lessonCheckResults: LessonCheckResult[];
+  showLearningOnboarding: boolean;
+  dismissLearningOnboarding: () => void;
+  reopenLearningOnboarding: () => void;
+  startLesson: (lessonId: string) => void;
+  exitLesson: () => void;
+  applyLessonSolution: () => void;
+  evaluateLessonProgress: () => void;
 
   // Canvas
   zoom: number;
@@ -123,6 +154,13 @@ interface CircuitStore {
     boardType?: ControllerBoardType;
     boardPosition?: { x: number; y: number };
     breadboardPosition?: { x: number; y: number };
+    education?: {
+      learningMode?: boolean;
+      learningAdvancedPalette?: boolean;
+      activeLessonId?: string | null;
+      activeStepId?: string | null;
+      lessonProgress?: Record<string, LessonProgressState>;
+    };
   }) => void;
   getProjectData: () => {
     components: CircuitComponent[];
@@ -131,6 +169,13 @@ interface CircuitStore {
     boardType: ControllerBoardType;
     boardPosition: { x: number; y: number };
     breadboardPosition: { x: number; y: number };
+    education?: {
+      learningMode: boolean;
+      learningAdvancedPalette: boolean;
+      activeLessonId: string | null;
+      activeStepId: string | null;
+      lessonProgress: Record<string, LessonProgressState>;
+    };
   };
 }
 
@@ -143,6 +188,11 @@ type ProjectSnapshot = {
   breadboardPosition: { x: number; y: number };
   selectedComponentId: string | null;
   selectedWireId: string | null;
+  learningMode: boolean;
+  learningAdvancedPalette: boolean;
+  activeLessonId: string | null;
+  activeStepId: string | null;
+  lessonProgress: Record<string, LessonProgressState>;
 };
 
 const DEFAULT_CODE = `// Arduino sketch
@@ -199,6 +249,7 @@ const AI_CONVERSATIONS_STORAGE_KEY = 'ai_conversations';
 const AI_CURRENT_CONVERSATION_STORAGE_KEY = 'ai_currentConversationId';
 const APP_LANGUAGE_STORAGE_KEY = 'app_language';
 const AI_PROVIDER_STORAGE_KEY = 'ai_provider';
+const LEARNING_ONBOARDING_STORAGE_KEY = 'learning_onboarding_seen';
 
 const loadLanguage = (): AppLanguage => {
   const stored = localStorage.getItem(APP_LANGUAGE_STORAGE_KEY);
@@ -217,6 +268,19 @@ const loadAIProvider = (): AIProvider => {
   }
   return DEFAULT_AI_PROVIDER;
 };
+
+const loadLearningOnboardingState = () =>
+  SHOW_LEARNING_ONBOARDING &&
+  localStorage.getItem(LEARNING_ONBOARDING_STORAGE_KEY) !== 'dismissed';
+
+const createEmptySimulationState = (): SimulationState => ({
+  running: false,
+  pinStates: {},
+  ledStates: {},
+  componentStates: {},
+  serialOutput: [],
+  oscilloscopeTraces: {},
+});
 
 const normalizeConversations = (conversations: AIConversation[]) =>
   [...conversations].sort(
@@ -309,6 +373,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
     getDefaultConversationTitle(initialLanguage)
   );
   const initialCurrentAIConversationId = loadCurrentAIConversationId(initialAIConversations);
+  const initialShowLearningOnboarding = loadLearningOnboardingState();
   const undoStack: ProjectSnapshot[] = [];
 
   const createSnapshot = (): ProjectSnapshot => {
@@ -322,6 +387,11 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
       breadboardPosition: { ...state.breadboardPosition },
       selectedComponentId: state.selectedComponentId,
       selectedWireId: state.selectedWireId,
+      learningMode: state.learningMode,
+      learningAdvancedPalette: state.learningAdvancedPalette,
+      activeLessonId: state.activeLessonId,
+      activeStepId: state.activeStepId,
+      lessonProgress: JSON.parse(JSON.stringify(state.lessonProgress)),
     };
   };
 
@@ -342,12 +412,15 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
       getBoardLogicHighVoltage(state.boardType),
       {
       addSerialOutput: (text) =>
-        set((s) => ({
-          simulation: {
-            ...s.simulation,
-            serialOutput: [...s.simulation.serialOutput, text].slice(-200),
-          },
-        })),
+        {
+          set((s) => ({
+            simulation: {
+              ...s.simulation,
+              serialOutput: [...s.simulation.serialOutput, text].slice(-200),
+            },
+          }));
+          evaluateLearningProgress();
+        },
       pushOscilloscopeSample: (componentId, sample) =>
         set((s) => {
           const currentTrace = s.simulation.oscilloscopeTraces[componentId] ?? [];
@@ -429,28 +502,25 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
       breadboardPosition: { ...snapshot.breadboardPosition },
       selectedComponentId: snapshot.selectedComponentId,
       selectedWireId: snapshot.selectedWireId,
+      learningMode: snapshot.learningMode,
+      learningAdvancedPalette: snapshot.learningAdvancedPalette,
+      activeLessonId: snapshot.activeLessonId,
+      activeStepId: snapshot.activeStepId,
+      lessonProgress: { ...snapshot.lessonProgress },
+      lessonCheckResults: [],
       simulation: wasRunning
         ? {
-            ...state.simulation,
+            ...createEmptySimulationState(),
             running: true,
-            pinStates: {},
-            ledStates: {},
-            componentStates: {},
-            serialOutput: [],
-            oscilloscopeTraces: {},
           }
-        : {
-            ...state.simulation,
-            pinStates: {},
-            ledStates: {},
-            componentStates: {},
-            oscilloscopeTraces: {},
-          },
+        : createEmptySimulationState(),
     }));
 
     if (wasRunning) {
       startRuntime();
     }
+
+    get().evaluateLessonProgress();
   };
 
   const setAIConversationState = (
@@ -477,6 +547,136 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
     });
   };
 
+  const createLessonProgressState = (): LessonProgressState => ({
+    completedStepIds: [],
+    completed: false,
+    startedAt: new Date().toISOString(),
+  });
+
+  const evaluateLearningProgress = () => {
+    const state = get();
+    if (!IS_LEARN_APP) {
+      if (
+        state.learningMode ||
+        state.activeLessonId ||
+        state.activeStepId ||
+        state.lessonCheckResults.length > 0 ||
+        Object.keys(state.lessonProgress).length > 0
+      ) {
+        set({
+          learningMode: false,
+          activeLessonId: null,
+          activeStepId: null,
+          lessonProgress: {},
+          lessonCheckResults: [],
+        });
+      }
+      return;
+    }
+
+    if (!state.learningMode || !state.activeLessonId) {
+      if (state.lessonCheckResults.length > 0 || state.activeStepId) {
+        set({ lessonCheckResults: [], activeStepId: null });
+      }
+      return;
+    }
+
+    const lesson = LESSONS_BY_ID[state.activeLessonId];
+    if (!lesson) {
+      set({
+        learningMode: false,
+        activeLessonId: null,
+        activeStepId: null,
+        lessonCheckResults: [],
+      });
+      return;
+    }
+
+    let progress =
+      state.lessonProgress[lesson.id] ?? createLessonProgressState();
+    let step =
+      getLessonStepById(lesson, state.activeStepId) ??
+      getNextLessonStep(lesson, progress);
+    const snapshot = {
+      components: state.components,
+      wires: state.wires,
+      code: state.code,
+      boardType: state.boardType,
+      simulation: state.simulation,
+    };
+    const now = new Date().toISOString();
+    let results: LessonCheckResult[] = [];
+
+    while (step) {
+      results = evaluateLessonStep(lesson, step, snapshot, state.language);
+      const stepPassed = results.every((result) => result.status === 'pass');
+      if (!stepPassed) break;
+
+      if (!progress.completedStepIds.includes(step.id)) {
+        progress = {
+          ...progress,
+          completedStepIds: [...progress.completedStepIds, step.id],
+        };
+      }
+
+      const nextIndex = lesson.steps.findIndex((item) => item.id === step?.id) + 1;
+      step = lesson.steps[nextIndex] ?? null;
+    }
+
+    const completed = !step;
+    const nextProgress: LessonProgressState = {
+      ...progress,
+      completed,
+      completedAt: completed ? progress.completedAt ?? now : undefined,
+    };
+
+    set({
+      lessonProgress: {
+        ...state.lessonProgress,
+        [lesson.id]: nextProgress,
+      },
+      activeStepId: step?.id ?? null,
+      lessonCheckResults: completed ? [] : results,
+    });
+  };
+
+  const applyProjectState = (data: {
+    components: CircuitComponent[];
+    wires: Wire[];
+    code: string;
+    boardType: ControllerBoardType;
+    boardPosition: { x: number; y: number };
+    breadboardPosition: { x: number; y: number };
+    education?: {
+      learningMode: boolean;
+      learningAdvancedPalette: boolean;
+      activeLessonId: string | null;
+      activeStepId: string | null;
+      lessonProgress: Record<string, LessonProgressState>;
+    };
+  }) => {
+    stopMockArduinoRuntime();
+    set({
+      components: data.components,
+      wires: data.wires,
+      code: data.code,
+      boardType: data.boardType,
+      boardPosition: { ...data.boardPosition },
+      breadboardPosition: { ...data.breadboardPosition },
+      selectedComponentId: null,
+      selectedWireId: null,
+      simulation: createEmptySimulationState(),
+      learningMode: IS_LEARN_APP ? data.education?.learningMode ?? false : false,
+      learningAdvancedPalette:
+        IS_LEARN_APP ? data.education?.learningAdvancedPalette ?? false : false,
+      activeLessonId: IS_LEARN_APP ? data.education?.activeLessonId ?? null : null,
+      activeStepId: IS_LEARN_APP ? data.education?.activeStepId ?? null : null,
+      lessonProgress: IS_LEARN_APP ? data.education?.lessonProgress ?? {} : {},
+      lessonCheckResults: [],
+    });
+    evaluateLearningProgress();
+  };
+
   return ({
   // Components
   components: [],
@@ -492,7 +692,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
   setToolMode: (mode) => set({ toolMode: mode }),
 
   // UI
-  rightTab: 'properties',
+  rightTab: DEFAULT_RIGHT_TAB,
   setRightTab: (tab) => set({ rightTab: tab }),
   bottomPanelCollapsed: false,
   toggleBottomPanel: () => set((s) => ({ bottomPanelCollapsed: !s.bottomPanelCollapsed })),
@@ -502,7 +702,84 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
   setLanguage: (language) => {
     localStorage.setItem(APP_LANGUAGE_STORAGE_KEY, language);
     set({ language });
+    evaluateLearningProgress();
   },
+  learningMode: false,
+  setLearningMode: (enabled) => {
+    set({ learningMode: IS_LEARN_APP ? enabled : false });
+    evaluateLearningProgress();
+  },
+  learningAdvancedPalette: false,
+  setLearningAdvancedPalette: (enabled) =>
+    set({ learningAdvancedPalette: IS_LEARN_APP ? enabled : false }),
+  activeLessonId: null,
+  activeStepId: null,
+  lessonProgress: {},
+  lessonCheckResults: [],
+  showLearningOnboarding: initialShowLearningOnboarding,
+  dismissLearningOnboarding: () => {
+    if (!SHOW_LEARNING_ONBOARDING) return;
+    localStorage.setItem(LEARNING_ONBOARDING_STORAGE_KEY, 'dismissed');
+    set({ showLearningOnboarding: false });
+  },
+  reopenLearningOnboarding: () => {
+    if (!SHOW_LEARNING_ONBOARDING) return;
+    set({ showLearningOnboarding: true });
+  },
+  startLesson: (lessonId) => {
+    if (!IS_LEARN_APP) return;
+    const lesson = LESSONS_BY_ID[lessonId];
+    if (!lesson) return;
+    pushUndoSnapshot();
+    localStorage.setItem(LEARNING_ONBOARDING_STORAGE_KEY, 'dismissed');
+    const starterProject = buildLessonProjectData(lesson.starterProject);
+    applyProjectState({
+      ...starterProject,
+      education: {
+        learningMode: true,
+        learningAdvancedPalette: false,
+        activeLessonId: lesson.id,
+        activeStepId: lesson.steps[0]?.id ?? null,
+        lessonProgress: {
+          [lesson.id]: createLessonProgressState(),
+        },
+      },
+    });
+    set({ rightTab: 'learn', showLearningOnboarding: false });
+  },
+  exitLesson: () =>
+    set({
+      learningMode: false,
+      activeLessonId: null,
+      activeStepId: null,
+      lessonCheckResults: [],
+      learningAdvancedPalette: false,
+      rightTab: DEFAULT_RIGHT_TAB,
+    }),
+  applyLessonSolution: () => {
+    if (!IS_LEARN_APP) return;
+    const state = get();
+    if (!state.activeLessonId) return;
+    const lesson = LESSONS_BY_ID[state.activeLessonId];
+    const step = lesson
+      ? getLessonStepById(lesson, state.activeStepId)
+      : null;
+    if (!lesson || !step) return;
+    pushUndoSnapshot();
+    const solvedProject = buildLessonProjectData(step.solutionProject);
+    applyProjectState({
+      ...solvedProject,
+      education: {
+        learningMode: true,
+        learningAdvancedPalette: state.learningAdvancedPalette,
+        activeLessonId: lesson.id,
+        activeStepId: step.id,
+        lessonProgress: state.lessonProgress,
+      },
+    });
+    set({ rightTab: 'learn' });
+  },
+  evaluateLessonProgress: () => evaluateLearningProgress(),
 
   // Canvas
   zoom: 1,
@@ -515,6 +792,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
     pushUndoSnapshot();
     set({ boardType });
     syncRuntimeIfRunning();
+    evaluateLearningProgress();
   },
   boardPosition: { ...DEFAULT_CONTROLLER_BOARD_POSITION },
   setBoardPosition: (boardPosition) => set({ boardPosition }),
@@ -532,6 +810,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
       toolMode: 'select',
     }));
     syncRuntimeIfRunning();
+    evaluateLearningProgress();
   },
 
   removeComponent: (id) => {
@@ -545,6 +824,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
       selectedComponentId: s.selectedComponentId === id ? null : s.selectedComponentId,
     }));
     syncRuntimeIfRunning();
+    evaluateLearningProgress();
   },
 
   updateComponent: (id, updates) => {
@@ -556,6 +836,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
       ),
     }));
     syncRuntimeIfRunning();
+    evaluateLearningProgress();
   },
 
   selectComponent: (id) =>
@@ -572,6 +853,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
       ),
     }));
     syncRuntimeIfRunning();
+    evaluateLearningProgress();
   },
 
   // Wire actions
@@ -580,6 +862,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
     const newWire = { ...wire, id: uuidv4() };
     set((s) => ({ wires: [...s.wires, newWire] }));
     syncRuntimeIfRunning();
+    evaluateLearningProgress();
   },
 
   removeWire: (id) => {
@@ -590,6 +873,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
       selectedWireId: s.selectedWireId === id ? null : s.selectedWireId,
     }));
     syncRuntimeIfRunning();
+    evaluateLearningProgress();
   },
 
   selectWire: (id) =>
@@ -598,31 +882,20 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
   setWireColor: (color) => set({ wireColor: color }),
 
   // Simulation
-  simulation: {
-    running: false,
-    pinStates: {},
-    ledStates: {},
-    componentStates: {},
-    serialOutput: [],
-    oscilloscopeTraces: {},
-  },
+  simulation: createEmptySimulationState(),
 
   startSimulation: () => {
     set((s) => {
       stopMockArduinoRuntime();
       return {
         simulation: {
-          ...s.simulation,
+          ...createEmptySimulationState(),
           running: true,
-          pinStates: {},
-          ledStates: {},
-          componentStates: {},
-          serialOutput: [],
-          oscilloscopeTraces: {},
         },
       };
     });
     startRuntime();
+    evaluateLearningProgress();
   },
 
   stopSimulation: () => {
@@ -630,14 +903,11 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
       stopMockArduinoRuntime();
       return {
         simulation: {
-          ...s.simulation,
-          running: false,
-          pinStates: {},
-          ledStates: {},
-          componentStates: {},
+          ...createEmptySimulationState(),
         },
       };
     });
+    evaluateLearningProgress();
   },
 
   updateLedState: (componentId, on, brightness) =>
@@ -651,18 +921,22 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
       },
     })),
 
-  addSerialOutput: (text) =>
+  addSerialOutput: (text) => {
     set((s) => ({
       simulation: {
         ...s.simulation,
         serialOutput: [...s.simulation.serialOutput, text].slice(-200),
       },
-    })),
+    }));
+    evaluateLearningProgress();
+  },
 
-  clearSerialOutput: () =>
+  clearSerialOutput: () => {
     set((s) => ({
       simulation: { ...s.simulation, serialOutput: [] },
-    })),
+    }));
+    evaluateLearningProgress();
+  },
 
   addOscilloscopeSample: (componentId, sample) =>
     set((s) => {
@@ -697,6 +971,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
     if (get().code === code) return;
     set({ code });
     syncRuntimeIfRunning();
+    evaluateLearningProgress();
   },
   undo: () => {
     const snapshot = undoStack.pop();
@@ -801,35 +1076,32 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
       get().boardPosition.x !== DEFAULT_CONTROLLER_BOARD_POSITION.x ||
       get().boardPosition.y !== DEFAULT_CONTROLLER_BOARD_POSITION.y ||
       get().breadboardPosition.x !== DEFAULT_BREADBOARD_POSITION.x ||
-      get().breadboardPosition.y !== DEFAULT_BREADBOARD_POSITION.y
+      get().breadboardPosition.y !== DEFAULT_BREADBOARD_POSITION.y ||
+      get().activeLessonId !== null ||
+      Object.keys(get().lessonProgress).length > 0
     ) {
       pushUndoSnapshot();
     }
-    stopMockArduinoRuntime();
-    set({
+    applyProjectState({
       components: [],
       wires: [],
-      selectedComponentId: null,
-      selectedWireId: null,
       code: DEFAULT_CODE,
       boardType: DEFAULT_CONTROLLER_BOARD_TYPE,
       boardPosition: { ...DEFAULT_CONTROLLER_BOARD_POSITION },
       breadboardPosition: { ...DEFAULT_BREADBOARD_POSITION },
-      simulation: {
-        running: false,
-        pinStates: {},
-        ledStates: {},
-        componentStates: {},
-        serialOutput: [],
-        oscilloscopeTraces: {},
+      education: {
+        learningMode: false,
+        learningAdvancedPalette: false,
+        activeLessonId: null,
+        activeStepId: null,
+        lessonProgress: {},
       },
     });
   },
 
   loadProject: (data) => {
     pushUndoSnapshot();
-    stopMockArduinoRuntime();
-    set({
+    applyProjectState({
       components: data.components,
       wires: data.wires,
       code: data.code,
@@ -844,16 +1116,17 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
         ...DEFAULT_BREADBOARD_POSITION,
         ...data.breadboardPosition,
       },
-      selectedComponentId: null,
-      selectedWireId: null,
-      simulation: {
-        running: false,
-        pinStates: {},
-        ledStates: {},
-        componentStates: {},
-        serialOutput: [],
-        oscilloscopeTraces: {},
-      },
+      education: IS_LEARN_APP
+        ? {
+            learningMode: Boolean(data.education?.learningMode),
+            learningAdvancedPalette: Boolean(
+              data.education?.learningAdvancedPalette
+            ),
+            activeLessonId: data.education?.activeLessonId ?? null,
+            activeStepId: data.education?.activeStepId ?? null,
+            lessonProgress: data.education?.lessonProgress ?? {},
+          }
+        : undefined,
     });
   },
 
@@ -865,6 +1138,11 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
       boardType,
       boardPosition,
       breadboardPosition,
+      learningMode,
+      learningAdvancedPalette,
+      activeLessonId,
+      activeStepId,
+      lessonProgress,
     } = get();
     return {
       components,
@@ -873,6 +1151,19 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
       boardType,
       boardPosition,
       breadboardPosition,
+      education:
+        IS_LEARN_APP &&
+        (learningMode ||
+          activeLessonId ||
+          Object.keys(lessonProgress).length > 0)
+          ? {
+              learningMode,
+              learningAdvancedPalette,
+              activeLessonId,
+              activeStepId,
+              lessonProgress,
+            }
+          : undefined,
     };
   },
   });

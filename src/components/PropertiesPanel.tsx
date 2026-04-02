@@ -135,6 +135,7 @@ const PropertiesPanel: React.FC = () => {
           {simulation.running && liveProperties ? ' (Live)' : ''}
         </div>
         {Object.entries(displayComp.properties)
+          .filter(([key]) => !key.startsWith('__'))
           .filter(([key]) =>
             displayComp.type === 'multimeter' ? !multimeterHiddenKeys.has(key) : true
           )

@@ -1,5 +1,5 @@
 {
-  "name": "otiside",
+  "name": "otislearn",
   "version": "1.2.0",
   "description": "AI-assisted Arduino and breadboard designer with visual wiring, code generation, and Electron desktop support",
   "main": "electron/main.js",
@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
     "preview": "vite preview",
     "build:icons": "node scripts/ensure-icons.cjs",
     "electron:dev": "concurrently \"vite\" \"wait-on http://localhost:5173 && node scripts/run-electron-command.cjs . --dev\"",
@@ -42,8 +43,8 @@
     "npm": ">=10"
   },
   "build": {
-    "appId": "com.otis21.otiside",
-    "productName": "OtisIDE",
+    "appId": "com.otis21.otislearn",
+    "productName": "OtisLearn",
     "artifactName": "${productName}-${version}-${arch}.${ext}",
     "directories": {
       "output": "release",
@@ -72,7 +73,7 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "OtisIDE",
+      "shortcutName": "OtisLearn",
       "installerIcon": "build/icon.ico",
       "uninstallerIcon": "build/icon.ico",
       "installerHeaderIcon": "build/icon.ico"
@@ -90,6 +91,7 @@
     "zustand": "^5.0.12"
   },
   "devDependencies": {
+    "@types/node": "^24.6.1",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@types/uuid": "^10.0.0",
@@ -97,8 +99,10 @@
     "concurrently": "^9.2.1",
     "electron": "^41.0.2",
     "electron-builder": "^26.8.1",
+    "tsx": "^4.20.6",
     "typescript": "^5.9.3",
     "vite": "^8.0.0",
+    "vitest": "^3.2.4",
     "wait-on": "^9.0.4"
   }
 }

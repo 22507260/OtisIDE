@@ -107,7 +107,7 @@ export interface OscilloscopeSample {
 
 export type ToolMode = 'select' | 'wire' | 'pan' | 'delete';
 
-export type RightTab = 'properties' | 'ai';
+export type RightTab = 'properties' | 'ai' | 'learn';
 
 export interface SimulationState {
   running: boolean;

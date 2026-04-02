@@ -1,8 +1,8 @@
 import React, { useEffect } from 'react';
 import Layout from './components/Layout';
+import { getAppDisplayName } from './config/appVariant';
 import { useCircuitStore } from './store/circuitStore';
 import { useHardwareStore } from './store/hardwareStore';
-import { t } from './lib/i18n';
 
 const App: React.FC = () => {
   const language = useCircuitStore((s) => s.language);
@@ -10,7 +10,7 @@ const App: React.FC = () => {
   const disposeHardwareIde = useHardwareStore((s) => s.dispose);
 
   useEffect(() => {
-    const title = t(language, 'appTitle');
+    const title = getAppDisplayName(language);
     document.title = title;
     document.documentElement.lang = language;
     window.electronAPI?.setWindowTitle?.(title);

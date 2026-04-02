@@ -1,15 +1,23 @@
-import React, { useDeferredValue, useMemo, useState } from 'react';
+﻿import React, { useDeferredValue, useMemo, useState } from 'react';
 import { COMPONENT_CATALOG, ComponentType } from '../models/types';
 import { useCircuitStore } from '../store/circuitStore';
+import { ENABLE_LESSON_GUIDED_PALETTE } from '../config/appVariant';
 import {
   getCategoryDisplayName,
   getComponentDisplayName,
   t,
 } from '../lib/i18n';
+import { LESSONS_BY_ID } from '../education/lessons';
 
 const Palette: React.FC = () => {
   const addComponent = useCircuitStore((s) => s.addComponent);
   const language = useCircuitStore((s) => s.language);
+  const learningMode = useCircuitStore((s) => s.learningMode);
+  const learningAdvancedPalette = useCircuitStore((s) => s.learningAdvancedPalette);
+  const activeLessonId = useCircuitStore((s) => s.activeLessonId);
+  const setLearningAdvancedPalette = useCircuitStore(
+    (s) => s.setLearningAdvancedPalette
+  );
   const [searchQuery, setSearchQuery] = useState('');
   const [openCategories, setOpenCategories] = useState<Record<string, boolean>>({
     Passive: true,
@@ -30,6 +38,17 @@ const Palette: React.FC = () => {
       .replace(/\u0131/g, 'i');
 
   const normalizedSearchQuery = normalizeSearchValue(deferredSearchQuery);
+  const activeLesson = activeLessonId ? LESSONS_BY_ID[activeLessonId] : null;
+  const guidedPaletteSet = useMemo(
+    () =>
+      ENABLE_LESSON_GUIDED_PALETTE &&
+      activeLesson &&
+      learningMode &&
+      !learningAdvancedPalette
+        ? new Set(activeLesson.allowedComponents)
+        : null,
+    [activeLesson, learningAdvancedPalette, learningMode]
+  );
 
   const categories = useMemo(
     () => Array.from(new Set(COMPONENT_CATALOG.map((item) => item.category))),
@@ -42,6 +61,7 @@ const Palette: React.FC = () => {
         .map((category) => {
           const items = COMPONENT_CATALOG.filter((item) => {
             if (item.category !== category) return false;
+            if (guidedPaletteSet && !guidedPaletteSet.has(item.type)) return false;
             if (!normalizedSearchQuery) return true;
 
             const displayName = getComponentDisplayName(
@@ -102,6 +122,43 @@ const Palette: React.FC = () => {
           placeholder={t(language, 'searchComponentsPlaceholder')}
           aria-label={t(language, 'searchComponents')}
         />
+
+        {ENABLE_LESSON_GUIDED_PALETTE && activeLesson && learningMode && (
+          <div className="palette-mode-card">
+            <div className="palette-search-label" style={{ marginTop: 12 }}>
+              {language === 'tr' ? 'Ders paleti' : 'Lesson palette'}
+            </div>
+            <div className="palette-mode-text">
+              {learningAdvancedPalette
+                ? language === 'tr'
+                  ? 'Tum bilesenler acik.'
+                  : 'Full component catalog is visible.'
+                : language === 'tr'
+                  ? 'Yalnizca bu ders icin onerilen baslangic seviyesi parcalar gosteriliyor.'
+                  : 'Only the beginner-friendly parts for this lesson are shown.'}
+            </div>
+            <div className="learn-toggle-row">
+              <button
+                className={`toolbar-btn ${
+                  !learningAdvancedPalette ? 'active' : ''
+                }`}
+                onClick={() => setLearningAdvancedPalette(false)}
+                type="button"
+              >
+                {language === 'tr' ? 'Rehberli' : 'Guided'}
+              </button>
+              <button
+                className={`toolbar-btn ${
+                  learningAdvancedPalette ? 'active' : ''
+                }`}
+                onClick={() => setLearningAdvancedPalette(true)}
+                type="button"
+              >
+                {language === 'tr' ? 'Gelismis' : 'Advanced'}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {visibleCategoryCount === 0 && (
@@ -156,3 +213,7 @@ const Palette: React.FC = () => {
 };
 
 export default Palette;
+
+
+
+
