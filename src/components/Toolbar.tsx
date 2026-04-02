@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useCircuitStore } from '../store/circuitStore';
 import { useHardwareStore } from '../store/hardwareStore';
 import { WIRE_COLORS } from '../models/types';
@@ -39,6 +39,7 @@ const Toolbar: React.FC = () => {
   const selectedHardwarePort =
     hardwarePorts.find((port) => port.path === selectedHardwarePortPath) ?? null;
   const effectiveBoardType = selectedHardwarePort?.boardType ?? boardType;
+  const [showHardwareTools, setShowHardwareTools] = useState(false);
   const labels =
     language === 'tr'
       ? {
@@ -49,6 +50,9 @@ const Toolbar: React.FC = () => {
           view: 'Gorunum',
           app: 'Uygulama',
           hardware: 'Cihaza yukleme',
+          showHardwareTools: 'Cihaz araclarini ac',
+          hideHardwareTools: 'Cihaz araclarini gizle',
+          deviceSummary: 'Bagli cihaz',
         }
       : {
           project: 'Project',
@@ -58,7 +62,28 @@ const Toolbar: React.FC = () => {
           view: 'View',
           app: 'App',
           hardware: 'Device upload',
+          showHardwareTools: 'Show device tools',
+          hideHardwareTools: 'Hide device tools',
+          deviceSummary: 'Connected device',
         };
+  const hardwareStatusLabel = preparingHardwareIde
+    ? t(language, 'preparing')
+    : hardwareCliAvailable
+      ? t(language, 'ideReady')
+      : t(language, 'ideOffline');
+  const hardwareSummary = selectedHardwarePort
+    ? detectedBoardName
+      ? `${selectedHardwarePort.path} - ${detectedBoardName}`
+      : selectedHardwarePort.path
+    : hardwarePorts.length > 0
+      ? t(language, 'selectUsbDevice')
+      : t(language, 'noUsbDevice');
+
+  useEffect(() => {
+    if (preparingHardwareIde || uploadInProgress) {
+      setShowHardwareTools(true);
+    }
+  }, [preparingHardwareIde, uploadInProgress]);
 
   const handleSave = async () => {
     const data = getProjectData();
@@ -121,49 +146,53 @@ const Toolbar: React.FC = () => {
     <div className="toolbar">
       <div className="toolbar-row">
         <ToolbarSection title={labels.project}>
-          <button className="toolbar-btn" onClick={handleSave}>
-            {t(language, 'save')}
-          </button>
-          <button className="toolbar-btn" onClick={handleLoad}>
-            {t(language, 'open')}
-          </button>
-          <button className="toolbar-btn" onClick={clearProject}>
-            {t(language, 'newProject')}
-          </button>
-          <button className="toolbar-btn" onClick={handleExportPng}>
-            {t(language, 'exportPng')}
-          </button>
+          <div className="toolbar-button-cluster">
+            <button className="toolbar-btn" onClick={handleSave}>
+              {t(language, 'save')}
+            </button>
+            <button className="toolbar-btn" onClick={handleLoad}>
+              {t(language, 'open')}
+            </button>
+            <button className="toolbar-btn" onClick={clearProject}>
+              {t(language, 'newProject')}
+            </button>
+            <button className="toolbar-btn" onClick={handleExportPng}>
+              {t(language, 'exportPng')}
+            </button>
+          </div>
         </ToolbarSection>
 
         <ToolbarSection title={labels.tools}>
-          <button
-            className={`toolbar-btn ${toolMode === 'select' ? 'active' : ''}`}
-            onClick={() => setToolMode('select')}
-            title={t(language, 'selectToolTitle')}
-          >
-            {t(language, 'selectTool')}
-          </button>
-          <button
-            className={`toolbar-btn ${toolMode === 'wire' ? 'active' : ''}`}
-            onClick={() => setToolMode('wire')}
-            title={t(language, 'wireToolTitle')}
-          >
-            {t(language, 'wireTool')}
-          </button>
-          <button
-            className={`toolbar-btn ${toolMode === 'pan' ? 'active' : ''}`}
-            onClick={() => setToolMode('pan')}
-            title={t(language, 'panToolTitle')}
-          >
-            {t(language, 'panTool')}
-          </button>
-          <button
-            className={`toolbar-btn ${toolMode === 'delete' ? 'active' : ''}`}
-            onClick={() => setToolMode('delete')}
-            title={t(language, 'deleteToolTitle')}
-          >
-            {t(language, 'deleteTool')}
-          </button>
+          <div className="toolbar-button-cluster">
+            <button
+              className={`toolbar-btn ${toolMode === 'select' ? 'active' : ''}`}
+              onClick={() => setToolMode('select')}
+              title={t(language, 'selectToolTitle')}
+            >
+              {t(language, 'selectTool')}
+            </button>
+            <button
+              className={`toolbar-btn ${toolMode === 'wire' ? 'active' : ''}`}
+              onClick={() => setToolMode('wire')}
+              title={t(language, 'wireToolTitle')}
+            >
+              {t(language, 'wireTool')}
+            </button>
+            <button
+              className={`toolbar-btn ${toolMode === 'pan' ? 'active' : ''}`}
+              onClick={() => setToolMode('pan')}
+              title={t(language, 'panToolTitle')}
+            >
+              {t(language, 'panTool')}
+            </button>
+            <button
+              className={`toolbar-btn ${toolMode === 'delete' ? 'active' : ''}`}
+              onClick={() => setToolMode('delete')}
+              title={t(language, 'deleteToolTitle')}
+            >
+              {t(language, 'deleteTool')}
+            </button>
+          </div>
 
           {toolMode === 'wire' && (
             <div className="toolbar-inline-group">
@@ -184,7 +213,6 @@ const Toolbar: React.FC = () => {
         </ToolbarSection>
 
         <ToolbarSection title={t(language, 'board')}>
-          <span className="toolbar-label">{t(language, 'board')}</span>
           <select
             className="toolbar-select"
             value={boardType}
@@ -221,20 +249,22 @@ const Toolbar: React.FC = () => {
         </ToolbarSection>
 
         <ToolbarSection title={labels.view}>
-          <button className="toolbar-btn" onClick={() => setZoom(zoom - 0.1)}>
-            -
-          </button>
-          <span className="toolbar-value">{Math.round(zoom * 100)}%</span>
-          <button className="toolbar-btn" onClick={() => setZoom(zoom + 0.1)}>
-            +
-          </button>
-          <button
-            className="toolbar-btn"
-            onClick={() => setZoom(1)}
-            title={t(language, 'zoomReset')}
-          >
-            100%
-          </button>
+          <div className="toolbar-button-cluster toolbar-button-cluster-compact">
+            <button className="toolbar-btn" onClick={() => setZoom(zoom - 0.1)}>
+              -
+            </button>
+            <span className="toolbar-value">{Math.round(zoom * 100)}%</span>
+            <button className="toolbar-btn" onClick={() => setZoom(zoom + 0.1)}>
+              +
+            </button>
+            <button
+              className="toolbar-btn"
+              onClick={() => setZoom(1)}
+              title={t(language, 'zoomReset')}
+            >
+              100%
+            </button>
+          </div>
         </ToolbarSection>
 
         <div className="toolbar-row-spacer" />
@@ -254,96 +284,112 @@ const Toolbar: React.FC = () => {
       </div>
 
       {isDesktop && (
-        <div className="toolbar-row toolbar-row-secondary">
-          <ToolbarSection
-            title={labels.hardware}
-            className="toolbar-section-hardware"
-          >
-            <span className="toolbar-label">{t(language, 'usbDevice')}</span>
-            <select
-              className="toolbar-select hardware-port-select"
-              value={selectedHardwarePortPath ?? ''}
-              onChange={(event) => setSelectedPortPath(event.target.value || null)}
-              title={t(language, 'usbDevice')}
-            >
-              <option value="">
-                {hardwarePorts.length > 0
-                  ? t(language, 'selectUsbDevice')
-                  : t(language, 'noUsbDevice')}
-              </option>
-              {hardwarePorts.map((port) => (
-                <option key={port.path} value={port.path}>
-                  {port.boardName || port.label || port.path}
-                </option>
-              ))}
-            </select>
+        <div className="toolbar-device-strip">
+          <div className="toolbar-device-summary">
+            <div className="toolbar-device-copy">
+              <div className="toolbar-device-title">{labels.hardware}</div>
+              <div className="toolbar-device-text">
+                {labels.deviceSummary}: {hardwareSummary}
+              </div>
+            </div>
 
-            <button
-              className="toolbar-btn"
-              onClick={() => void refreshDevices()}
-              title={t(language, 'refreshPorts')}
-            >
-              {t(language, 'refreshPortsShort')}
-            </button>
-
-            <button
-              className="toolbar-btn"
-              onClick={() => void prepareHardwareIde(true)}
-              disabled={preparingHardwareIde}
-              title={t(language, 'prepareIde')}
-            >
-              {preparingHardwareIde
-                ? t(language, 'preparing')
-                : t(language, 'prepareIde')}
-            </button>
-
-            <button
-              className="toolbar-btn"
-              onClick={() => void verifySketch(code, effectiveBoardType)}
-              disabled={!hardwareCliAvailable || uploadInProgress}
-              title={t(language, 'verifySketch')}
-            >
-              {t(language, 'verifySketch')}
-            </button>
-
-            <button
-              className="toolbar-btn success"
-              onClick={() => void uploadSketch(code, effectiveBoardType)}
-              disabled={
-                !hardwareCliAvailable ||
-                !selectedHardwarePortPath ||
-                uploadInProgress
-              }
-              title={t(language, 'uploadSketch')}
-            >
-              {uploadInProgress
-                ? t(language, 'uploadingSketch')
-                : t(language, 'uploadSketch')}
-            </button>
-
-            <span
-              className={`sim-status ${
-                hardwareCliAvailable ? 'running' : 'stopped'
-              }`}
-              title={hardwareCliVersion || t(language, 'usbIde')}
-            >
-              {preparingHardwareIde
-                ? t(language, 'preparing')
-                : hardwareCliAvailable
-                  ? t(language, 'ideReady')
-                  : t(language, 'ideOffline')}
-            </span>
-
-            {selectedHardwarePort && (
-              <span className="panel-pill">{selectedHardwarePort.path}</span>
-            )}
-
-            {detectedBoardName && (
-              <span className="panel-pill">
-                {t(language, 'detectedBoard')}: {detectedBoardName}
+            <div className="toolbar-device-actions">
+              <span
+                className={`sim-status ${
+                  hardwareCliAvailable ? 'running' : 'stopped'
+                }`}
+                title={hardwareCliVersion || t(language, 'usbIde')}
+              >
+                {hardwareStatusLabel}
               </span>
-            )}
-          </ToolbarSection>
+
+              <button
+                className="toolbar-btn toolbar-btn-subtle"
+                onClick={() => setShowHardwareTools((value) => !value)}
+                type="button"
+              >
+                {showHardwareTools
+                  ? labels.hideHardwareTools
+                  : labels.showHardwareTools}
+              </button>
+            </div>
+          </div>
+
+          {showHardwareTools && (
+            <div className="toolbar-device-tools">
+              <span className="toolbar-label">{t(language, 'usbDevice')}</span>
+              <select
+                className="toolbar-select hardware-port-select"
+                value={selectedHardwarePortPath ?? ''}
+                onChange={(event) => setSelectedPortPath(event.target.value || null)}
+                title={t(language, 'usbDevice')}
+              >
+                <option value="">
+                  {hardwarePorts.length > 0
+                    ? t(language, 'selectUsbDevice')
+                    : t(language, 'noUsbDevice')}
+                </option>
+                {hardwarePorts.map((port) => (
+                  <option key={port.path} value={port.path}>
+                    {port.boardName || port.label || port.path}
+                  </option>
+                ))}
+              </select>
+
+              <button
+                className="toolbar-btn"
+                onClick={() => void refreshDevices()}
+                title={t(language, 'refreshPorts')}
+              >
+                {t(language, 'refreshPortsShort')}
+              </button>
+
+              <button
+                className="toolbar-btn"
+                onClick={() => void prepareHardwareIde(true)}
+                disabled={preparingHardwareIde}
+                title={t(language, 'prepareIde')}
+              >
+                {preparingHardwareIde
+                  ? t(language, 'preparing')
+                  : t(language, 'prepareIde')}
+              </button>
+
+              <button
+                className="toolbar-btn"
+                onClick={() => void verifySketch(code, effectiveBoardType)}
+                disabled={!hardwareCliAvailable || uploadInProgress}
+                title={t(language, 'verifySketch')}
+              >
+                {t(language, 'verifySketch')}
+              </button>
+
+              <button
+                className="toolbar-btn success"
+                onClick={() => void uploadSketch(code, effectiveBoardType)}
+                disabled={
+                  !hardwareCliAvailable ||
+                  !selectedHardwarePortPath ||
+                  uploadInProgress
+                }
+                title={t(language, 'uploadSketch')}
+              >
+                {uploadInProgress
+                  ? t(language, 'uploadingSketch')
+                  : t(language, 'uploadSketch')}
+              </button>
+
+              {selectedHardwarePort && (
+                <span className="panel-pill">{selectedHardwarePort.path}</span>
+              )}
+
+              {detectedBoardName && (
+                <span className="panel-pill">
+                  {t(language, 'detectedBoard')}: {detectedBoardName}
+                </span>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
