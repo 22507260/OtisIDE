@@ -62,6 +62,11 @@ export type ControllerBoardDefinition = {
   pinDefs: ArduinoPinDef[];
   aliases: string[];
   pinSummary: string;
+  /**
+   * The LED silkscreened "L" on the board, in board coordinates, plus the pin
+   * that drives it. Boards without an entry simply do not draw one.
+   */
+  builtinLed?: { x: number; y: number; pin: string };
   theme: {
     body: string;
     accent: string;
@@ -1095,6 +1100,7 @@ const BOARD_DEFINITIONS: Record<ControllerBoardType, ControllerBoardDefinition> 
     pinDefs: UNO_PIN_DEFS,
     aliases: ['arduino', 'uno', 'arduinouno'],
     pinSummary: 'D0-D13, A0-A5, 5V, GND, 3V3, VIN, RESET, SDA, SCL',
+    builtinLed: { x: 136, y: 49, pin: 'D13' },
     theme: {
       body: '#0d6a9f',
       accent: '#0b5782',

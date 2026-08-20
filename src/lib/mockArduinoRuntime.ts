@@ -23,6 +23,8 @@ type RuntimeCallbacks = {
     properties: Record<string, SimulationPropertyValue>
   ) => void;
   clearComponentStates: () => void;
+  /** Current digital/PWM value per pin id, 0-255. Drives the onboard LED. */
+  setPinStates: (states: Record<string, number>) => void;
 };
 
 type Command =
@@ -191,6 +193,7 @@ const NOOP_CALLBACKS: RuntimeCallbacks = {
   clearLedStates: () => {},
   setComponentState: () => {},
   clearComponentStates: () => {},
+  setPinStates: () => {},
 };
 
 let activeStop: (() => void) | null = null;
@@ -3451,6 +3454,7 @@ function updateActuatorStates(
 ): void {
   callbacks.clearLedStates();
   callbacks.clearComponentStates();
+  callbacks.setPinStates(Object.fromEntries(pinValues));
 
   const netState = buildBaseNetState(connectivity, pinValues, boardPins, logicHighVoltage);
   computeDriverStates(connectivity, netState, callbacks);

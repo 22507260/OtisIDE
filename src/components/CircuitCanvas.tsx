@@ -1405,7 +1405,10 @@ const useBoardImage = (imageUrl: string) => {
   return image;
 };
 
-const ControllerBoard: React.FC<{ board: ControllerBoardDefinition }> = React.memo(({ board }) => {
+const ControllerBoard: React.FC<{
+  board: ControllerBoardDefinition;
+  builtinLedBrightness: number;
+}> = React.memo(({ board, builtinLedBrightness }) => {
   const boardImg = useBoardImage(board.imageUrl);
   const chipWidth = board.type === 'nano' ? 28 : board.type === 'mega' ? 72 : 64;
   const chipHeight = board.type === 'nano' ? board.height * 0.38 : 36;
@@ -1515,6 +1518,35 @@ const ControllerBoard: React.FC<{ board: ControllerBoardDefinition }> = React.me
         </>
       )}
 
+      {/* Onboard "L" LED, lit by whatever the sketch writes to its pin */}
+      {board.builtinLed && builtinLedBrightness > 0 && (
+        <Group listening={false}>
+          <Circle
+            x={board.builtinLed.x}
+            y={board.builtinLed.y}
+            radius={16}
+            fill="#ffe066"
+            opacity={0.16 * builtinLedBrightness}
+          />
+          <Circle
+            x={board.builtinLed.x}
+            y={board.builtinLed.y}
+            radius={8}
+            fill="#ffe066"
+            opacity={0.32 * builtinLedBrightness}
+          />
+          <Rect
+            x={board.builtinLed.x - 3.6}
+            y={board.builtinLed.y - 2.3}
+            width={7.2}
+            height={4.6}
+            cornerRadius={1}
+            fill="#fff6b0"
+            opacity={0.5 + 0.5 * builtinLedBrightness}
+          />
+        </Group>
+      )}
+
       {!boardImg &&
         board.pinDefs.map((pin) => (
           <Circle
@@ -1583,6 +1615,11 @@ const CircuitCanvas: React.FC = () => {
   const isStagePanning = toolMode === 'pan' || middlePanActive;
   const currentBoard = useMemo(() => getControllerBoardDefinition(boardType), [boardType]);
   const boardPins = useMemo(() => getControllerBoardPins(boardType), [boardType]);
+  const builtinLedBrightness = useMemo(() => {
+    const led = currentBoard.builtinLed;
+    if (!led || !simulation.running) return 0;
+    return Math.max(0, Math.min(1, (simulation.pinStates[led.pin] ?? 0) / 255));
+  }, [currentBoard, simulation.pinStates, simulation.running]);
   const boardPinRadius = currentBoard.pinDefs.length > 30 ? 4 : 6;
   const boardPinHoverRadius = currentBoard.pinDefs.length > 30 ? 5.5 : 8;
   const canUndo = useCircuitStore((s) => s.canUndo());
@@ -2809,7 +2846,10 @@ const CircuitCanvas: React.FC = () => {
               openContextMenu(e.evt, { kind: 'board' });
             }}
           >
-            <ControllerBoard board={currentBoard} />
+            <ControllerBoard
+              board={currentBoard}
+              builtinLedBrightness={builtinLedBrightness}
+            />
 
             {/* Board clickable pins */}
             {toolMode === 'wire' &&
