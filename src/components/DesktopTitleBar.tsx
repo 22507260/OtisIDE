@@ -1,5 +1,6 @@
 import React from 'react';
 import { useCircuitStore } from '../store/circuitStore';
+import { useUpdateStore } from '../store/updateStore';
 import { getControllerBoardDefinition } from '../models/arduinoUno';
 import { t } from '../lib/i18n';
 
@@ -7,8 +8,17 @@ const DesktopTitleBar: React.FC = () => {
   const language = useCircuitStore((s) => s.language);
   const boardType = useCircuitStore((s) => s.boardType);
   const simulationRunning = useCircuitStore((s) => s.simulation.running);
+  const updateSupported = useUpdateStore((s) => s.supported);
+  const appVersion = useUpdateStore((s) => s.appVersion);
+  const updateState = useUpdateStore((s) => s.status?.state);
+  const checkNow = useUpdateStore((s) => s.checkNow);
   const isCustomWindowChrome = Boolean(window.electronAPI?.isCustomWindowChrome);
   const board = getControllerBoardDefinition(boardType);
+  const isChecking = updateState === 'checking';
+  const hasUpdate =
+    updateState === 'available' ||
+    updateState === 'downloading' ||
+    updateState === 'downloaded';
 
   if (!isCustomWindowChrome) {
     return null;
@@ -33,6 +43,27 @@ const DesktopTitleBar: React.FC = () => {
         </div>
 
         <div className="desktop-titlebar-meta">
+          {appVersion && (
+            <>
+              <span className="desktop-meta-value">v{appVersion}</span>
+              {updateSupported && (
+                <button
+                  className={`desktop-update-btn${hasUpdate ? ' has-update' : ''}`}
+                  type="button"
+                  disabled={isChecking}
+                  onClick={() => void checkNow()}
+                  title={t(language, 'updateCheckNow')}
+                >
+                  {isChecking
+                    ? t(language, 'updateCheckingShort')
+                    : hasUpdate
+                      ? t(language, 'updateAvailableShort')
+                      : t(language, 'updateCheckNow')}
+                </button>
+              )}
+              <span className="desktop-meta-divider" />
+            </>
+          )}
           <span className="desktop-meta-value">{board.shortName}</span>
           <span className="desktop-meta-divider" />
           <span

@@ -33,6 +33,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('ide-serial-error', listener);
     return () => ipcRenderer.removeListener('ide-serial-error', listener);
   },
+  getAppVersion: () => ipcRenderer.invoke('app-version'),
   checkForUpdates: (silent = false) =>
     ipcRenderer.invoke('updater-check', { silent }),
   downloadUpdate: () => ipcRenderer.invoke('updater-download'),

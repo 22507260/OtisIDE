@@ -1,8 +1,7 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React from 'react';
 import { useCircuitStore } from '../store/circuitStore';
+import { useUpdateStore } from '../store/updateStore';
 import { t } from '../lib/i18n';
-
-type UpdateStatus = UpdaterStatusPayload;
 
 const formatBytes = (value: number) => {
   if (!Number.isFinite(value) || value <= 0) return '0 MB';
@@ -15,136 +14,136 @@ const formatSpeed = (bytesPerSecond: number) => {
 };
 
 /**
- * Startup update prompt. The main process only reports that a newer release
- * exists; nothing is downloaded until the user says yes here.
+ * Update prompt. The startup check only speaks up when a newer version exists;
+ * a check the user started from the title bar also reports "you are up to date"
+ * and failures, so the button never looks dead.
  */
 const UpdateNotice: React.FC = () => {
   const language = useCircuitStore((s) => s.language);
-  const [status, setStatus] = useState<UpdateStatus | null>(null);
-  const [dismissedVersion, setDismissedVersion] = useState<string | null>(null);
-
-  useEffect(() => {
-    const api = window.electronAPI;
-    if (!api?.onUpdateStatus) return;
-
-    const unsubscribe = api.onUpdateStatus((payload) => setStatus(payload));
-    void api.getUpdateState?.().then((payload) => {
-      if (payload) setStatus(payload);
-    });
-
-    return unsubscribe;
-  }, []);
-
-  const handleDownload = useCallback(() => {
-    void window.electronAPI?.downloadUpdate?.();
-  }, []);
-
-  const handleInstall = useCallback(() => {
-    void window.electronAPI?.installUpdate?.();
-  }, []);
-
-  const handleDismiss = useCallback(() => {
-    setDismissedVersion(status?.info?.version ?? 'unknown');
-  }, [status]);
+  const status = useUpdateStore((s) => s.status);
+  const manualCheck = useUpdateStore((s) => s.manualCheck);
+  const dismissedVersion = useUpdateStore((s) => s.dismissedVersion);
+  const download = useUpdateStore((s) => s.download);
+  const install = useUpdateStore((s) => s.install);
+  const dismiss = useUpdateStore((s) => s.dismiss);
 
   if (!status) return null;
 
   const version = status.info?.version ?? '';
-  const isVisible =
-    (status.state === 'available' ||
-      status.state === 'downloading' ||
-      status.state === 'downloaded') &&
-    dismissedVersion !== (version || 'unknown');
+  const state = status.state;
+  const isOfferState =
+    state === 'available' || state === 'downloading' || state === 'downloaded';
+  const isManualResult =
+    manualCheck && (state === 'checking' || state === 'up-to-date' || state === 'error');
 
-  if (!isVisible) return null;
+  if (!isOfferState && !isManualResult) return null;
+  if (isOfferState && dismissedVersion === (version || 'unknown')) return null;
 
   const percent = Math.max(0, Math.min(100, status.percent ?? 0));
   const notes = status.info?.releaseNotes?.trim();
+
+  const title =
+    state === 'downloaded'
+      ? t(language, 'updateReadyTitle')
+      : state === 'up-to-date'
+        ? t(language, 'updateUpToDateTitle')
+        : state === 'error'
+          ? t(language, 'updateFailedTitle')
+          : state === 'checking'
+            ? t(language, 'updateCheckingTitle')
+            : t(language, 'updateAvailableTitle');
 
   return (
     <div className="update-overlay" role="dialog" aria-modal="true">
       <div className="update-card">
         <div className="update-card-head">
           <span className="update-badge">{t(language, 'updateBadge')}</span>
-          <h2 className="update-title">
-            {status.state === 'downloaded'
-              ? t(language, 'updateReadyTitle')
-              : t(language, 'updateAvailableTitle')}
-          </h2>
+          <h2 className="update-title">{title}</h2>
           <p className="update-subtitle">
-            {t(language, 'updateVersionLine', {
-              current: status.currentVersion ?? '',
-              next: version,
-            })}
+            {isOfferState
+              ? t(language, 'updateVersionLine', {
+                  current: status.currentVersion ?? '',
+                  next: version,
+                })
+              : t(language, 'updateCurrentVersionLine', {
+                  current: status.currentVersion ?? '',
+                })}
           </p>
         </div>
 
-        {status.state === 'available' && notes && (
+        {state === 'available' && notes && (
           <div className="update-notes">
             <div className="update-notes-title">{t(language, 'updateNotes')}</div>
             <pre className="update-notes-body">{notes}</pre>
           </div>
         )}
 
-        {status.state === 'downloading' && (
+        {state === 'downloading' && (
           <div className="update-progress">
             <div className="update-progress-track">
-              <div
-                className="update-progress-bar"
-                style={{ width: `${percent}%` }}
-              />
+              <div className="update-progress-bar" style={{ width: `${percent}%` }} />
             </div>
             <div className="update-progress-meta">
               <span>{percent}%</span>
               <span>
                 {formatBytes(status.transferred ?? 0)} / {formatBytes(status.total ?? 0)}
-                {status.bytesPerSecond
-                  ? ` · ${formatSpeed(status.bytesPerSecond)}`
-                  : ''}
+                {status.bytesPerSecond ? ` · ${formatSpeed(status.bytesPerSecond)}` : ''}
               </span>
             </div>
           </div>
         )}
 
-        {status.state === 'downloaded' && (
+        {state === 'downloaded' && (
           <p className="update-ready-text">{t(language, 'updateReadyText')}</p>
         )}
 
+        {state === 'error' && (
+          <p className="update-ready-text">
+            {status.error || t(language, 'updateFailedTitle')}
+          </p>
+        )}
+
         <div className="update-actions">
-          {status.state === 'available' && (
+          {state === 'available' && (
             <>
-              <button className="toolbar-btn" type="button" onClick={handleDismiss}>
+              <button className="toolbar-btn" type="button" onClick={dismiss}>
                 {t(language, 'updateLater')}
               </button>
               <button
                 className="toolbar-btn success"
                 type="button"
-                onClick={handleDownload}
+                onClick={() => void download()}
               >
                 {t(language, 'updateNow')}
               </button>
             </>
           )}
 
-          {status.state === 'downloading' && (
-            <button className="toolbar-btn" type="button" onClick={handleDismiss}>
+          {state === 'downloading' && (
+            <button className="toolbar-btn" type="button" onClick={dismiss}>
               {t(language, 'updateBackground')}
             </button>
           )}
 
-          {status.state === 'downloaded' && (
+          {state === 'downloaded' && (
             <>
-              <button className="toolbar-btn" type="button" onClick={handleDismiss}>
+              <button className="toolbar-btn" type="button" onClick={dismiss}>
                 {t(language, 'updateOnNextLaunch')}
               </button>
               <button
                 className="toolbar-btn success"
                 type="button"
-                onClick={handleInstall}
+                onClick={() => void install()}
               >
                 {t(language, 'updateRestartNow')}
               </button>
             </>
+          )}
+
+          {(state === 'up-to-date' || state === 'error') && (
+            <button className="toolbar-btn" type="button" onClick={dismiss}>
+              {t(language, 'close')}
+            </button>
           )}
         </div>
       </div>
