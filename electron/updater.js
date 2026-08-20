@@ -58,20 +58,25 @@ function htmlToText(value) {
 function toVersionInfo(info) {
   if (!info) return null;
 
-  const rawNotes =
-    typeof info.releaseNotes === 'string'
-      ? info.releaseNotes
-      : Array.isArray(info.releaseNotes)
-        ? info.releaseNotes
-            .map((note) => (typeof note === 'string' ? note : note?.note || ''))
-            .filter(Boolean)
-            .join('\n\n')
-        : '';
+  // With fullChangelog the notes arrive as one entry per release, newest first.
+  // Each block is labelled so a user skipping several versions can tell them apart.
+  const releaseNotes = Array.isArray(info.releaseNotes)
+    ? info.releaseNotes
+        .map((entry) => {
+          if (typeof entry === 'string') return htmlToText(entry);
+
+          const body = htmlToText(entry?.note || '');
+          if (!body) return '';
+          return entry?.version ? `${entry.version}\n${body}` : body;
+        })
+        .filter(Boolean)
+        .join('\n\n')
+    : htmlToText(info.releaseNotes);
 
   return {
     version: info.version || '',
     releaseName: typeof info.releaseName === 'string' ? info.releaseName : '',
-    releaseNotes: htmlToText(rawNotes),
+    releaseNotes,
     releaseDate: info.releaseDate || '',
   };
 }
@@ -135,6 +140,9 @@ function configureAutoUpdater() {
   autoUpdater.autoDownload = process.env.OTISIDE_UPDATE_AUTO_DOWNLOAD === '1';
   autoUpdater.autoInstallOnAppQuit = true;
   autoUpdater.allowPrerelease = false;
+  // Someone on 1.4.0 jumps straight to the newest release; asking for the full
+  // changelog means they also see what every version in between changed.
+  autoUpdater.fullChangelog = true;
   autoUpdater.logger = createUpdateLogger();
 
   autoUpdater.on('update-available', (info) => {
