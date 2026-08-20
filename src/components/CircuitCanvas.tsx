@@ -50,6 +50,8 @@ const GRID_SPACING = 20;
 const GRID_COLUMNS = 100;
 const GRID_ROWS = 80;
 const GRID_DOT_RADIUS = 0.5;
+const WIRE_CURVE_TENSION = 0.32;
+const WIRE_BEND_HANDLE_RADIUS = 4.5;
 const SNAP_RADIUS_SQ = (HOLE_SP * 2.5) ** 2;
 const WIRE_PIN_RADIUS = 6;
 const WIRE_PIN_FANOUT_RADIUS = 8;
@@ -284,6 +286,41 @@ function getResistorBandColors(value: unknown): string[] {
     RESISTOR_MULTIPLIER_COLORS[multiplier] ?? RESISTOR_MULTIPLIER_COLORS[0],
     RESISTOR_TOLERANCE_COLOR,
   ];
+}
+
+/** Index of the segment closest to (x, y), for inserting a new bend there. */
+function findClosestSegmentIndex(points: number[], x: number, y: number): number {
+  let bestIndex = 0;
+  let bestDistance = Infinity;
+
+  for (let i = 0; i + 3 < points.length; i += 2) {
+    const ax = points[i];
+    const ay = points[i + 1];
+    const bx = points[i + 2];
+    const by = points[i + 3];
+    const dx = bx - ax;
+    const dy = by - ay;
+    const lengthSq = dx * dx + dy * dy;
+    const t =
+      lengthSq === 0
+        ? 0
+        : Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / lengthSq));
+    const px = ax + t * dx;
+    const py = ay + t * dy;
+    const distance = (x - px) ** 2 + (y - py) ** 2;
+
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      bestIndex = i;
+    }
+  }
+
+  return bestIndex;
+}
+
+/** Bent wires get a spline through their bends; straight runs stay straight. */
+function getWireTension(points: number[]): number {
+  return points.length > 4 ? WIRE_CURVE_TENSION : 0;
 }
 
 function snapToGrid(val: number): number {
@@ -1578,6 +1615,13 @@ const CircuitCanvas: React.FC = () => {
   const [middlePanActive, setMiddlePanActive] = useState(false);
   const [wiringStart, setWiringStart] = useState<{ componentId: string; pinId: string; x: number; y: number } | null>(null);
   const [wiringMouse, setWiringMouse] = useState<{ x: number; y: number } | null>(null);
+  /** Bend points placed since the wire was started, as a flat x,y list. */
+  const [wiringPath, setWiringPath] = useState<number[]>([]);
+  /** Mirror of the wiring state so the keyboard handler can read it. */
+  const wiringStateRef = useRef<{ active: boolean; bendCount: number }>({
+    active: false,
+    bendCount: 0,
+  });
   const [hoveredBreadboardHole, setHoveredBreadboardHole] = useState<BreadboardHole | null>(null);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [, setDragPreviewVersion] = useState(0);
@@ -1610,6 +1654,7 @@ const CircuitCanvas: React.FC = () => {
   const removeComponent = useCircuitStore((s) => s.removeComponent);
   const addWire = useCircuitStore((s) => s.addWire);
   const removeWire = useCircuitStore((s) => s.removeWire);
+  const updateWirePoints = useCircuitStore((s) => s.updateWirePoints);
   const selectWire = useCircuitStore((s) => s.selectWire);
   const updateComponentProperty = useCircuitStore((s) => s.updateComponentProperty);
   const isStagePanning = toolMode === 'pan' || middlePanActive;
@@ -1806,9 +1851,17 @@ const CircuitCanvas: React.FC = () => {
     [breadboardPosition, getBreadboardSnapPositionForComponent]
   );
 
+  useEffect(() => {
+    wiringStateRef.current = {
+      active: Boolean(wiringStart),
+      bendCount: wiringPath.length / 2,
+    };
+  }, [wiringStart, wiringPath]);
+
   const clearTransientCanvasState = useCallback(() => {
     setWiringStart(null);
     setWiringMouse(null);
+    setWiringPath([]);
     setHoveredBreadboardHole(null);
     setContextMenu(null);
   }, []);
@@ -1892,6 +1945,11 @@ const CircuitCanvas: React.FC = () => {
         case 'd': setToolMode('delete'); break;
         case 'delete':
         case 'backspace':
+          if (wiringStateRef.current.active && wiringStateRef.current.bendCount > 0) {
+            e.preventDefault();
+            setWiringPath((current) => current.slice(0, -2));
+            break;
+          }
           if (selId) useCircuitStore.getState().removeComponent(selId);
           if (selWireId) useCircuitStore.getState().removeWire(selWireId);
           break;
@@ -2214,13 +2272,14 @@ const CircuitCanvas: React.FC = () => {
           endComponentId: componentId,
           endPinId: pinId,
           color: wireColor,
-          points: [wiringStart.x, wiringStart.y, globalX, globalY],
+          points: [wiringStart.x, wiringStart.y, ...wiringPath, globalX, globalY],
         });
       }
       setWiringStart(null);
       setWiringMouse(null);
+      setWiringPath([]);
     }
-  }, [toolMode, wiringStart, wireColor, addWire]);
+  }, [toolMode, wiringStart, wiringPath, wireColor, addWire]);
 
   // Stage click
   const handleStageClick = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
@@ -2233,6 +2292,16 @@ const CircuitCanvas: React.FC = () => {
           handlePinClick(BREADBOARD_COMPONENT_ID, hole.id, hole.x, hole.y);
           return;
         }
+
+        // Wiring in progress: the click bends the cable here instead of
+        // dropping it, the way Tinkercad routes wires.
+        if (wiringStart) {
+          const pointer = getWorldPointerPosition();
+          if (pointer) {
+            setWiringPath((current) => [...current, pointer.x, pointer.y]);
+            return;
+          }
+        }
       }
 
       selectComponent(null);
@@ -2240,9 +2309,10 @@ const CircuitCanvas: React.FC = () => {
       if (wiringStart) {
         setWiringStart(null);
         setWiringMouse(null);
+        setWiringPath([]);
       }
     }
-  }, [toolMode, wiringStart, handlePinClick, resolveBreadboardHoleAtPointer, selectComponent, selectWire, closeContextMenu]);
+  }, [toolMode, wiringStart, handlePinClick, resolveBreadboardHoleAtPointer, getWorldPointerPosition, selectComponent, selectWire, closeContextMenu]);
 
   // Mouse move for wiring preview
   const handleMouseMove = useCallback((_e: Konva.KonvaEventObject<MouseEvent>) => {
@@ -2263,6 +2333,50 @@ const CircuitCanvas: React.FC = () => {
 
     setHoveredBreadboardHole(null);
   }, [toolMode, wiringStart, getWorldPointerPosition, resolveBreadboardHoleAtPointer]);
+
+  const handleWireBendDrag = useCallback(
+    (wireId: string, pointIndex: number, x: number, y: number) => {
+      const wire = useCircuitStore.getState().wires.find((item) => item.id === wireId);
+      if (!wire) return;
+
+      const nextPoints = [...wire.points];
+      nextPoints[pointIndex] = x;
+      nextPoints[pointIndex + 1] = y;
+      updateWirePoints(wireId, nextPoints);
+    },
+    [updateWirePoints]
+  );
+
+  const handleWireBendRemove = useCallback(
+    (wireId: string, pointIndex: number) => {
+      const wire = useCircuitStore.getState().wires.find((item) => item.id === wireId);
+      if (!wire || wire.points.length <= 4) return;
+
+      captureUndoSnapshot();
+      const nextPoints = [...wire.points];
+      nextPoints.splice(pointIndex, 2);
+      updateWirePoints(wireId, nextPoints);
+    },
+    [captureUndoSnapshot, updateWirePoints]
+  );
+
+  /** Double-clicking a cable adds a bend on the segment nearest the pointer. */
+  const handleWireAddBend = useCallback(
+    (wireId: string) => {
+      const wire = useCircuitStore.getState().wires.find((item) => item.id === wireId);
+      const pointer = getWorldPointerPosition();
+      if (!wire || !pointer) return;
+
+      const segmentIndex = findClosestSegmentIndex(wire.points, pointer.x, pointer.y);
+      captureUndoSnapshot();
+      const nextPoints = [...wire.points];
+      nextPoints.splice(segmentIndex + 2, 0, pointer.x, pointer.y);
+      updateWirePoints(wireId, nextPoints);
+      selectWire(wireId);
+      selectComponent(null);
+    },
+    [captureUndoSnapshot, getWorldPointerPosition, selectComponent, selectWire, updateWirePoints]
+  );
 
   const finalizeComponentDrag = useCallback((comp: CircuitComponent, node: Konva.Group) => {
     const snapped = snapToBreadboard(
@@ -2942,18 +3056,28 @@ const CircuitCanvas: React.FC = () => {
           {/* Wires - 3D style */}
           {wires.map((wire) => {
             const isWireSelected = selectedWireId === wire.id;
+            const tension = getWireTension(wire.points);
+            const bendIndices: number[] = [];
+            for (let i = 2; i + 2 < wire.points.length; i += 2) {
+              bendIndices.push(i);
+            }
             return (
               <Group key={wire.id}>
                 {/* Shadow */}
-                <Line points={wire.points.map((v, i) => i % 2 === 1 ? v + 1.5 : v)} stroke="#000" strokeWidth={4} opacity={0.2} lineCap="round" lineJoin="round" listening={false} />
+                <Line points={wire.points.map((v, i) => i % 2 === 1 ? v + 1.5 : v)} stroke="#000" strokeWidth={4} opacity={0.2} lineCap="round" lineJoin="round" tension={tension} listening={false} />
                 {/* Main cable */}
-                <Line points={wire.points} stroke={wire.color} strokeWidth={3.2} lineCap="round" lineJoin="round" hitStrokeWidth={12}
+                <Line points={wire.points} stroke={wire.color} strokeWidth={3.2} lineCap="round" lineJoin="round" tension={tension} hitStrokeWidth={12}
                   onClick={() => {
                     if (toolMode === 'delete') { removeWire(wire.id); }
                     else {
                       selectWire(wire.id);
                       selectComponent(null);
                     }
+                  }}
+                  onDblClick={(e) => {
+                    if (toolMode === 'delete') return;
+                    e.cancelBubble = true;
+                    handleWireAddBend(wire.id);
                   }}
                   onContextMenu={(e) => {
                     e.evt.preventDefault();
@@ -2962,11 +3086,41 @@ const CircuitCanvas: React.FC = () => {
                   }}
                 />
                 {/* Highlight stripe */}
-                <Line points={wire.points.map((v, i) => i % 2 === 1 ? v - 0.6 : v)} stroke="#fff" strokeWidth={0.8} opacity={0.25} lineCap="round" lineJoin="round" listening={false} />
+                <Line points={wire.points.map((v, i) => i % 2 === 1 ? v - 0.6 : v)} stroke="#fff" strokeWidth={0.8} opacity={0.25} lineCap="round" lineJoin="round" tension={tension} listening={false} />
                 {/* Selection indicator */}
                 {isWireSelected && (
-                  <Line points={wire.points} stroke="#fff" strokeWidth={5} dash={[4, 4]} opacity={0.5} lineCap="round" lineJoin="round" listening={false} />
+                  <Line points={wire.points} stroke="#fff" strokeWidth={5} dash={[4, 4]} opacity={0.5} lineCap="round" lineJoin="round" tension={tension} listening={false} />
                 )}
+                {/* Bend handles: drag to reshape, double-click to remove */}
+                {isWireSelected && toolMode === 'select' &&
+                  bendIndices.map((pointIndex) => (
+                    <Circle
+                      key={`${wire.id}-bend-${pointIndex}`}
+                      x={wire.points[pointIndex]}
+                      y={wire.points[pointIndex + 1]}
+                      radius={WIRE_BEND_HANDLE_RADIUS}
+                      fill="rgba(255, 255, 255, 0.9)"
+                      stroke={wire.color}
+                      strokeWidth={1.6}
+                      hitStrokeWidth={14}
+                      draggable
+                      onDragStart={(e) => {
+                        e.cancelBubble = true;
+                        captureUndoSnapshot();
+                      }}
+                      onDragMove={(e) => {
+                        e.cancelBubble = true;
+                        handleWireBendDrag(wire.id, pointIndex, e.target.x(), e.target.y());
+                      }}
+                      onDblClick={(e) => {
+                        e.cancelBubble = true;
+                        handleWireBendRemove(wire.id, pointIndex);
+                      }}
+                      onMouseDown={(e) => {
+                        e.cancelBubble = true;
+                      }}
+                    />
+                  ))}
                 {/* End caps */}
                 {wire.points.length >= 4 && (
                   <>
@@ -2979,12 +3133,35 @@ const CircuitCanvas: React.FC = () => {
           })}
 
           {/* Wiring preview line */}
-          {wiringStart && wiringMouse && (
-            <Group>
-              <Line points={[wiringStart.x, wiringStart.y, wiringMouse.x, wiringMouse.y]} stroke="#000" strokeWidth={4} opacity={0.15} lineCap="round" listening={false} />
-              <Line points={[wiringStart.x, wiringStart.y, wiringMouse.x, wiringMouse.y]} stroke={wireColor} strokeWidth={2.5} dash={[6, 4]} lineCap="round" listening={false} />
-            </Group>
-          )}
+          {wiringStart && wiringMouse && (() => {
+            const previewPoints = [
+              wiringStart.x,
+              wiringStart.y,
+              ...wiringPath,
+              wiringMouse.x,
+              wiringMouse.y,
+            ];
+            const previewTension = getWireTension(previewPoints);
+            return (
+              <Group listening={false}>
+                <Line points={previewPoints} stroke="#000" strokeWidth={4} opacity={0.15} lineCap="round" tension={previewTension} listening={false} />
+                <Line points={previewPoints} stroke={wireColor} strokeWidth={2.5} dash={[6, 4]} lineCap="round" tension={previewTension} listening={false} />
+                {/* Bends placed so far */}
+                {Array.from({ length: wiringPath.length / 2 }, (_, index) => (
+                  <Circle
+                    key={`wiring-bend-${index}`}
+                    x={wiringPath[index * 2]}
+                    y={wiringPath[index * 2 + 1]}
+                    radius={3.2}
+                    fill="#fff"
+                    stroke={wireColor}
+                    strokeWidth={1.4}
+                    listening={false}
+                  />
+                ))}
+              </Group>
+            );
+          })()}
 
           {/* Components */}
           {components.map((comp) => (
