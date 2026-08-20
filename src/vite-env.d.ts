@@ -129,6 +129,7 @@ interface ElectronAPI {
   onHardwareSerialError?: (
     callback: (payload: { path?: string; error?: string }) => void
   ) => () => void;
+  getAppVersion?: () => Promise<string>;
   checkForUpdates?: (silent?: boolean) => Promise<{ ok: boolean; error?: string }>;
   downloadUpdate?: () => Promise<{ ok: boolean; error?: string }>;
   installUpdate?: () => Promise<{ ok: boolean }>;

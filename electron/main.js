@@ -192,6 +192,8 @@ ipcMain.handle('window-close', () => {
   return true;
 });
 
+ipcMain.handle('app-version', () => app.getVersion());
+
 ipcMain.handle('save-project', async (_event, payload) => {
   const data = payload?.data;
   const options = readDialogOptions(payload?.options);
