@@ -219,6 +219,12 @@ const UI_STRINGS = {
     updateFailedTitle: 'Update check failed',
     updateCurrentVersionLine: 'Installed version: {{current}}',
     close: 'Close',
+    wireProperties: 'Wire',
+    wireFrom: 'From',
+    wireTo: 'To',
+    wireColorTitle: 'Colour',
+    wireReplugHint:
+      'Drag either end of the wire onto another pin to replug it. Double-click the wire to add a bend.',
   },
   tr: {
     appTitle: 'OtisIDE',
@@ -431,6 +437,12 @@ const UI_STRINGS = {
     updateFailedTitle: 'Güncelleme denetimi başarısız',
     updateCurrentVersionLine: 'Yüklü sürüm: {{current}}',
     close: 'Kapat',
+    wireProperties: 'Kablo',
+    wireFrom: 'Başlangıç',
+    wireTo: 'Bitiş',
+    wireColorTitle: 'Renk',
+    wireReplugHint:
+      'Kablonun ucunu tutup başka bir pine sürükleyerek yerini değiştirebilirsin. Kabloya çift tıklayarak kıvrım eklersin.',
   },
 } as const;
 

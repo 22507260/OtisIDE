@@ -1,7 +1,10 @@
 import React from 'react';
 import { useCircuitStore } from '../store/circuitStore';
-import { COMPONENT_CATALOG } from '../models/types';
+import { COMPONENT_CATALOG, WIRE_COLORS } from '../models/types';
+import { ARDUINO_COMPONENT_ID, getControllerBoardDefinition } from '../models/arduinoUno';
+import { BREADBOARD_COMPONENT_ID, getBreadboardHoleGlobal } from '../models/breadboard';
 import {
+  getWireColorDisplayName,
   getComponentDisplayName,
   getMultimeterModeLabel,
   getMultimeterStatusLabel,
@@ -12,6 +15,12 @@ import {
 
 const PropertiesPanel: React.FC = () => {
   const selectedComponentId = useCircuitStore((s) => s.selectedComponentId);
+  const selectedWireId = useCircuitStore((s) => s.selectedWireId);
+  const wires = useCircuitStore((s) => s.wires);
+  const boardType = useCircuitStore((s) => s.boardType);
+  const breadboardPosition = useCircuitStore((s) => s.breadboardPosition);
+  const setWireColorById = useCircuitStore((s) => s.setWireColorById);
+  const removeWire = useCircuitStore((s) => s.removeWire);
   const components = useCircuitStore((s) => s.components);
   const simulation = useCircuitStore((s) => s.simulation);
   const updateComponentProperty = useCircuitStore((s) => s.updateComponentProperty);
@@ -20,6 +29,80 @@ const PropertiesPanel: React.FC = () => {
   const language = useCircuitStore((s) => s.language);
 
   const selectedComp = components.find((component) => component.id === selectedComponentId);
+  const selectedWire = wires.find((wire) => wire.id === selectedWireId);
+
+  if (!selectedComp && selectedWire) {
+    const board = getControllerBoardDefinition(boardType);
+
+    const endpointLabel = (componentId: string, pinId: string) => {
+      if (componentId === ARDUINO_COMPONENT_ID) return `${board.shortName} · ${pinId}`;
+      if (componentId === BREADBOARD_COMPONENT_ID) {
+        const hole = getBreadboardHoleGlobal(pinId, breadboardPosition);
+        return `Breadboard · ${hole?.label ?? pinId}`;
+      }
+
+      const component = components.find((item) => item.id === componentId);
+      if (!component) return pinId;
+
+      const info = COMPONENT_CATALOG.find((item) => item.type === component.type);
+      const name = info
+        ? getComponentDisplayName(language, info.type, info.name)
+        : component.type;
+      const pin = component.pins.find((item) => item.id === pinId);
+      return `${name} · ${pin?.name ?? pinId}`;
+    };
+
+    return (
+      <div className="properties-content">
+        <div className="property-group">
+          <div className="property-group-title">{t(language, 'wireProperties')}</div>
+          <div className="property-row">
+            <span className="property-label">{t(language, 'wireFrom')}</span>
+            <span style={{ fontSize: 11, color: 'var(--text-secondary)', textAlign: 'right' }}>
+              {endpointLabel(selectedWire.startComponentId, selectedWire.startPinId)}
+            </span>
+          </div>
+          <div className="property-row">
+            <span className="property-label">{t(language, 'wireTo')}</span>
+            <span style={{ fontSize: 11, color: 'var(--text-secondary)', textAlign: 'right' }}>
+              {endpointLabel(selectedWire.endComponentId, selectedWire.endPinId)}
+            </span>
+          </div>
+        </div>
+
+        <div className="property-group">
+          <div className="property-group-title">{t(language, 'wireColorTitle')}</div>
+          <div className="wire-colors wire-colors-panel">
+            {WIRE_COLORS.map((color) => (
+              <button
+                key={color.value}
+                className={`wire-color-btn ${selectedWire.color === color.value ? 'active' : ''}`}
+                style={{ background: color.value }}
+                onClick={() => setWireColorById(selectedWire.id, color.value)}
+                title={getWireColorDisplayName(language, color.name)}
+                type="button"
+              />
+            ))}
+          </div>
+        </div>
+
+        <div className="property-group">
+          <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+            {t(language, 'wireReplugHint')}
+          </p>
+        </div>
+
+        <button
+          className="toolbar-btn danger"
+          style={{ width: '100%', marginTop: 12 }}
+          onClick={() => removeWire(selectedWire.id)}
+          type="button"
+        >
+          {t(language, 'deleteWire')}
+        </button>
+      </div>
+    );
+  }
 
   if (!selectedComp) {
     return (

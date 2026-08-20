@@ -1698,3 +1698,13 @@ body::after {
   border-color: transparent;
   background: linear-gradient(120deg, var(--accent-green), var(--accent-blue));
 }
+
+.wire-colors-panel {
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.wire-colors-panel .wire-color-btn {
+  width: 24px;
+  height: 24px;
+}
