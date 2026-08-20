@@ -1,6 +1,6 @@
 {
   "name": "otiside",
-  "version": "1.4.1",
+  "version": "1.5.0",
   "description": "AI-assisted Arduino and breadboard designer with visual wiring, code generation, and Electron desktop support",
   "main": "electron/main.js",
   "scripts": {

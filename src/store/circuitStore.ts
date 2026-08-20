@@ -77,6 +77,7 @@ interface CircuitStore {
   // Wire actions
   addWire: (wire: Omit<Wire, 'id'>) => void;
   removeWire: (id: string) => void;
+  updateWirePoints: (id: string, points: number[]) => void;
   selectWire: (id: string | null) => void;
   setWireColor: (color: string) => void;
 
@@ -581,6 +582,15 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
     const newWire = { ...wire, id: uuidv4() };
     set((s) => ({ wires: [...s.wires, newWire] }));
     syncRuntimeIfRunning();
+  },
+
+  updateWirePoints: (id, points) => {
+    // Geometry only — the simulation reads endpoints, not the route.
+    set((s) => ({
+      wires: s.wires.map((wire) =>
+        wire.id === id ? { ...wire, points } : wire
+      ),
+    }));
   },
 
   removeWire: (id) => {
