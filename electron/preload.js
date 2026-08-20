@@ -33,6 +33,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('ide-serial-error', listener);
     return () => ipcRenderer.removeListener('ide-serial-error', listener);
   },
+  checkForUpdates: (silent = false) =>
+    ipcRenderer.invoke('updater-check', { silent }),
+  downloadUpdate: () => ipcRenderer.invoke('updater-download'),
+  installUpdate: () => ipcRenderer.invoke('updater-install'),
+  getUpdateState: () => ipcRenderer.invoke('updater-state'),
+  onUpdateStatus: (callback) => {
+    const listener = (_event, payload) => callback(payload);
+    ipcRenderer.on('updater-status', listener);
+    return () => ipcRenderer.removeListener('updater-status', listener);
+  },
   setWindowTitle: (title) => ipcRenderer.send('set-window-title', title),
   minimizeWindow: () => ipcRenderer.invoke('window-minimize'),
   toggleMaximizeWindow: () => ipcRenderer.invoke('window-toggle-maximize'),

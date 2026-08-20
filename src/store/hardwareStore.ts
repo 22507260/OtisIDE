@@ -119,7 +119,10 @@ export const HARDWARE_BAUD_RATE_OPTIONS = [
 
 const MAX_CONSOLE_ENTRIES = 500;
 
+const DEVICE_REFRESH_INTERVAL_MS = 4000;
+
 let refreshTimer: number | null = null;
+let refreshInFlight = false;
 let unsubscribeSerialData: (() => void) | null = null;
 let unsubscribeSerialStatus: (() => void) | null = null;
 let unsubscribeSerialError: (() => void) | null = null;
@@ -220,8 +223,9 @@ export const useHardwareStore = create<HardwareStore>((set, get) => ({
 
     if (refreshTimer === null) {
       refreshTimer = window.setInterval(() => {
+        if (refreshInFlight || get().uploadInProgress) return;
         void get().refreshDevices({ quiet: true });
-      }, 2500);
+      }, DEVICE_REFRESH_INTERVAL_MS);
     }
 
     await get().prepareHardwareIde();
@@ -246,9 +250,18 @@ export const useHardwareStore = create<HardwareStore>((set, get) => ({
     if (!window.electronAPI?.prepareHardwareIde) return;
 
     set({ preparing: true, lastError: null });
-    const result = (await window.electronAPI.prepareHardwareIde({
-      force,
-    })) as HardwarePrepareResult;
+
+    let result: HardwarePrepareResult;
+    try {
+      result = (await window.electronAPI.prepareHardwareIde({
+        force,
+      })) as HardwarePrepareResult;
+    } catch (error) {
+      result = {
+        ok: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
 
     if (!result.ok) {
       set({
@@ -276,7 +289,19 @@ export const useHardwareStore = create<HardwareStore>((set, get) => ({
   refreshDevices: async (options = {}) => {
     if (!window.electronAPI?.listHardwareDevices) return;
 
-    const result = (await window.electronAPI.listHardwareDevices()) as HardwareListResult;
+    let result: HardwareListResult;
+    refreshInFlight = true;
+    try {
+      result = (await window.electronAPI.listHardwareDevices()) as HardwareListResult;
+    } catch (error) {
+      result = {
+        ok: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    } finally {
+      refreshInFlight = false;
+    }
+
     if (!result.ok) {
       if (!options.quiet) {
         set({ lastError: result.error || 'USB scan failed' });
@@ -366,11 +391,20 @@ export const useHardwareStore = create<HardwareStore>((set, get) => ({
     const activeBoardType = activePort?.boardType ?? fallbackBoardType;
 
     set({ uploadInProgress: true, lastError: null });
-    const result = (await window.electronAPI.verifyHardwareSketch({
-      code,
-      boardType: activeBoardType,
-      portPath: get().selectedPortPath,
-    })) as HardwareOperationResult;
+
+    let result: HardwareOperationResult;
+    try {
+      result = (await window.electronAPI.verifyHardwareSketch({
+        code,
+        boardType: activeBoardType,
+        portPath: get().selectedPortPath,
+      })) as HardwareOperationResult;
+    } catch (error) {
+      result = {
+        ok: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
 
     set({
       uploadInProgress: false,
@@ -379,10 +413,11 @@ export const useHardwareStore = create<HardwareStore>((set, get) => ({
     });
 
     get().appendConsoleEntries(
-      (result.logs || []).map((entry) => ({
-        kind: entry.type,
-        text: entry.text,
-      }))
+      result.logs?.length
+        ? result.logs.map((entry) => ({ kind: entry.type, text: entry.text }))
+        : result.ok
+          ? []
+          : [{ kind: 'error' as const, text: result.error || 'Verify failed' }]
     );
 
     return Boolean(result.ok);
@@ -395,11 +430,20 @@ export const useHardwareStore = create<HardwareStore>((set, get) => ({
     const activeBoardType = activePort?.boardType ?? fallbackBoardType;
 
     set({ uploadInProgress: true, lastError: null });
-    const result = (await window.electronAPI.uploadHardwareSketch({
-      code,
-      boardType: activeBoardType,
-      portPath: get().selectedPortPath,
-    })) as HardwareOperationResult;
+
+    let result: HardwareOperationResult;
+    try {
+      result = (await window.electronAPI.uploadHardwareSketch({
+        code,
+        boardType: activeBoardType,
+        portPath: get().selectedPortPath,
+      })) as HardwareOperationResult;
+    } catch (error) {
+      result = {
+        ok: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
 
     set({
       uploadInProgress: false,
@@ -412,10 +456,11 @@ export const useHardwareStore = create<HardwareStore>((set, get) => ({
     });
 
     get().appendConsoleEntries(
-      (result.logs || []).map((entry) => ({
-        kind: entry.type,
-        text: entry.text,
-      }))
+      result.logs?.length
+        ? result.logs.map((entry) => ({ kind: entry.type, text: entry.text }))
+        : result.ok
+          ? []
+          : [{ kind: 'error' as const, text: result.error || 'Upload failed' }]
     );
 
     return Boolean(result.ok);
@@ -436,10 +481,18 @@ export const useHardwareStore = create<HardwareStore>((set, get) => ({
       return;
     }
 
-    const result = await window.electronAPI.openHardwareSerialMonitor({
-      portPath: selectedPortPath,
-      baudRate: get().serialBaudRate,
-    });
+    let result: { ok: boolean; error?: string };
+    try {
+      result = await window.electronAPI.openHardwareSerialMonitor({
+        portPath: selectedPortPath,
+        baudRate: get().serialBaudRate,
+      });
+    } catch (error) {
+      result = {
+        ok: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
 
     if (!result.ok) {
       set({ lastError: result.error || 'Serial monitor failed' });
@@ -452,7 +505,11 @@ export const useHardwareStore = create<HardwareStore>((set, get) => ({
   disconnectSerialMonitor: async () => {
     if (!window.electronAPI?.closeHardwareSerialMonitor) return;
 
-    await window.electronAPI.closeHardwareSerialMonitor();
+    try {
+      await window.electronAPI.closeHardwareSerialMonitor();
+    } catch {
+      // The monitor is closed either way; the renderer state is reset below.
+    }
     set({ serialMonitorOpen: false });
   },
 }));

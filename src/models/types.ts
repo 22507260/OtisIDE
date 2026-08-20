@@ -147,8 +147,8 @@ export const AI_PROVIDER_CONFIGS: Record<
   groq: {
     label: 'Groq',
     baseUrl: 'https://api.groq.com/openai/v1',
-    model: 'gpt-oss-120b',
-    models: ['gpt-oss-120b'],
+    model: 'openai/gpt-oss-120b',
+    models: ['openai/gpt-oss-120b', 'openai/gpt-oss-20b'],
     apiKeyPlaceholder: 'gsk_...',
     requiresApiKey: true,
   },

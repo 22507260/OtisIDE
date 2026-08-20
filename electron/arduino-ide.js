@@ -3,8 +3,7 @@ const { spawn } = require('child_process');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { SerialPort } = require('serialport');
-const { ReadlineParser } = require('@serialport/parser-readline');
+const { SerialPort, ReadlineParser } = require('serialport');
 
 const ESP8266_PACKAGE_URL = 'http://arduino.esp8266.com/stable/package_esp8266com_index.json';
 const ESP32_PACKAGE_URL =
@@ -146,11 +145,13 @@ const BOARD_UPLOAD_PROFILES = {
 const BOARD_TYPES = Object.keys(BOARD_UPLOAD_PROFILES);
 const MAX_CONSOLE_LINES = 500;
 const INDEX_REFRESH_MS = 1000 * 60 * 60 * 12;
+const CLI_STATUS_CACHE_MS = 1000 * 30;
 
 let mainWindowGetter = null;
 let idePreparationPromise = null;
 let lastIndexRefreshAt = 0;
 let activeSerialMonitor = null;
+let cliStatusCache = null;
 const boardFqbnCache = new Map();
 
 function setArduinoIdeWindowGetter(getter) {
@@ -546,10 +547,23 @@ async function runArduinoCli(args, options = {}) {
 async function getArduinoCliStatus({ autoDownload = false } = {}) {
   const cliPath = await resolveArduinoCliPath({ autoDownload });
   if (!cliPath) {
+    cliStatusCache = null;
     return {
       cliAvailable: false,
       cliVersion: '',
       cliPath: '',
+    };
+  }
+
+  if (
+    cliStatusCache &&
+    cliStatusCache.cliPath === cliPath &&
+    Date.now() - cliStatusCache.checkedAt < CLI_STATUS_CACHE_MS
+  ) {
+    return {
+      cliAvailable: true,
+      cliVersion: cliStatusCache.cliVersion,
+      cliPath,
     };
   }
 
@@ -561,9 +575,12 @@ async function getArduinoCliStatus({ autoDownload = false } = {}) {
     }
   );
 
+  const cliVersion = parseCliVersion(versionResult.stdout, versionResult.stderr);
+  cliStatusCache = { cliPath, cliVersion, checkedAt: Date.now() };
+
   return {
     cliAvailable: true,
-    cliVersion: parseCliVersion(versionResult.stdout, versionResult.stderr),
+    cliVersion,
     cliPath,
   };
 }
@@ -1278,19 +1295,38 @@ async function openSerialMonitor(portPath, baudRate = 115200) {
 }
 
 async function prepareArduinoIde(payload = {}) {
-  const status = await ensureArduinoIdeReady({ force: Boolean(payload.force) });
-  return {
-    ok: true,
-    ...status,
-  };
+  try {
+    const status = await ensureArduinoIdeReady({ force: Boolean(payload.force) });
+    return {
+      ok: true,
+      ...status,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      cliAvailable: false,
+      cliVersion: '',
+      error: formatError(error),
+    };
+  }
 }
 
 async function getHardwareList() {
-  const hardware = await listHardwareDevices();
-  return {
-    ok: true,
-    ...hardware,
-  };
+  try {
+    const hardware = await listHardwareDevices();
+    return {
+      ok: true,
+      ...hardware,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      cliAvailable: false,
+      cliVersion: '',
+      ports: [],
+      error: formatError(error),
+    };
+  }
 }
 
 async function verifyHardwareSketch(payload = {}) {

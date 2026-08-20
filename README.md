@@ -143,6 +143,28 @@ npm run build
 npm run electron:build
 ```
 
+### Publish a release (auto update)
+
+```bash
+npm version 1.3.1 --no-git-tag-version
+GH_TOKEN=... npm run release
+```
+
+The desktop app checks GitHub Releases on startup and offers the update to the user.
+The release must be public, not a draft, and must include latest.yml next to the installer.
+See RELEASING.md for the full flow and for local testing without touching GitHub.
+
+### Build the download site
+
+```bash
+npm run website:build
+```
+
+This runs the Electron build and then copies the installer into `website/downloads/`,
+refreshing the version and file size shown on `website/index.html`. Upload the whole
+`website/` folder to any static host (Netlify, Vercel, GitHub Pages) to publish the
+download page.
+
 ### Build notes
 
 - `npm run build` works on Windows, macOS, and Linux.
@@ -198,6 +220,8 @@ The library includes core electronics plus a large set of Fritzing-based modules
 | `src/models/types.ts` | Component catalog, metadata, defaults, and AI provider definitions |
 | `src/lib/mockArduinoRuntime.ts` | Lightweight Arduino-style runtime behavior |
 | `electron/main.js` | Electron window management, file dialogs, and AI request proxying |
+| `electron/updater.js` | GitHub Releases auto update: check, download, install |
+| `website/index.html` | Static download page for the Windows installer |
 
 ## Current Scope
 
