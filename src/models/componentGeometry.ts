@@ -528,13 +528,30 @@ function getPinLayout(type: ComponentType): Point[] | null {
   }
 }
 
-export function applySvgPinLayout(type: ComponentType, pins: Pin[]): Pin[] {
+/**
+ * Places pins on the connectors found in the part's SVG.
+ *
+ * Connectors are matched by position in the list, which is wrong for parts whose
+ * artwork numbers them the other way round (the LED, for one, carries its cathode
+ * on connector0). Those parts pass `connectorOrder`, mapping each pin to the
+ * connector index it really belongs to.
+ */
+export function applySvgPinLayout(
+  type: ComponentType,
+  pins: Pin[],
+  connectorOrder?: number[]
+): Pin[] {
   const layout = getPinLayout(type);
   if (!layout || layout.length < pins.length) return pins;
 
-  return pins.map((pin, index) => ({
-    ...pin,
-    x: layout[index]?.x ?? pin.x,
-    y: layout[index]?.y ?? pin.y,
-  }));
+  return pins.map((pin, index) => {
+    const connectorIndex = connectorOrder?.[index] ?? index;
+    const point = layout[connectorIndex] ?? layout[index];
+
+    return {
+      ...pin,
+      x: point?.x ?? pin.x,
+      y: point?.y ?? pin.y,
+    };
+  });
 }

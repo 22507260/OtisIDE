@@ -184,14 +184,20 @@ export const DEFAULT_AI_MODEL = AI_PROVIDER_CONFIGS[DEFAULT_AI_PROVIDER].model;
 
 // ===== Default pin definitions for each component type =====
 export function getDefaultPins(type: ComponentType): Pin[] {
-  const withSvgLayout = (pins: Pin[]) => applySvgPinLayout(type, pins);
+  const withSvgLayout = (pins: Pin[], connectorOrder?: number[]) =>
+    applySvgPinLayout(type, pins, connectorOrder);
 
   switch (type) {
     case 'led':
-      return withSvgLayout([
-        { id: 'anode', name: 'Anode (+)', type: 'passive', x: 0, y: -20 },
-        { id: 'cathode', name: 'Cathode (-)', type: 'passive', x: 0, y: 20 },
-      ]);
+      // The artwork holds the die in the cathode cup on connector0, so the
+      // anode is the other leg.
+      return withSvgLayout(
+        [
+          { id: 'anode', name: 'Anode (+)', type: 'passive', x: 0, y: -20 },
+          { id: 'cathode', name: 'Cathode (-)', type: 'passive', x: 0, y: 20 },
+        ],
+        [1, 0]
+      );
     case 'resistor':
       return withSvgLayout([
         { id: 'pin1', name: 'Pin 1', type: 'passive', x: -25, y: 0 },
@@ -203,10 +209,14 @@ export function getDefaultPins(type: ComponentType): Pin[] {
         { id: 'pin2', name: 'Pin 2 (-)', type: 'passive', x: 15, y: 0 },
       ]);
     case 'diode':
-      return withSvgLayout([
-        { id: 'anode', name: 'Anode', type: 'passive', x: -20, y: 0 },
-        { id: 'cathode', name: 'Cathode', type: 'passive', x: 20, y: 0 },
-      ]);
+      // The stripe marking the cathode sits on connector0 in the artwork.
+      return withSvgLayout(
+        [
+          { id: 'anode', name: 'Anode', type: 'passive', x: -20, y: 0 },
+          { id: 'cathode', name: 'Cathode', type: 'passive', x: 20, y: 0 },
+        ],
+        [1, 0]
+      );
     case 'button':
       return withSvgLayout([
         { id: 'pin1', name: 'Pin 1', type: 'passive', x: -15, y: -10 },
@@ -235,10 +245,14 @@ export function getDefaultPins(type: ComponentType): Pin[] {
         { id: 'sw', name: 'SW', type: 'digital', x: 24, y: 18 },
       ]);
     case 'buzzer':
-      return withSvgLayout([
-        { id: 'positive', name: '+', type: 'passive', x: -10, y: 0 },
-        { id: 'negative', name: '-', type: 'passive', x: 10, y: 0 },
-      ]);
+      // The artwork prints "-" next to the first connector and "+" next to the second.
+      return withSvgLayout(
+        [
+          { id: 'positive', name: '+', type: 'passive', x: -10, y: 0 },
+          { id: 'negative', name: '-', type: 'passive', x: 10, y: 0 },
+        ],
+        [1, 0]
+      );
     case 'servo':
       return withSvgLayout([
         { id: 'signal', name: 'Signal (Orange)', type: 'pwm', x: -15, y: -10 },
