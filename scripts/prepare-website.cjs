@@ -44,6 +44,7 @@ const sha256 = crypto.createHash('sha256').update(installer).digest('hex');
 
 let page = fs.readFileSync(pagePath, 'utf8');
 page = page
+  .replace(/releases\/download\/v\d+\.\d+\.\d+\//g, `releases/download/v${version}/`)
   .replace(/OtisIDE-\d+\.\d+\.\d+-x64\.exe/g, installerName)
   .replace(/(<b>)\d+\.\d+\.\d+(<\/b>)/g, `$1${version}$2`)
   .replace(/Sürüm \d+\.\d+\.\d+/g, `Sürüm ${version}`)
