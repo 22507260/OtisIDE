@@ -50,7 +50,6 @@ const GRID_SPACING = 20;
 const GRID_COLUMNS = 100;
 const GRID_ROWS = 80;
 const GRID_DOT_RADIUS = 0.5;
-const WIRE_CURVE_TENSION = 0.32;
 const WIRE_BEND_HANDLE_RADIUS = 4.5;
 const SNAP_RADIUS_SQ = (HOLE_SP * 2.5) ** 2;
 const WIRE_PIN_RADIUS = 6;
@@ -316,11 +315,6 @@ function findClosestSegmentIndex(points: number[], x: number, y: number): number
   }
 
   return bestIndex;
-}
-
-/** Bent wires get a spline through their bends; straight runs stay straight. */
-function getWireTension(points: number[]): number {
-  return points.length > 4 ? WIRE_CURVE_TENSION : 0;
 }
 
 function snapToGrid(val: number): number {
@@ -3056,7 +3050,6 @@ const CircuitCanvas: React.FC = () => {
           {/* Wires - 3D style */}
           {wires.map((wire) => {
             const isWireSelected = selectedWireId === wire.id;
-            const tension = getWireTension(wire.points);
             const bendIndices: number[] = [];
             for (let i = 2; i + 2 < wire.points.length; i += 2) {
               bendIndices.push(i);
@@ -3064,9 +3057,9 @@ const CircuitCanvas: React.FC = () => {
             return (
               <Group key={wire.id}>
                 {/* Shadow */}
-                <Line points={wire.points.map((v, i) => i % 2 === 1 ? v + 1.5 : v)} stroke="#000" strokeWidth={4} opacity={0.2} lineCap="round" lineJoin="round" tension={tension} listening={false} />
+                <Line points={wire.points.map((v, i) => i % 2 === 1 ? v + 1.5 : v)} stroke="#000" strokeWidth={4} opacity={0.2} lineCap="round" lineJoin="miter" listening={false} />
                 {/* Main cable */}
-                <Line points={wire.points} stroke={wire.color} strokeWidth={3.2} lineCap="round" lineJoin="round" tension={tension} hitStrokeWidth={12}
+                <Line points={wire.points} stroke={wire.color} strokeWidth={3.2} lineCap="round" lineJoin="miter" hitStrokeWidth={12}
                   onClick={() => {
                     if (toolMode === 'delete') { removeWire(wire.id); }
                     else {
@@ -3086,10 +3079,10 @@ const CircuitCanvas: React.FC = () => {
                   }}
                 />
                 {/* Highlight stripe */}
-                <Line points={wire.points.map((v, i) => i % 2 === 1 ? v - 0.6 : v)} stroke="#fff" strokeWidth={0.8} opacity={0.25} lineCap="round" lineJoin="round" tension={tension} listening={false} />
+                <Line points={wire.points.map((v, i) => i % 2 === 1 ? v - 0.6 : v)} stroke="#fff" strokeWidth={0.8} opacity={0.25} lineCap="round" lineJoin="miter" listening={false} />
                 {/* Selection indicator */}
                 {isWireSelected && (
-                  <Line points={wire.points} stroke="#fff" strokeWidth={5} dash={[4, 4]} opacity={0.5} lineCap="round" lineJoin="round" tension={tension} listening={false} />
+                  <Line points={wire.points} stroke="#fff" strokeWidth={5} dash={[4, 4]} opacity={0.5} lineCap="round" lineJoin="miter" listening={false} />
                 )}
                 {/* Bend handles: drag to reshape, double-click to remove */}
                 {isWireSelected && toolMode === 'select' &&
@@ -3141,11 +3134,10 @@ const CircuitCanvas: React.FC = () => {
               wiringMouse.x,
               wiringMouse.y,
             ];
-            const previewTension = getWireTension(previewPoints);
             return (
               <Group listening={false}>
-                <Line points={previewPoints} stroke="#000" strokeWidth={4} opacity={0.15} lineCap="round" tension={previewTension} listening={false} />
-                <Line points={previewPoints} stroke={wireColor} strokeWidth={2.5} dash={[6, 4]} lineCap="round" tension={previewTension} listening={false} />
+                <Line points={previewPoints} stroke="#000" strokeWidth={4} opacity={0.15} lineCap="round" lineJoin="miter" listening={false} />
+                <Line points={previewPoints} stroke={wireColor} strokeWidth={2.5} dash={[6, 4]} lineCap="round" lineJoin="miter" listening={false} />
                 {/* Bends placed so far */}
                 {Array.from({ length: wiringPath.length / 2 }, (_, index) => (
                   <Circle
