@@ -11,7 +11,7 @@ website/
 │  ├─ otis-mascot.png                hero görseli
 │  └─ workspace-tr.png               uygulama ekran görüntüsü
 └─ downloads/
-   └─ OtisIDE-1.2.0-x64.exe          111 MB kurulum dosyası
+   └─ OtisIDE-1.3.0-x64.exe          111 MB kurulum dosyası
 ```
 
 ## Yöntem 1 — Sürükle bırak (en kolay)
@@ -50,10 +50,10 @@ Sorun yaşarsan kalıcı çözüm: exe'yi **GitHub Releases**'e yükle (2 GB dos
 
 ```html
 <!-- şu an -->
-<a class="btn btn-primary" href="downloads/OtisIDE-1.2.0-x64.exe" download>
+<a class="btn btn-primary" href="downloads/OtisIDE-1.3.0-x64.exe" download>
 
 <!-- releases'e taşıyınca -->
-<a class="btn btn-primary" href="https://github.com/22507260/OtisIDE/releases/download/v1.2.0/OtisIDE-1.2.0-x64.exe">
+<a class="btn btn-primary" href="https://github.com/22507260/OtisIDE/releases/download/v1.3.0/OtisIDE-1.3.0-x64.exe">
 ```
 
 ve `website/downloads/` klasörünü silip öyle deploy et.
@@ -70,13 +70,13 @@ exe'yi derler, `website/downloads/` içine kopyalar, sayfadaki sürüm numarası
 
 ## Dosya doğrulama
 
-`OtisIDE-1.2.0-x64.exe` SHA-256:
+`OtisIDE-1.3.0-x64.exe` SHA-256:
 
 ```
-5b65885d528729ddaf35b9f3dcda23ae56289c2442f0b21a93e251d7945684e8
+57b3d77f40f571c14df48a252c84ff77c73bac6adc1752dc9333ec9119a3ce68
 ```
 
-Kontrol için: `Get-FileHash .\downloads\OtisIDE-1.2.0-x64.exe -Algorithm SHA256`
+Kontrol için: `Get-FileHash .\downloads\OtisIDE-1.3.0-x64.exe -Algorithm SHA256`
 
 ## Not: SmartScreen
 

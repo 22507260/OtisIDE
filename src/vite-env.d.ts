@@ -58,6 +58,35 @@ interface HardwareMonitorResult {
   error?: string;
 }
 
+type UpdaterState =
+  | 'idle'
+  | 'checking'
+  | 'available'
+  | 'downloading'
+  | 'downloaded'
+  | 'up-to-date'
+  | 'unsupported'
+  | 'error';
+
+interface UpdaterVersionInfo {
+  version: string;
+  releaseName?: string;
+  releaseNotes?: string;
+  releaseDate?: string;
+}
+
+interface UpdaterStatusPayload {
+  state: UpdaterState;
+  currentVersion?: string;
+  info?: UpdaterVersionInfo | null;
+  percent?: number;
+  bytesPerSecond?: number;
+  transferred?: number;
+  total?: number;
+  error?: string;
+  silent?: boolean;
+}
+
 interface ElectronAPI {
   isCustomWindowChrome?: boolean;
   saveProject: (
@@ -100,6 +129,11 @@ interface ElectronAPI {
   onHardwareSerialError?: (
     callback: (payload: { path?: string; error?: string }) => void
   ) => () => void;
+  checkForUpdates?: (silent?: boolean) => Promise<{ ok: boolean; error?: string }>;
+  downloadUpdate?: () => Promise<{ ok: boolean; error?: string }>;
+  installUpdate?: () => Promise<{ ok: boolean }>;
+  getUpdateState?: () => Promise<UpdaterStatusPayload>;
+  onUpdateStatus?: (callback: (payload: UpdaterStatusPayload) => void) => () => void;
   setWindowTitle?: (title: string) => void;
   minimizeWindow?: () => Promise<boolean>;
   toggleMaximizeWindow?: () => Promise<boolean>;

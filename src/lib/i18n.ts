@@ -199,6 +199,18 @@ const UI_STRINGS = {
     multimeterReady: 'Ready',
     multimeterOpen: 'Open',
     multimeterBeep: 'Beep',
+    updateBadge: 'Update',
+    updateAvailableTitle: 'A new version of OtisIDE is available',
+    updateReadyTitle: 'Update ready to install',
+    updateVersionLine: 'Installed: {{current}} · New: {{next}}',
+    updateNotes: 'What is new',
+    updateNow: 'Update now',
+    updateLater: 'Later',
+    updateBackground: 'Continue in background',
+    updateReadyText:
+      'The update has been downloaded. OtisIDE will restart to finish the installation.',
+    updateRestartNow: 'Restart and install',
+    updateOnNextLaunch: 'Install on next launch',
   },
   tr: {
     appTitle: 'OtisIDE',
@@ -391,6 +403,18 @@ const UI_STRINGS = {
     multimeterReady: 'Hazır',
     multimeterOpen: 'Açık Devre',
     multimeterBeep: 'Süreklilik',
+    updateBadge: 'Güncelleme',
+    updateAvailableTitle: 'OtisIDE\'nin yeni sürümü hazır',
+    updateReadyTitle: 'Güncelleme kuruluma hazır',
+    updateVersionLine: 'Yüklü: {{current}} · Yeni: {{next}}',
+    updateNotes: 'Yenilikler',
+    updateNow: 'Şimdi güncelle',
+    updateLater: 'Daha sonra',
+    updateBackground: 'Arka planda devam et',
+    updateReadyText:
+      'Güncelleme indirildi. Kurulumu tamamlamak için OtisIDE yeniden başlatılacak.',
+    updateRestartNow: 'Yeniden başlat ve kur',
+    updateOnNextLaunch: 'Bir sonraki açılışta kur',
   },
 } as const;
 
