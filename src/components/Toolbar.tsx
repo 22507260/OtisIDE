@@ -10,6 +10,8 @@ const Toolbar: React.FC = () => {
   const setToolMode = useCircuitStore((s) => s.setToolMode);
   const wireColor = useCircuitStore((s) => s.wireColor);
   const setWireColor = useCircuitStore((s) => s.setWireColor);
+  const selectedWireId = useCircuitStore((s) => s.selectedWireId);
+  const setWireColorById = useCircuitStore((s) => s.setWireColorById);
   const simulation = useCircuitStore((s) => s.simulation);
   const startSimulation = useCircuitStore((s) => s.startSimulation);
   const stopSimulation = useCircuitStore((s) => s.stopSimulation);
@@ -172,7 +174,11 @@ const Toolbar: React.FC = () => {
                 key={color.value}
                 className={`wire-color-btn ${wireColor === color.value ? 'active' : ''}`}
                 style={{ background: color.value }}
-                onClick={() => setWireColor(color.value)}
+                onClick={() => {
+                  setWireColor(color.value);
+                  // A selected wire is recoloured straight away.
+                  if (selectedWireId) setWireColorById(selectedWireId, color.value);
+                }}
                 title={getWireColorDisplayName(language, color.name)}
               />
             ))}

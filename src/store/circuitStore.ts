@@ -78,6 +78,15 @@ interface CircuitStore {
   addWire: (wire: Omit<Wire, 'id'>) => void;
   removeWire: (id: string) => void;
   updateWirePoints: (id: string, points: number[]) => void;
+  /** Unplug one end of a wire and plug it into another pin. */
+  updateWireEndpoint: (
+    id: string,
+    end: 'start' | 'end',
+    componentId: string,
+    pinId: string,
+    position: { x: number; y: number }
+  ) => void;
+  setWireColorById: (id: string, color: string) => void;
   selectWire: (id: string | null) => void;
   setWireColor: (color: string) => void;
 
@@ -593,6 +602,67 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
     }));
   },
 
+  updateWireEndpoint: (id, end, componentId, pinId, position) => {
+    const wire = get().wires.find((item) => item.id === id);
+    if (!wire) return;
+
+    const alreadyThere =
+      end === 'start'
+        ? wire.startComponentId === componentId && wire.startPinId === pinId
+        : wire.endComponentId === componentId && wire.endPinId === pinId;
+    if (alreadyThere) return;
+
+    // Both ends in the same socket would be a wire to nowhere.
+    const otherEnd =
+      end === 'start'
+        ? { componentId: wire.endComponentId, pinId: wire.endPinId }
+        : { componentId: wire.startComponentId, pinId: wire.startPinId };
+    if (otherEnd.componentId === componentId && otherEnd.pinId === pinId) return;
+
+    pushUndoSnapshot();
+    set((s) => ({
+      wires: s.wires.map((item) => {
+        if (item.id !== id) return item;
+
+        const points = [...item.points];
+        if (points.length < 4) {
+          points.splice(0, points.length, position.x, position.y, position.x, position.y);
+        }
+
+        if (end === 'start') {
+          points[0] = position.x;
+          points[1] = position.y;
+          return {
+            ...item,
+            startComponentId: componentId,
+            startPinId: pinId,
+            points,
+          };
+        }
+
+        points[points.length - 2] = position.x;
+        points[points.length - 1] = position.y;
+        return {
+          ...item,
+          endComponentId: componentId,
+          endPinId: pinId,
+          points,
+        };
+      }),
+    }));
+    syncRuntimeIfRunning();
+  },
+
+  setWireColorById: (id, color) => {
+    const wire = get().wires.find((item) => item.id === id);
+    if (!wire || wire.color === color) return;
+
+    pushUndoSnapshot();
+    set((s) => ({
+      wires: s.wires.map((item) => (item.id === id ? { ...item, color } : item)),
+    }));
+  },
+
   removeWire: (id) => {
     if (!get().wires.some((wire) => wire.id === id)) return;
     pushUndoSnapshot();
@@ -604,7 +674,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
   },
 
   selectWire: (id) =>
-    set({ selectedWireId: id, selectedComponentId: null }),
+    set({ selectedWireId: id, selectedComponentId: null, rightTab: 'properties' }),
 
   setWireColor: (color) => set({ wireColor: color }),
 

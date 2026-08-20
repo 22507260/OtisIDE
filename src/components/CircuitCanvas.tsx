@@ -51,6 +51,7 @@ const GRID_COLUMNS = 100;
 const GRID_ROWS = 80;
 const GRID_DOT_RADIUS = 0.5;
 const WIRE_BEND_HANDLE_RADIUS = 4.5;
+const WIRE_PLUG_HANDLE_RADIUS = 6;
 const SNAP_RADIUS_SQ = (HOLE_SP * 2.5) ** 2;
 const WIRE_PIN_RADIUS = 6;
 const WIRE_PIN_FANOUT_RADIUS = 8;
@@ -1618,6 +1619,12 @@ const CircuitCanvas: React.FC = () => {
   });
   const [hoveredBreadboardHole, setHoveredBreadboardHole] = useState<BreadboardHole | null>(null);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  /** The wire end currently being dragged out of its socket, if any. */
+  const [wireDrag, setWireDrag] = useState<{
+    wireId: string;
+    end: 'start' | 'end';
+    target: ProbeSnapTarget | null;
+  } | null>(null);
   const [, setDragPreviewVersion] = useState(0);
 
   const components = useCircuitStore((s) => s.components);
@@ -1649,6 +1656,7 @@ const CircuitCanvas: React.FC = () => {
   const addWire = useCircuitStore((s) => s.addWire);
   const removeWire = useCircuitStore((s) => s.removeWire);
   const updateWirePoints = useCircuitStore((s) => s.updateWirePoints);
+  const updateWireEndpoint = useCircuitStore((s) => s.updateWireEndpoint);
   const selectWire = useCircuitStore((s) => s.selectWire);
   const updateComponentProperty = useCircuitStore((s) => s.updateComponentProperty);
   const isStagePanning = toolMode === 'pan' || middlePanActive;
@@ -1879,10 +1887,19 @@ const CircuitCanvas: React.FC = () => {
           ? [...wire.points]
           : [start.x, start.y, end.x, end.y];
 
-      nextPoints[0] = start.x;
-      nextPoints[1] = start.y;
-      nextPoints[nextPoints.length - 2] = end.x;
-      nextPoints[nextPoints.length - 1] = end.y;
+      // An end being dragged out of its socket follows the cursor instead of
+      // being pulled back to the pin it is still recorded against.
+      const heldEnd = wireDrag?.wireId === wire.id ? wireDrag.end : null;
+
+      if (heldEnd !== 'start') {
+        nextPoints[0] = start.x;
+        nextPoints[1] = start.y;
+      }
+
+      if (heldEnd !== 'end') {
+        nextPoints[nextPoints.length - 2] = end.x;
+        nextPoints[nextPoints.length - 1] = end.y;
+      }
 
       const pointsChanged =
         nextPoints.length !== wire.points.length ||
@@ -1899,7 +1916,7 @@ const CircuitCanvas: React.FC = () => {
     if (hasChanges) {
       useCircuitStore.setState({ wires: nextWires });
     }
-  }, [resolveWireEndpointPosition, wires]);
+  }, [resolveWireEndpointPosition, wireDrag, wires]);
 
   // Resize observer
   useEffect(() => {
@@ -2367,9 +2384,70 @@ const CircuitCanvas: React.FC = () => {
       nextPoints.splice(segmentIndex + 2, 0, pointer.x, pointer.y);
       updateWirePoints(wireId, nextPoints);
       selectWire(wireId);
-      selectComponent(null);
     },
     [captureUndoSnapshot, getWorldPointerPosition, selectComponent, selectWire, updateWirePoints]
+  );
+
+  const handleWireEndDragMove = useCallback(
+    (wireId: string, end: 'start' | 'end', x: number, y: number) => {
+      const wire = useCircuitStore.getState().wires.find((item) => item.id === wireId);
+      if (!wire) return;
+
+      // The cable follows the cursor while it is unplugged.
+      const nextPoints = [...wire.points];
+      if (end === 'start') {
+        nextPoints[0] = x;
+        nextPoints[1] = y;
+      } else {
+        nextPoints[nextPoints.length - 2] = x;
+        nextPoints[nextPoints.length - 1] = y;
+      }
+      updateWirePoints(wireId, nextPoints);
+
+      const target = resolveProbeSnapTargetAtPosition(x, y, '');
+      setWireDrag((current) =>
+        current && current.wireId === wireId && current.end === end
+          ? { ...current, target }
+          : current
+      );
+    },
+    [resolveProbeSnapTargetAtPosition, updateWirePoints]
+  );
+
+  const handleWireEndDragEnd = useCallback(
+    (wireId: string, end: 'start' | 'end', x: number, y: number) => {
+      const target = resolveProbeSnapTargetAtPosition(x, y, '');
+      setWireDrag(null);
+
+      if (target) {
+        updateWireEndpoint(wireId, end, target.componentId, target.pinId, {
+          x: target.x,
+          y: target.y,
+        });
+        return;
+      }
+
+      // Nothing to plug into: the end springs back to its socket.
+      const wire = useCircuitStore.getState().wires.find((item) => item.id === wireId);
+      if (!wire) return;
+
+      const home =
+        end === 'start'
+          ? resolveWireEndpointPosition(wire.startComponentId, wire.startPinId)
+          : resolveWireEndpointPosition(wire.endComponentId, wire.endPinId);
+      if (!home) return;
+
+      const nextPoints = [...wire.points];
+      if (end === 'start') {
+        nextPoints[0] = home.x;
+        nextPoints[1] = home.y;
+      } else {
+        nextPoints[nextPoints.length - 2] = home.x;
+        nextPoints[nextPoints.length - 1] = home.y;
+      }
+      updateWirePoints(wireId, nextPoints);
+    },
+    [resolveProbeSnapTargetAtPosition, resolveWireEndpointPosition, updateWireEndpoint, updateWirePoints]
   );
 
   const finalizeComponentDrag = useCallback((comp: CircuitComponent, node: Konva.Group) => {
@@ -2817,7 +2895,6 @@ const CircuitCanvas: React.FC = () => {
           <>
             <button className="context-menu-item" onClick={action(() => {
               selectWire(selectedWire.id);
-              selectComponent(null);
             })}>
               <span>{t(language, 'select')}</span>
             </button>
@@ -3064,7 +3141,6 @@ const CircuitCanvas: React.FC = () => {
                     if (toolMode === 'delete') { removeWire(wire.id); }
                     else {
                       selectWire(wire.id);
-                      selectComponent(null);
                     }
                   }}
                   onDblClick={(e) => {
@@ -3114,16 +3190,74 @@ const CircuitCanvas: React.FC = () => {
                       }}
                     />
                   ))}
-                {/* End caps */}
+                {/* End caps double as the plugs you can pull out */}
                 {wire.points.length >= 4 && (
                   <>
                     <Circle x={wire.points[0]} y={wire.points[1]} radius={2.5} fill={wire.color} stroke="#000" strokeWidth={0.5} listening={false} />
                     <Circle x={wire.points[wire.points.length - 2]} y={wire.points[wire.points.length - 1]} radius={2.5} fill={wire.color} stroke="#000" strokeWidth={0.5} listening={false} />
                   </>
                 )}
+                {isWireSelected && toolMode === 'select' && wire.points.length >= 4 &&
+                  (['start', 'end'] as const).map((end) => {
+                    const index = end === 'start' ? 0 : wire.points.length - 2;
+                    const dragging = wireDrag?.wireId === wire.id && wireDrag.end === end;
+
+                    return (
+                      <Circle
+                        key={`${wire.id}-plug-${end}`}
+                        x={wire.points[index]}
+                        y={wire.points[index + 1]}
+                        radius={WIRE_PLUG_HANDLE_RADIUS}
+                        fill={dragging ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.14)'}
+                        stroke="#fff"
+                        strokeWidth={1.8}
+                        hitStrokeWidth={16}
+                        draggable
+                        onMouseDown={(e) => {
+                          e.cancelBubble = true;
+                        }}
+                        onDragStart={(e) => {
+                          e.cancelBubble = true;
+                          captureUndoSnapshot();
+                          setWireDrag({ wireId: wire.id, end, target: null });
+                        }}
+                        onDragMove={(e) => {
+                          e.cancelBubble = true;
+                          handleWireEndDragMove(wire.id, end, e.target.x(), e.target.y());
+                        }}
+                        onDragEnd={(e) => {
+                          e.cancelBubble = true;
+                          handleWireEndDragEnd(wire.id, end, e.target.x(), e.target.y());
+                        }}
+                      />
+                    );
+                  })}
               </Group>
             );
           })}
+
+          {/* Where the plug in hand would land */}
+          {wireDrag?.target && (
+            <Group listening={false}>
+              <Circle
+                x={wireDrag.target.x}
+                y={wireDrag.target.y}
+                radius={9}
+                fill="rgba(78, 204, 163, 0.22)"
+                stroke="#4ecca3"
+                strokeWidth={1.6}
+              />
+              <Text
+                text={wireDrag.target.label}
+                x={wireDrag.target.x - 22}
+                y={wireDrag.target.y - 20}
+                width={44}
+                align="center"
+                fontSize={8}
+                fill="#d5f5ea"
+              />
+            </Group>
+          )}
 
           {/* Wiring preview line */}
           {wiringStart && wiringMouse && (() => {
