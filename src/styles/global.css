@@ -838,7 +838,7 @@ body::after {
 }
 
 .palette-item-icon {
-  width: 30px;
+  width: 34px;
   height: 30px;
   display: flex;
   align-items: center;
@@ -846,7 +846,11 @@ body::after {
   border: 1px solid var(--border);
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.03);
-  font-size: 16px;
+  /* Labels run up to five characters, so they have to stay inside the badge. */
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  overflow: hidden;
   flex-shrink: 0;
 }
 
@@ -1539,4 +1543,120 @@ body::after {
   to {
     filter: brightness(1.5);
   }
+}
+
+/* ===== Update prompt ===== */
+.update-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 4000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(4, 8, 14, 0.72);
+  backdrop-filter: blur(6px);
+}
+
+.update-card {
+  width: min(460px, 100%);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(94, 234, 212, 0.07), rgba(255, 255, 255, 0)), #0a1826;
+  box-shadow: 0 40px 90px -40px rgba(0, 0, 0, 0.95);
+  padding: 26px 26px 22px;
+}
+
+.update-card-head {
+  margin-bottom: 18px;
+}
+
+.update-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #04141b;
+  background: linear-gradient(120deg, var(--accent-green), var(--accent-blue));
+  border-radius: 999px;
+  padding: 4px 10px;
+  margin-bottom: 12px;
+}
+
+.update-title {
+  font-size: 18px;
+  font-weight: 650;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+
+.update-subtitle {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.update-notes {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 12px 14px;
+  margin-bottom: 18px;
+  max-height: 190px;
+  overflow-y: auto;
+}
+
+.update-notes-title {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.update-notes-body {
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  margin: 0;
+}
+
+.update-progress {
+  margin-bottom: 18px;
+}
+
+.update-progress-track {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.update-progress-bar {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(120deg, var(--accent-green), var(--accent-blue));
+  transition: width 0.2s ease;
+}
+
+.update-progress-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 8px;
+}
+
+.update-ready-text {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 18px;
+}
+
+.update-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }

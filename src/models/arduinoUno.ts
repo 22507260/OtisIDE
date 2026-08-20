@@ -1610,3 +1610,10 @@ export function isArduinoReference(ref: string): boolean {
     return board.aliases.some((alias) => normalizeToken(alias) === normalized);
   });
 }
+
+export function isControllerBoardType(value: unknown): value is ControllerBoardType {
+  return (
+    typeof value === 'string' &&
+    Object.prototype.hasOwnProperty.call(BOARD_DEFINITIONS, value)
+  );
+}

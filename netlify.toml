@@ -1,0 +1,40 @@
+# Netlify ayarları — yayınlanan şey İNDİRME SİTESİ, uygulamanın kendisi değil.
+#
+# Bu dosya olmadan Netlify depoda Vite projesi görüp otomatik "npm run build"
+# çalıştırır ve "dist" klasörünü yayınlar; o klasör OtisIDE'nin web sürümüdür,
+# yani domaine girince program açılır. Aşağıdaki ayarlar bunu engeller.
+#
+# Netlify UI'daki karşılıkları:
+#   Base directory    : (boş — depo kökü)
+#   Build command     : (boş)
+#   Publish directory : website
+
+[build]
+  publish = "website"
+  # Boş bırakılırsa Netlify kendi çerçeve algılamasını çalıştırır, bu yüzden
+  # açıkça hiçbir şey yapmayan bir komut veriyoruz.
+  command = "echo 'statik indirme sitesi - derleme adimi yok'"
+
+[build.environment]
+  # Sitenin derlenmesi gerekmediği için bağımlılık kurulumunu da hızlandır.
+  NPM_FLAGS = "--no-audit --no-fund"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+# Kurulum dosyası siteyle birlikte sunuluyorsa (sürükle bırak deploy) tarayıcıda
+# açılmak yerine indirilsin.
+[[headers]]
+  for = "/downloads/*"
+  [headers.values]
+    Content-Type = "application/octet-stream"
+    Content-Disposition = "attachment"
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=604800"

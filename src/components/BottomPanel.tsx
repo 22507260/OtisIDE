@@ -1,3 +1,4 @@
+import '../lib/monacoSetup';
 import Editor, { type Monaco } from '@monaco-editor/react';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useCircuitStore } from '../store/circuitStore';

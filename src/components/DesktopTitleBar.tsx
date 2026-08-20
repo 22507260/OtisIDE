@@ -28,7 +28,7 @@ const DesktopTitleBar: React.FC = () => {
           <div className="desktop-brand-mark" aria-hidden="true" />
           <div className="desktop-brand-copy">
             <strong>{t(language, 'appTitle')}</strong>
-            <span>{language === 'tr' ? 'Masaustu calisma alani' : 'Desktop workspace'}</span>
+            <span>{language === 'tr' ? 'Masaüstü çalışma alanı' : 'Desktop workspace'}</span>
           </div>
         </div>
 
@@ -52,8 +52,8 @@ const DesktopTitleBar: React.FC = () => {
           className="desktop-window-btn minimize"
           type="button"
           onClick={() => void window.electronAPI?.minimizeWindow?.()}
-          title={language === 'tr' ? 'Kucult' : 'Minimize'}
-          aria-label={language === 'tr' ? 'Kucult' : 'Minimize'}
+          title={language === 'tr' ? 'Küçült' : 'Minimize'}
+          aria-label={language === 'tr' ? 'Küçült' : 'Minimize'}
         >
           <span className="desktop-window-icon" />
         </button>
@@ -61,8 +61,8 @@ const DesktopTitleBar: React.FC = () => {
           className="desktop-window-btn maximize"
           type="button"
           onClick={handleToggleMaximize}
-          title={language === 'tr' ? 'Buyut' : 'Maximize'}
-          aria-label={language === 'tr' ? 'Buyut' : 'Maximize'}
+          title={language === 'tr' ? 'Büyüt' : 'Maximize'}
+          aria-label={language === 'tr' ? 'Büyüt' : 'Maximize'}
         >
           <span className="desktop-window-icon" />
         </button>

@@ -26,6 +26,7 @@ import {
   getControllerBoardPins,
 } from '../models/arduinoUno';
 import { DEFAULT_BREADBOARD_POSITION } from '../models/breadboard';
+import { sanitizeProjectData } from '../lib/projectFile';
 import { v4 as uuidv4 } from 'uuid';
 import { startMockArduinoRuntime, stopMockArduinoRuntime } from '../lib/mockArduinoRuntime';
 
@@ -116,14 +117,7 @@ interface CircuitStore {
 
   // Project
   clearProject: () => void;
-  loadProject: (data: {
-    components: CircuitComponent[];
-    wires: Wire[];
-    code: string;
-    boardType?: ControllerBoardType;
-    boardPosition?: { x: number; y: number };
-    breadboardPosition?: { x: number; y: number };
-  }) => void;
+  loadProject: (data: unknown) => boolean;
   getProjectData: () => {
     components: CircuitComponent[];
     wires: Wire[];
@@ -827,23 +821,18 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
   },
 
   loadProject: (data) => {
+    const project = sanitizeProjectData(data, DEFAULT_CODE);
+    if (!project) return false;
+
     pushUndoSnapshot();
     stopMockArduinoRuntime();
     set({
-      components: data.components,
-      wires: data.wires,
-      code: data.code,
-      boardType: getControllerBoardDefinition(
-        data.boardType ?? DEFAULT_CONTROLLER_BOARD_TYPE
-      ).type,
-      boardPosition: {
-        ...DEFAULT_CONTROLLER_BOARD_POSITION,
-        ...data.boardPosition,
-      },
-      breadboardPosition: {
-        ...DEFAULT_BREADBOARD_POSITION,
-        ...data.breadboardPosition,
-      },
+      components: project.components,
+      wires: project.wires,
+      code: project.code,
+      boardType: getControllerBoardDefinition(project.boardType).type,
+      boardPosition: project.boardPosition,
+      breadboardPosition: project.breadboardPosition,
       selectedComponentId: null,
       selectedWireId: null,
       simulation: {
@@ -855,6 +844,8 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
         oscilloscopeTraces: {},
       },
     });
+
+    return true;
   },
 
   getProjectData: () => {

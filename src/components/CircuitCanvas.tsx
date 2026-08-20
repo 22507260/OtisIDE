@@ -1,5 +1,5 @@
 ﻿import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react';
-import { Stage, Layer, Group, Rect, Line, Circle, Text, Image as KonvaImage } from 'react-konva';
+import { Stage, Layer, Group, Rect, Line, Circle, Shape, Text, Image as KonvaImage } from 'react-konva';
 import { useCircuitStore } from '../store/circuitStore';
 import {
   CircuitComponent,
@@ -46,6 +46,10 @@ import multimeterProbeBlackSvg from '../assets/components/multimeter-probe-black
 
 // ===== Constants =====
 const GRID_SIZE = 10;
+const GRID_SPACING = 20;
+const GRID_COLUMNS = 100;
+const GRID_ROWS = 80;
+const GRID_DOT_RADIUS = 0.5;
 const SNAP_RADIUS_SQ = (HOLE_SP * 2.5) ** 2;
 const WIRE_PIN_RADIUS = 6;
 const WIRE_PIN_FANOUT_RADIUS = 8;
@@ -2572,13 +2576,29 @@ const CircuitCanvas: React.FC = () => {
       ? getBreadboardHoleGlobal(wiringStart.pinId, breadboardPosition)
       : null;
 
-  // Memoized grid dots
-  const gridDots = useMemo(() =>
-    Array.from({ length: 100 }, (_, i) =>
-      Array.from({ length: 80 }, (_, j) => (
-        <Circle key={`g-${i}-${j}`} x={i * 20} y={j * 20} radius={0.5} fill="#1e1e3a" listening={false} />
-      ))
-    ), []);
+  // One canvas shape instead of 8000 Konva nodes
+  const gridDots = useMemo(
+    () => (
+      <Shape
+        listening={false}
+        perfectDrawEnabled={false}
+        sceneFunc={(context) => {
+          context.beginPath();
+          for (let column = 0; column < GRID_COLUMNS; column += 1) {
+            for (let row = 0; row < GRID_ROWS; row += 1) {
+              const x = column * GRID_SPACING;
+              const y = row * GRID_SPACING;
+              context.moveTo(x + GRID_DOT_RADIUS, y);
+              context.arc(x, y, GRID_DOT_RADIUS, 0, Math.PI * 2, false);
+            }
+          }
+          context.fillStyle = '#1e1e3a';
+          context.fill();
+        }}
+      />
+    ),
+    []
+  );
 
   const componentTarget: Extract<ContextMenuTarget, { kind: 'component' }> | null =
     contextMenu?.target.kind === 'component' ? contextMenu.target : null;
@@ -2772,7 +2792,7 @@ const CircuitCanvas: React.FC = () => {
             fill="#0e0e1e"
           />
 
-          {/* Grid dots â€” memoized */}
+          {/* Grid dots */}
           {gridDots}
 
           {/* Controller board */}
@@ -2879,7 +2899,7 @@ const CircuitCanvas: React.FC = () => {
             />
           )}
 
-          {/* Wires â€” 3D style */}
+          {/* Wires - 3D style */}
           {wires.map((wire) => {
             const isWireSelected = selectedWireId === wire.id;
             return (

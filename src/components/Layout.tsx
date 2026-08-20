@@ -6,6 +6,7 @@ import CircuitCanvas from './CircuitCanvas';
 import PropertiesPanel from './PropertiesPanel';
 import AIPanel from './AIPanel';
 import BottomPanel from './BottomPanel';
+import UpdateNotice from './UpdateNotice';
 import { useCircuitStore } from '../store/circuitStore';
 import { t } from '../lib/i18n';
 
@@ -15,6 +16,7 @@ const Layout: React.FC = () => {
 
   return (
     <div className="app-shell">
+      <UpdateNotice />
       <DesktopTitleBar />
       <div className="app-container">
         <Toolbar />

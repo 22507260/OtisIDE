@@ -40,6 +40,10 @@ const Toolbar: React.FC = () => {
     hardwarePorts.find((port) => port.path === selectedHardwarePortPath) ?? null;
   const effectiveBoardType = selectedHardwarePort?.boardType ?? boardType;
 
+  const notifyInvalidProject = () => {
+    window.alert(t(language, 'invalidProjectFile'));
+  };
+
   const handleSave = async () => {
     const data = getProjectData();
     if (window.electronAPI) {
@@ -64,11 +68,19 @@ const Toolbar: React.FC = () => {
 
   const handleLoad = async () => {
     if (window.electronAPI) {
-      const data = await window.electronAPI.loadProject({
-        title: t(language, 'openProjectDialogTitle'),
-        filterName: t(language, 'projectFilterName'),
-      });
-      if (data) loadProject(data as any);
+      let data: unknown = null;
+      try {
+        data = await window.electronAPI.loadProject({
+          title: t(language, 'openProjectDialogTitle'),
+          filterName: t(language, 'projectFilterName'),
+        });
+      } catch {
+        notifyInvalidProject();
+        return;
+      }
+
+      if (data === null || data === undefined) return;
+      if (!loadProject(data)) notifyInvalidProject();
       return;
     }
 
@@ -81,12 +93,15 @@ const Toolbar: React.FC = () => {
 
       const reader = new FileReader();
       reader.onload = () => {
+        let data: unknown;
         try {
-          const data = JSON.parse(reader.result as string);
-          loadProject(data);
+          data = JSON.parse(reader.result as string);
         } catch {
-          // Ignore invalid files.
+          notifyInvalidProject();
+          return;
         }
+
+        if (!loadProject(data)) notifyInvalidProject();
       };
       reader.readAsText(file);
     };
@@ -322,15 +337,19 @@ const Toolbar: React.FC = () => {
       <div className="toolbar-spacer" />
 
       <div className="toolbar-group toolbar-group-right">
-        {isDesktop && <span className="toolbar-label">Desktop</span>}
+        {isDesktop && (
+          <span className="toolbar-label">
+            {language === 'tr' ? 'Masaüstü' : 'Desktop'}
+          </span>
+        )}
         <span className="toolbar-label">{t(language, 'language')}</span>
         <select
           className="toolbar-select toolbar-select-compact"
           value={language}
           onChange={(event) => setLanguage(event.target.value as 'en' | 'tr')}
         >
-          <option value="en">{language === 'tr' ? 'Ingilizce' : 'English'}</option>
-          <option value="tr">{language === 'tr' ? 'Turkce' : 'Turkish'}</option>
+          <option value="en">{language === 'tr' ? 'İngilizce' : 'English'}</option>
+          <option value="tr">{language === 'tr' ? 'Türkçe' : 'Turkish'}</option>
         </select>
       </div>
     </div>

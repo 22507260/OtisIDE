@@ -23,6 +23,7 @@ import {
   type CircuitComponent,
   type ComponentType,
 } from '../models/types';
+import { snapToBreadboard } from './CircuitCanvas';
 import { useCircuitStore } from '../store/circuitStore';
 import {
   getComponentDisplayName,
@@ -659,7 +660,7 @@ const AIPanel: React.FC = () => {
     }
 
     const data = await response.json();
-    return data.choices[0]?.message?.content || 'No response received.';
+    return data.choices?.[0]?.message?.content || 'No response received.';
   };
 
   const applyAssistantResponse = (
@@ -669,9 +670,10 @@ const AIPanel: React.FC = () => {
   ) => {
     let componentsAdded = 0;
     let wiresAdded = 0;
-    const snapToBreadboard =
+    const snapPosition =
       window.snapToBreadboard ??
-      require('../components/CircuitCanvas').snapToBreadboard;
+      ((x: number, y: number, type?: string) =>
+        snapToBreadboard(x, y, type, undefined, breadboardPosition));
 
     const circuitItems = extractTypedJsonArray(
       assistantMessage,
@@ -687,7 +689,7 @@ const AIPanel: React.FC = () => {
         circuitItems.forEach((item, index) => {
           if (!validTypes.has(item.type as ComponentType)) return;
 
-          const snapped = snapToBreadboard(item.x, item.y, item.type);
+          const snapped = snapPosition(item.x, item.y, item.type);
           addComponent(item.type as ComponentType, snapped.x, snapped.y);
           componentsAdded += 1;
 

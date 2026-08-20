@@ -11,6 +11,11 @@ const {
   closeHardwareSerialMonitor,
   disposeArduinoIde,
 } = require('./arduino-ide');
+const {
+  setUpdaterWindowGetter,
+  registerUpdaterIpc,
+  startUpdateCheck,
+} = require('./updater');
 
 let mainWindow = null;
 
@@ -123,10 +128,13 @@ function readDialogOptions(options) {
   };
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   app.setAppUserModelId('com.otis21.otiside');
   setArduinoIdeWindowGetter(() => mainWindow);
-  return createWindow();
+  setUpdaterWindowGetter(() => mainWindow);
+  registerUpdaterIpc();
+  await createWindow();
+  startUpdateCheck();
 });
 
 app.on('window-all-closed', () => {
