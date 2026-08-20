@@ -380,6 +380,13 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
             ledStates: {},
           },
         })),
+      setPinStates: (pinStates) =>
+        set((s) => ({
+          simulation: {
+            ...s.simulation,
+            pinStates,
+          },
+        })),
       setComponentState: (componentId, properties) =>
         set((s) => ({
           simulation: {
