@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 84 72">
+  <g id="breadboard">
+    <rect x="10" y="14" width="64" height="40" rx="6" fill="#2f8b59" stroke="#1e5d3b" stroke-width="2"/>
+    <circle cx="42" cy="34" r="18" fill="#f7f9fb" stroke="#cfd8df" stroke-width="2"/>
+    <path d="M42 18a16 16 0 0 1 16 16" fill="none" stroke="#e2e8ed" stroke-width="2"/>
+    <path d="M42 50a16 16 0 0 1-16-16" fill="none" stroke="#d6dde4" stroke-width="2"/>
+    <text x="42" y="61" font-size="7" text-anchor="middle" fill="#ffffff" font-family="Arial">PIR</text>
+    <rect id="connector0pin" x="28" y="54" width="4" height="14" fill="#caa24d"/>
+    <rect id="connector1pin" x="40" y="54" width="4" height="14" fill="#caa24d"/>
+    <rect id="connector2pin" x="52" y="54" width="4" height="14" fill="#caa24d"/>
+  </g>
+</svg>

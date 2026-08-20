@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="78" height="68" viewBox="0 0 78 68">
+  <rect x="14" y="8" width="50" height="46" rx="6" fill="#0f6a93" stroke="#093b54" stroke-width="2"/>
+  <rect x="23" y="18" width="32" height="9" rx="2" fill="#dde6ee" stroke="#7f8fa1" stroke-width="1"/>
+  <rect x="25" y="32" width="28" height="11" rx="2" fill="#24313b" stroke="#78c7e8" stroke-width="1.4"/>
+  <text x="39" y="41" text-anchor="middle" font-size="8" font-family="Arial, sans-serif" fill="#f1fbff">INA219</text>
+  <circle cx="25" cy="14" r="4.2" fill="#cfd9e1" stroke="#7f8fa1" stroke-width="1.2"/>
+  <circle cx="53" cy="14" r="4.2" fill="#cfd9e1" stroke="#7f8fa1" stroke-width="1.2"/>
+  <g fill="#d5b460" stroke="#6b5327" stroke-width="0.8">
+    <rect x="19" y="50" width="4" height="10" rx="1"/>
+    <rect x="31" y="50" width="4" height="10" rx="1"/>
+    <rect x="43" y="50" width="4" height="10" rx="1"/>
+    <rect x="55" y="50" width="4" height="10" rx="1"/>
+  </g>
+</svg>

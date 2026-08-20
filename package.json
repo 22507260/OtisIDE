@@ -1,0 +1,107 @@
+{
+  "name": "otiside",
+  "version": "1.2.0",
+  "description": "AI-assisted Arduino and breadboard designer with visual wiring, code generation, and Electron desktop support",
+  "main": "electron/main.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "preview": "vite preview",
+    "build:icons": "node scripts/ensure-icons.cjs",
+    "electron:dev": "concurrently \"vite\" \"wait-on http://localhost:5173 && node scripts/run-electron-command.cjs . --dev\"",
+    "electron:build": "npm run build:icons && vite build && electron-builder --publish never",
+    "desktop:dev": "npm run electron:dev",
+    "desktop:build": "npm run electron:build",
+    "start": "vite",
+    "website:prepare": "node scripts/prepare-website.cjs",
+    "website:build": "npm run electron:build && npm run website:prepare"
+  },
+  "keywords": [
+    "arduino",
+    "breadboard",
+    "circuit",
+    "electron",
+    "react",
+    "simulator"
+  ],
+  "author": "otis21",
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/22507260/OtisIDE.git"
+  },
+  "bugs": {
+    "url": "https://github.com/22507260/OtisIDE/issues"
+  },
+  "homepage": "https://github.com/22507260/OtisIDE#readme",
+  "funding": {
+    "type": "Buy Me a Coffee",
+    "url": "https://buymeacoffee.com/otis21"
+  },
+  "engines": {
+    "node": ">=20",
+    "npm": ">=10"
+  },
+  "build": {
+    "appId": "com.otis21.otiside",
+    "productName": "OtisIDE",
+    "artifactName": "${productName}-${version}-${arch}.${ext}",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "asar": true,
+    "npmRebuild": false,
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "OtisIDE",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico"
+    }
+  },
+  "dependencies": {
+    "@monaco-editor/react": "^4.7.0",
+    "konva": "^10.2.1",
+    "monaco-editor": "^0.55.1",
+    "openai": "^6.29.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "react-konva": "^19.2.3",
+    "serialport": "^13.0.0",
+    "uuid": "^13.0.0",
+    "zustand": "^5.0.12"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@types/uuid": "^10.0.0",
+    "@vitejs/plugin-react": "^6.0.1",
+    "concurrently": "^9.2.1",
+    "electron": "^41.0.2",
+    "electron-builder": "^26.8.1",
+    "typescript": "^5.9.3",
+    "vite": "^8.0.0",
+    "wait-on": "^9.0.4"
+  }
+}

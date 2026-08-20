@@ -1,0 +1,35 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="200"
+  height="128"
+  viewBox="0 0 200 128"
+  fill="none"
+>
+  <defs>
+    <linearGradient id="scopeBody" x1="20" y1="16" x2="180" y2="112" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2A3644" />
+      <stop offset="1" stop-color="#121B25" />
+    </linearGradient>
+    <linearGradient id="scopeScreen" x1="34" y1="28" x2="112" y2="78" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#183D39" />
+      <stop offset="1" stop-color="#0A1B1C" />
+    </linearGradient>
+  </defs>
+
+  <rect x="18" y="18" width="164" height="92" rx="14" fill="url(#scopeBody)" stroke="#5A6E83" stroke-width="2" />
+  <rect x="30" y="28" width="92" height="52" rx="8" fill="url(#scopeScreen)" stroke="#355C5B" stroke-width="2" />
+
+  <path d="M38 60H52L59 44L67 70L75 34L82 66L90 50H113" stroke="#73F1C7" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" />
+
+  <rect x="136" y="32" width="30" height="10" rx="4" fill="#202C38" stroke="#6E7C8D" />
+  <rect x="136" y="48" width="30" height="10" rx="4" fill="#202C38" stroke="#6E7C8D" />
+  <rect x="136" y="64" width="30" height="10" rx="4" fill="#202C38" stroke="#6E7C8D" />
+
+  <circle cx="146" cy="88" r="10" fill="#202C38" stroke="#8396AA" stroke-width="2" />
+  <circle cx="166" cy="88" r="10" fill="#202C38" stroke="#8396AA" stroke-width="2" />
+
+  <circle cx="72" cy="105" r="7.5" fill="#0E1319" stroke="#F4D35E" stroke-width="2.2" />
+  <circle cx="128" cy="105" r="7.5" fill="#0E1319" stroke="#DEE6F0" stroke-width="2.2" />
+
+  <rect x="42" y="16" width="44" height="8" rx="4" fill="#435465" opacity=".55" />
+</svg>

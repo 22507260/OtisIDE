@@ -1,0 +1,64 @@
+<svg width="1280" height="760" viewBox="0 0 1280 760" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="panel" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#112637"/>
+      <stop offset="1" stop-color="#09141E"/>
+    </linearGradient>
+    <linearGradient id="canvas" x1="270" y1="134" x2="918" y2="600" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F2434"/>
+      <stop offset="1" stop-color="#071019"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1280" height="760" rx="28" fill="#07111A"/>
+  <rect x="30" y="30" width="1220" height="700" rx="24" fill="#091724" stroke="#20384A" stroke-width="2"/>
+  <rect x="54" y="54" width="1172" height="72" rx="20" fill="url(#panel)" stroke="#28445A"/>
+  <text x="86" y="98" fill="#ECF8FF" font-size="28" font-weight="700" font-family="Segoe UI, Arial, sans-serif">Workspace map</text>
+  <text x="954" y="97" fill="#AAC3D3" font-size="20" font-family="Segoe UI, Arial, sans-serif">Toolbar: save, tools, board, zoom, sim, language</text>
+
+  <rect x="54" y="146" width="236" height="520" rx="22" fill="url(#panel)" stroke="#28445A"/>
+  <text x="84" y="190" fill="#FFB77C" font-size="24" font-weight="700" font-family="Segoe UI, Arial, sans-serif">1. Component Palette</text>
+  <text x="84" y="226" fill="#AAC3D3" font-size="18" font-family="Segoe UI, Arial, sans-serif">Drag parts onto the canvas</text>
+  <rect x="84" y="262" width="176" height="48" rx="14" fill="#102A3A"/>
+  <rect x="84" y="326" width="176" height="48" rx="14" fill="#102A3A"/>
+  <rect x="84" y="390" width="176" height="48" rx="14" fill="#102A3A"/>
+  <rect x="84" y="454" width="176" height="48" rx="14" fill="#102A3A"/>
+  <text x="106" y="293" fill="#ECF8FF" font-size="18" font-family="Segoe UI, Arial, sans-serif">LED / resistor / switch</text>
+  <text x="106" y="357" fill="#ECF8FF" font-size="18" font-family="Segoe UI, Arial, sans-serif">Sensors / displays</text>
+  <text x="106" y="421" fill="#ECF8FF" font-size="18" font-family="Segoe UI, Arial, sans-serif">Motors / drivers</text>
+  <text x="106" y="485" fill="#ECF8FF" font-size="18" font-family="Segoe UI, Arial, sans-serif">Fritzing-based modules</text>
+
+  <rect x="314" y="146" width="616" height="392" rx="24" fill="url(#canvas)" stroke="#28445A"/>
+  <text x="344" y="190" fill="#5EEAD4" font-size="24" font-weight="700" font-family="Segoe UI, Arial, sans-serif">2. Breadboard-aware canvas</text>
+  <text x="344" y="226" fill="#AAC3D3" font-size="18" font-family="Segoe UI, Arial, sans-serif">Pins snap to holes, wires connect to boards and components</text>
+
+  <rect x="352" y="270" width="348" height="194" rx="24" fill="#F2F6FA"/>
+  <rect x="392" y="304" width="272" height="16" rx="8" fill="#CBD5DF"/>
+  <rect x="392" y="334" width="272" height="16" rx="8" fill="#CBD5DF"/>
+  <rect x="392" y="364" width="272" height="16" rx="8" fill="#CBD5DF"/>
+  <rect x="392" y="394" width="272" height="16" rx="8" fill="#CBD5DF"/>
+  <rect x="718" y="286" width="158" height="170" rx="22" fill="#245A86"/>
+  <circle cx="776" cy="336" r="12" fill="#5EEAD4"/>
+  <circle cx="818" cy="336" r="12" fill="#FF8C42"/>
+  <circle cx="860" cy="336" r="12" fill="#F7C948"/>
+  <path d="M674 366C742 344 742 344 780 336" stroke="#FF8C42" stroke-width="6" stroke-linecap="round"/>
+  <path d="M674 396C748 404 748 404 818 336" stroke="#5EEAD4" stroke-width="6" stroke-linecap="round"/>
+  <path d="M674 426C748 442 788 430 860 336" stroke="#63B3FF" stroke-width="6" stroke-linecap="round"/>
+
+  <rect x="314" y="560" width="616" height="106" rx="22" fill="url(#panel)" stroke="#28445A"/>
+  <text x="344" y="602" fill="#63B3FF" font-size="24" font-weight="700" font-family="Segoe UI, Arial, sans-serif">3. Code + serial workspace</text>
+  <text x="344" y="636" fill="#AAC3D3" font-size="18" font-family="Segoe UI, Arial, sans-serif">Edit Arduino code below and watch runtime output in real time</text>
+  <rect x="720" y="582" width="180" height="50" rx="16" fill="#0E2231" stroke="#1D455D"/>
+  <text x="752" y="613" fill="#5EEAD4" font-size="18" font-family="Consolas, monospace">Serial live</text>
+
+  <rect x="954" y="146" width="272" height="520" rx="22" fill="url(#panel)" stroke="#28445A"/>
+  <text x="984" y="190" fill="#F7C948" font-size="24" font-weight="700" font-family="Segoe UI, Arial, sans-serif">4. AI side panel</text>
+  <text x="984" y="226" fill="#AAC3D3" font-size="18" font-family="Segoe UI, Arial, sans-serif">Prompt for components, wiring, and Arduino sketches</text>
+  <rect x="984" y="268" width="212" height="118" rx="18" fill="#0E2231" stroke="#1D455D"/>
+  <rect x="984" y="408" width="212" height="88" rx="18" fill="#102A27" stroke="#1D5B55"/>
+  <rect x="984" y="518" width="212" height="88" rx="18" fill="#2A1E18" stroke="#70492A"/>
+  <text x="1012" y="306" fill="#ECF8FF" font-size="17" font-family="Segoe UI, Arial, sans-serif">Ask for a circuit</text>
+  <text x="1012" y="334" fill="#AAC3D3" font-size="15" font-family="Segoe UI, Arial, sans-serif">"Build an LED blink project"</text>
+  <text x="1012" y="446" fill="#5EEAD4" font-size="17" font-family="Segoe UI, Arial, sans-serif">Structured circuit JSON</text>
+  <text x="1012" y="556" fill="#FFB77C" font-size="17" font-family="Segoe UI, Arial, sans-serif">Generated Arduino code</text>
+</svg>

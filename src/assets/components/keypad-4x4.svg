@@ -1,0 +1,1053 @@
+﻿<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<svg xmlns="http://www.w3.org/2000/svg"  viewBox="0 0 121.88977 113.38583" height="40mm" id="svg1864" x="0in" version="1.2" width="43mm" y="0in" gorn="0">
+    <desc >
+        <referenceFile >green_keypad-4x4-plain.svg</referenceFile>
+    </desc>
+    <metadata  id="metadata1870">
+        <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+            <cc:Work rdf:about="" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:cc="http://creativecommons.org/ns#">
+                <dc:format xmlns:dc="http://purl.org/dc/elements/1.1/">image/svg+xml</dc:format>
+                <dc:type xmlns:dc="http://purl.org/dc/elements/1.1/" rdf:resource="http://purl.org/dc/dcmitype/StillImage" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"/>
+                <dc:title xmlns:dc="http://purl.org/dc/elements/1.1/"/>
+            </cc:Work>
+        </rdf:RDF>
+    </metadata>
+    <defs  id="defs1868">
+        <linearGradient  y2="-335.05099" gradientTransform="matrix(1,0,0,-1,273,-448.8574)" href="#SVGID_1_" id="linearGradient2696" y1="-335.05099" x1="-192.873" gradientUnits="userSpaceOnUse" x2="-182.577"/>
+        <linearGradient  y2="-335.05099" gradientTransform="matrix(1,0,0,-1,273,-448.8574)" href="#SVGID_1_" id="linearGradient2698" y1="-335.05099" x1="-192.873" gradientUnits="userSpaceOnUse" x2="-182.577"/>
+        <linearGradient  y2="-335.05099" gradientTransform="matrix(1,0,0,-1,273,-448.8574)" href="#SVGID_1_" id="linearGradient2700" y1="-335.05099" x1="-192.873" gradientUnits="userSpaceOnUse" x2="-182.577"/>
+        <linearGradient  y2="-335.05099" gradientTransform="matrix(1,0,0,-1,273,-448.8574)" href="#SVGID_1_" id="linearGradient2812" y1="-335.05099" x1="-192.873" gradientUnits="userSpaceOnUse" x2="-182.577"/>
+        <linearGradient  y2="-335.05099" gradientTransform="matrix(1,0,0,-1,273,-448.8574)" href="#SVGID_1_" id="linearGradient2922" y1="-335.05099" x1="-192.873" gradientUnits="userSpaceOnUse" x2="-182.577"/>
+        <linearGradient  y2="-335.05099" gradientTransform="matrix(1,0,0,-1,273,-448.8574)" href="#SVGID_1_" id="linearGradient2924" y1="-335.05099" x1="-192.873" gradientUnits="userSpaceOnUse" x2="-182.577"/>
+        <linearGradient  y2="-335.05099" gradientTransform="matrix(1,0,0,-1,273,-448.8574)" href="#SVGID_1_" id="linearGradient2926" y1="-335.05099" x1="-192.873" gradientUnits="userSpaceOnUse" x2="-182.577"/>
+        <linearGradient  y2="-335.05099" gradientTransform="matrix(1,0,0,-1,273,-448.8574)" href="#SVGID_1_" id="linearGradient2928" y1="-335.05099" x1="-192.873" gradientUnits="userSpaceOnUse" x2="-182.577"/>
+        <linearGradient  y2="-335.05099" gradientTransform="matrix(1,0,0,-1,273,-448.8574)" href="#SVGID_1_" id="linearGradient2930" y1="-335.05099" x1="-192.873" gradientUnits="userSpaceOnUse" x2="-182.577"/>
+        <linearGradient  y2="-335.05099" gradientTransform="matrix(1,0,0,-1,273,-448.8574)" href="#SVGID_1_" id="linearGradient2932" y1="-335.05099" x1="-192.873" gradientUnits="userSpaceOnUse" x2="-182.577"/>
+        <linearGradient  y2="-335.05099" gradientTransform="matrix(1,0,0,-1,273,-448.8574)" href="#SVGID_1_" id="linearGradient2934" y1="-335.05099" x1="-192.873" gradientUnits="userSpaceOnUse" x2="-182.577"/>
+        <linearGradient  y2="-335.05099" gradientTransform="matrix(1,0,0,-1,273,-448.8574)" href="#SVGID_1_" id="linearGradient2936" y1="-335.05099" x1="-192.873" gradientUnits="userSpaceOnUse" x2="-182.577"/>
+        <linearGradient  y2="-335.05099" gradientTransform="matrix(1,0,0,-1,273,-448.8574)" href="#SVGID_1_" id="linearGradient2938" y1="-335.05099" x1="-192.873" gradientUnits="userSpaceOnUse" x2="-182.577"/>
+        <linearGradient  y2="-335.05099" gradientTransform="matrix(1,0,0,-1,273,-448.8574)" href="#SVGID_1_" id="linearGradient2940" y1="-335.05099" x1="-192.873" gradientUnits="userSpaceOnUse" x2="-182.577"/>
+        <linearGradient  y2="-335.05099" gradientTransform="matrix(1,0,0,-1,273,-448.8574)" href="#SVGID_1_" id="linearGradient2942" y1="-335.05099" x1="-192.873" gradientUnits="userSpaceOnUse" x2="-182.577"/>
+        <linearGradient  y2="-335.05099" gradientTransform="matrix(1,0,0,-1,273,-448.8574)" href="#SVGID_1_" id="linearGradient2944" y1="-335.05099" x1="-192.873" gradientUnits="userSpaceOnUse" x2="-182.577"/>
+    </defs>
+    <g  transform="translate(-21.855116,-26.10708)">
+        <g >
+            <g >
+                <g  id="layer1" style="display:inline" gorn="0.3.0.0.0">
+                    <rect  stroke="none" height="113.38583" x="21.855116" id="rect3386" stroke-opacity="1" fill-opacity="1" fill="#008000" width="121.88977" ry="1.4173229" rx="1.4173229" y="26.10708" style="opacity:1;vector-effect:none;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;" stroke-width="0.85039377" gorn="0.3.0.0.0.0"/>
+                </g>
+            </g>
+        </g>
+    </g>
+    <g  transform="translate(-21.855116,-26.10708)">
+        <g >
+            <g >
+                <g  id="layer3" gorn="0.4.0.0.0">
+                    <g  stroke="none" xmlns:xml="http://www.w3.org/XML/1998/namespace" id="text5975" fill-opacity="1" font-size="7.2" fill="#ffffff" xml:space="preserve" style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:1.25;font-family:Droid Sans;-inkscape-font-specification:Droid Sans;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;" stroke-width="0.75000006" gorn="0.4.0.0.0.0">
+                        <text  x="55.300056" id="tspan5973" fill="#ffffff" y="53.444298" stroke-width="0.75000006" gorn="0.4.0.0.0.0.0">S1</text>
+                    </g>
+                    <g  stroke="none" xmlns:xml="http://www.w3.org/XML/1998/namespace" id="text5999" fill-opacity="1" font-size="7.2" fill="#ffffff" xml:space="preserve" style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:1.25;font-family:Droid Sans;-inkscape-font-specification:Droid Sans;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;" stroke-width="0.75000006" gorn="0.4.0.0.0.1">
+                        <text  x="80.800056" id="tspan5997" fill="#ffffff" y="53.444298" stroke-width="0.75000006" gorn="0.4.0.0.0.1.0">S2</text>
+                    </g>
+                    <g  stroke="none" xmlns:xml="http://www.w3.org/XML/1998/namespace" id="text6003" fill-opacity="1" font-size="7.2" fill="#ffffff" xml:space="preserve" style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:1.25;font-family:Droid Sans;-inkscape-font-specification:Droid Sans;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;" stroke-width="0.75000006" gorn="0.4.0.0.0.2">
+                        <text  x="107.80006" id="tspan6001" fill="#ffffff" y="53.444298" stroke-width="0.75000006" gorn="0.4.0.0.0.2.0">S3</text>
+                    </g>
+                    <g  stroke="none" xmlns:xml="http://www.w3.org/XML/1998/namespace" id="text6007" fill-opacity="1" font-size="7.2" fill="#ffffff" xml:space="preserve" style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:1.25;font-family:Droid Sans;-inkscape-font-specification:Droid Sans;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;" stroke-width="0.75000006" gorn="0.4.0.0.0.3">
+                        <text  x="131.80006" id="tspan6005" fill="#ffffff" y="53.444298" stroke-width="0.75000006" gorn="0.4.0.0.0.3.0">S4</text>
+                    </g>
+                    <g  stroke="none" xmlns:xml="http://www.w3.org/XML/1998/namespace" id="text6021" fill-opacity="1" font-size="7.2" fill="#ffffff" xml:space="preserve" style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:1.25;font-family:Droid Sans;-inkscape-font-specification:Droid Sans;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;" stroke-width="0.75000006" gorn="0.4.0.0.0.4">
+                        <text  x="55.300056" id="tspan6019" fill="#ffffff" y="81.790756" stroke-width="0.75000006" gorn="0.4.0.0.0.4.0">S5</text>
+                    </g>
+                    <g  stroke="none" xmlns:xml="http://www.w3.org/XML/1998/namespace" id="text6025" fill-opacity="1" font-size="7.2" fill="#ffffff" xml:space="preserve" style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:1.25;font-family:Droid Sans;-inkscape-font-specification:Droid Sans;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;" stroke-width="0.75000006" gorn="0.4.0.0.0.5">
+                        <text  x="80.800056" id="tspan6023" fill="#ffffff" y="81.790756" stroke-width="0.75000006" gorn="0.4.0.0.0.5.0">S6</text>
+                    </g>
+                    <g  stroke="none" xmlns:xml="http://www.w3.org/XML/1998/namespace" id="text6029" fill-opacity="1" font-size="7.2" fill="#ffffff" xml:space="preserve" style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:1.25;font-family:Droid Sans;-inkscape-font-specification:Droid Sans;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;" stroke-width="0.75000006" gorn="0.4.0.0.0.6">
+                        <text  x="107.80006" id="tspan6027" fill="#ffffff" y="81.790756" stroke-width="0.75000006" gorn="0.4.0.0.0.6.0">S7</text>
+                    </g>
+                    <g  stroke="none" xmlns:xml="http://www.w3.org/XML/1998/namespace" id="text6033" fill-opacity="1" font-size="7.2" fill="#ffffff" xml:space="preserve" style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:1.25;font-family:Droid Sans;-inkscape-font-specification:Droid Sans;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;" stroke-width="0.75000006" gorn="0.4.0.0.0.7">
+                        <text  x="131.80006" id="tspan6031" fill="#ffffff" y="81.790756" stroke-width="0.75000006" gorn="0.4.0.0.0.7.0">S8</text>
+                    </g>
+                    <g  stroke="none" xmlns:xml="http://www.w3.org/XML/1998/namespace" id="text6039" fill-opacity="1" font-size="7.2" fill="#ffffff" xml:space="preserve" style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:1.25;font-family:Droid Sans;-inkscape-font-specification:Droid Sans;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;" stroke-width="0.75000006" gorn="0.4.0.0.0.8">
+                        <text  x="55.300056" id="tspan6037" fill="#ffffff" y="110.13721" stroke-width="0.75000006" gorn="0.4.0.0.0.8.0">S9</text>
+                    </g>
+                    <g  stroke="none" xmlns:xml="http://www.w3.org/XML/1998/namespace" id="text6043" fill-opacity="1" font-size="7.2" fill="#ffffff" xml:space="preserve" style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:1.25;font-family:Droid Sans;-inkscape-font-specification:Droid Sans;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;" stroke-width="0.75000006" gorn="0.4.0.0.0.9">
+                        <text  x="80.800056" id="tspan6041" fill="#ffffff" y="110.13721" stroke-width="0.75000006" gorn="0.4.0.0.0.9.0">S10</text>
+                    </g>
+                    <g  stroke="none" xmlns:xml="http://www.w3.org/XML/1998/namespace" id="text6047" fill-opacity="1" font-size="7.2" fill="#ffffff" xml:space="preserve" style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:1.25;font-family:Droid Sans;-inkscape-font-specification:Droid Sans;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;" stroke-width="0.75000006" gorn="0.4.0.0.0.10">
+                        <text  x="107.80006" id="tspan6045" fill="#ffffff" y="110.13721" stroke-width="0.75000006" gorn="0.4.0.0.0.10.0">S11</text>
+                    </g>
+                    <g  stroke="none" xmlns:xml="http://www.w3.org/XML/1998/namespace" id="text6051" fill-opacity="1" font-size="7.2" fill="#ffffff" xml:space="preserve" style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:1.25;font-family:Droid Sans;-inkscape-font-specification:Droid Sans;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;" stroke-width="0.75000006" gorn="0.4.0.0.0.11">
+                        <text  x="131.80006" id="tspan6049" fill="#ffffff" y="110.13721" stroke-width="0.75000006" gorn="0.4.0.0.0.11.0">S12</text>
+                    </g>
+                    <g  stroke="none" xmlns:xml="http://www.w3.org/XML/1998/namespace" id="text6057" fill-opacity="1" font-size="7.2" fill="#ffffff" xml:space="preserve" style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:1.25;font-family:Droid Sans;-inkscape-font-specification:Droid Sans;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;" stroke-width="0.75000006" gorn="0.4.0.0.0.12">
+                        <text  x="55.300056" id="tspan6055" fill="#ffffff" y="138.48367" stroke-width="0.75000006" gorn="0.4.0.0.0.12.0">S13</text>
+                    </g>
+                    <g  stroke="none" xmlns:xml="http://www.w3.org/XML/1998/namespace" id="text6061" fill-opacity="1" font-size="7.2" fill="#ffffff" xml:space="preserve" style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:1.25;font-family:Droid Sans;-inkscape-font-specification:Droid Sans;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;" stroke-width="0.75000006" gorn="0.4.0.0.0.13">
+                        <text  x="80.800056" id="tspan6059" fill="#ffffff" y="138.48367" stroke-width="0.75000006" gorn="0.4.0.0.0.13.0">S14</text>
+                    </g>
+                    <g  stroke="none" xmlns:xml="http://www.w3.org/XML/1998/namespace" id="text6065" fill-opacity="1" font-size="7.2" fill="#ffffff" xml:space="preserve" style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:1.25;font-family:Droid Sans;-inkscape-font-specification:Droid Sans;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;" stroke-width="0.75000006" gorn="0.4.0.0.0.14">
+                        <text  x="107.80006" id="tspan6063" fill="#ffffff" y="138.48367" stroke-width="0.75000006" gorn="0.4.0.0.0.14.0">S15</text>
+                    </g>
+                    <g  stroke="none" xmlns:xml="http://www.w3.org/XML/1998/namespace" id="text6069" fill-opacity="1" font-size="7.2" fill="#ffffff" xml:space="preserve" style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:1.25;font-family:Droid Sans;-inkscape-font-specification:Droid Sans;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;" stroke-width="0.75000006" gorn="0.4.0.0.0.15">
+                        <text  x="131.80006" id="tspan6067" fill="#ffffff" y="138.48367" stroke-width="0.75000006" gorn="0.4.0.0.0.15.0">S16</text>
+                    </g>
+                    <g  transform="rotate(90)">
+                        <g >
+                            <g >
+                                <g  stroke="none" xmlns:xml="http://www.w3.org/XML/1998/namespace" id="text6107" fill-opacity="1" font-size="7.2" fill="#000000" xml:space="preserve" style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:1.25;font-family:Droid Sans;-inkscape-font-specification:Droid Sans;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;" stroke-width="0.75000006" gorn="0.4.0.0.0.16.0.0.0">
+                                    <text  x="78.853012" id="tspan6105" font-size="3.2" fill="#ffffff" y="-39.931576" stroke-width="0.75000006" gorn="0.4.0.0.0.16.0.0.0.0">generic 4x4 keypad - scruss 2017</text>
+                                </g>
+                            </g>
+                        </g>
+                    </g>
+                    <g  stroke="none" xmlns:xml="http://www.w3.org/XML/1998/namespace" id="text6113" fill-opacity="1" font-size="7.2" fill="#000000" xml:space="preserve" style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:1.25;font-family:Droid Sans;-inkscape-font-specification:Droid Sans;text-align:start;letter-spacing:0px;word-spacing:0px;text-anchor:start;" stroke-width="0.75000006" gorn="0.4.0.0.0.17">
+                        <text  x="31.119617" id="tspan6111" font-size="3.2" fill="#ffffff" y="60.377045" stroke-width="0.75000006" gorn="0.4.0.0.0.17.0">C4</text>
+                    </g>
+                    <g  stroke="none" xmlns:xml="http://www.w3.org/XML/1998/namespace" id="text6117" fill-opacity="1" font-size="7.2" fill="#000000" xml:space="preserve" style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:1.25;font-family:Droid Sans;-inkscape-font-specification:Droid Sans;text-align:start;letter-spacing:0px;word-spacing:0px;text-anchor:start;" stroke-width="0.75000006" gorn="0.4.0.0.0.18">
+                        <text  x="31.119617" id="tspan6115" font-size="3.2" fill="#ffffff" y="67.577042" stroke-width="0.75000006" gorn="0.4.0.0.0.18.0">C3</text>
+                    </g>
+                    <g  stroke="none" xmlns:xml="http://www.w3.org/XML/1998/namespace" id="text6121" fill-opacity="1" font-size="7.2" fill="#000000" xml:space="preserve" style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:1.25;font-family:Droid Sans;-inkscape-font-specification:Droid Sans;text-align:start;letter-spacing:0px;word-spacing:0px;text-anchor:start;" stroke-width="0.75000006" gorn="0.4.0.0.0.19">
+                        <text  x="31.119617" id="tspan6119" font-size="3.2" fill="#ffffff" y="74.777039" stroke-width="0.75000006" gorn="0.4.0.0.0.19.0">C2</text>
+                    </g>
+                    <g  stroke="none" xmlns:xml="http://www.w3.org/XML/1998/namespace" id="text6125" fill-opacity="1" font-size="7.2" fill="#000000" xml:space="preserve" style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:1.25;font-family:Droid Sans;-inkscape-font-specification:Droid Sans;text-align:start;letter-spacing:0px;word-spacing:0px;text-anchor:start;" stroke-width="0.75000006" gorn="0.4.0.0.0.20">
+                        <text  x="31.119617" id="tspan6123" font-size="3.2" fill="#ffffff" y="81.977036" stroke-width="0.75000006" gorn="0.4.0.0.0.20.0">C1</text>
+                    </g>
+                    <g  stroke="none" xmlns:xml="http://www.w3.org/XML/1998/namespace" id="text6129" fill-opacity="1" font-size="7.2" fill="#000000" xml:space="preserve" style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:1.25;font-family:Droid Sans;-inkscape-font-specification:Droid Sans;text-align:start;letter-spacing:0px;word-spacing:0px;text-anchor:start;" stroke-width="0.75000006" gorn="0.4.0.0.0.21">
+                        <text  x="31.119617" id="tspan6127" font-size="3.2" fill="#ffffff" y="89.177032" stroke-width="0.75000006" gorn="0.4.0.0.0.21.0">R1</text>
+                    </g>
+                    <g  stroke="none" xmlns:xml="http://www.w3.org/XML/1998/namespace" id="text6133" fill-opacity="1" font-size="7.2" fill="#000000" xml:space="preserve" style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:1.25;font-family:Droid Sans;-inkscape-font-specification:Droid Sans;text-align:start;letter-spacing:0px;word-spacing:0px;text-anchor:start;" stroke-width="0.75000006" gorn="0.4.0.0.0.22">
+                        <text  x="31.119617" id="tspan6131" font-size="3.2" fill="#ffffff" y="96.377029" stroke-width="0.75000006" gorn="0.4.0.0.0.22.0">R2</text>
+                    </g>
+                    <g  stroke="none" xmlns:xml="http://www.w3.org/XML/1998/namespace" id="text6137" fill-opacity="1" font-size="7.2" fill="#000000" xml:space="preserve" style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:1.25;font-family:Droid Sans;-inkscape-font-specification:Droid Sans;text-align:start;letter-spacing:0px;word-spacing:0px;text-anchor:start;" stroke-width="0.75000006" gorn="0.4.0.0.0.23">
+                        <text  x="31.119617" id="tspan6135" font-size="3.2" fill="#ffffff" y="103.57703" stroke-width="0.75000006" gorn="0.4.0.0.0.23.0">R3</text>
+                    </g>
+                    <g  stroke="none" xmlns:xml="http://www.w3.org/XML/1998/namespace" id="text6141" fill-opacity="1" font-size="7.2" fill="#000000" xml:space="preserve" style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:1.25;font-family:Droid Sans;-inkscape-font-specification:Droid Sans;text-align:start;letter-spacing:0px;word-spacing:0px;text-anchor:start;" stroke-width="0.75000006" gorn="0.4.0.0.0.24">
+                        <text  x="31.119617" id="tspan6139" font-size="3.2" fill="#ffffff" y="110.77702" stroke-width="0.75000006" gorn="0.4.0.0.0.24.0">R4</text>
+                    </g>
+                </g>
+            </g>
+        </g>
+    </g>
+    <g  transform="translate(-21.855116,-26.10708)">
+        <g >
+            <g >
+                <g  id="layer2" gorn="0.5.0.0.0">
+                    <g  transform="translate(-0.99961319,-3.9294072)">
+                        <g >
+                            <g >
+                                <g  id="g5947" gorn="0.5.0.0.0.0.0.0.0">
+                                    <g  transform="translate(6.3694996,-19.260455)">
+                                        <g >
+                                            <g >
+                                                <g  partID="854795240" id="g542" gorn="0.5.0.0.0.0.0.0.0.0.0.0.0">
+                                                    <g  transform="translate(138.375,135.745)">
+                                                        <g >
+                                                            <g >
+                                                                <g  id="g540" gorn="0.5.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0">
+                                                                    <g  transform="rotate(90)">
+                                                                        <g >
+                                                                            <g >
+                                                                                <g  id="g538" gorn="0.5.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0">
+                                                                                    <g  id="breadboard" gorn="0.5.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0">
+                                                                                        <g  id="g535" gorn="0.5.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0">
+                                                                                            <polygon  id="polygon492" points="16.9819,15.4706 16.9819,23.7449 14.8219,23.7449 14.8219,15.4706 " style="fill:#8c8c8c" gorn="0.5.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0"/>
+                                                                                            <polygon  id="polygon494" points="2.58048,0.00072 2.58048,8.27496 0.42192,8.27496 0.42192,0.00072 " style="fill:#8c8c8c" gorn="0.5.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.1"/>
+                                                                                            <polygon  id="polygon496" points="16.9819,0 16.9819,8.27568 14.8219,8.27568 14.8219,0 " style="fill:#8c8c8c" gorn="0.5.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.2"/>
+                                                                                            <polygon  id="polygon498" points="2.58192,15.4706 2.58192,23.7463 0.42264,23.7463 0.42264,15.4706 " style="fill:#8c8c8c" gorn="0.5.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.3"/>
+                                                                                            <rect  height="17.6544" x="0.0086399997" id="rect500" width="17.653" y="3.04704" gorn="0.5.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.4"/>
+                                                                                            <path  id="path502" d="m 17.6609,19.2614 c 0,0.79272 -0.64512,1.43928 -1.44,1.43928 l -14.77298,2e-5 c -0.79272,0 -1.43928,-0.64656 -1.43928,-1.43928 V 4.4856 c 0,-0.792 0.64656,-1.43856 1.43928,-1.43856 h 14.7751 c 0.79416,0 1.43784,0.64656 1.43784,1.43856 z" style="fill:#999999" gorn="0.5.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.5"/>
+                                                                                            <circle  cy="5.6181598" id="circle504" r="1.5292799" cx="2.5797601" gorn="0.5.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.6"/>
+                                                                                            <circle  cy="5.6448002" id="circle506" r="1.5292799" cx="15.133" gorn="0.5.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.7"/>
+                                                                                            <circle  cy="18.198" id="circle508" r="1.5292799" cx="15.1063" gorn="0.5.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.8"/>
+                                                                                            <circle  cy="18.169901" id="circle510" r="1.5292799" cx="2.5531199" gorn="0.5.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.9"/>
+                                                                                            <circle  cy="11.8735" id="circle512" r="5.1479998" cx="8.8344002" style="fill:#3f3f3f" gorn="0.5.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.10"/>
+                                                                                            <linearGradient  y2="-335.05099" gradientTransform="matrix(1,0,0,-1,273,-448.8574)" id="SVGID_1_" y1="-335.05099" x1="-192.873" gradientUnits="userSpaceOnUse" x2="-182.577">
+                                                                                                <stop  id="stop514" offset="0" style="stop-color:#333333"/>
+                                                                                                <stop  id="stop516" offset="1" style="stop-color:#3C3C3C"/>
+                                                                                            </linearGradient>
+                                                                                            <circle  cy="11.8735" id="circle519" r="5.1479998" cx="8.8344002" style="fill:url(#linearGradient2940)" gorn="0.5.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.12"/>
+                                                                                            <circle  cy="12.4855" id="circle521" enable-background="new    " r="4.5302401" cx="8.9244003" style="opacity:0.6" gorn="0.5.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.13"/>
+                                                                                            <circle  cy="11.9038" id="circle523" r="4.41504" cx="8.8408804" style="fill:#735348" gorn="0.5.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.14"/>
+                                                                                            <path  id="path525" enable-background="new    " d="M 2.38176,5.53824 C 2.412,5.46624 2.46744,5.4108 2.54592,5.39712 L 2.39472,4.43376 C 2.33712,4.44312 2.27592,4.4352 2.21904,4.45248 L 2.2176,4.44816 C 1.8612,4.55832 1.5948,4.824 1.45872,5.16312 Z" style="opacity:0.5;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.15"/>
+                                                                                            <path  id="path527" enable-background="new    " d="M 14.9335,5.56416 C 14.96302,5.49072 15.01846,5.43528 15.09838,5.42232 L 14.94934,4.45896 C 14.8903,4.46976 14.82982,4.4604 14.77294,4.47768 L 14.77078,4.47264 C 14.41582,4.58208 14.1487,4.84776 14.01262,5.1876 Z" style="opacity:0.5;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.16"/>
+                                                                                            <path  id="path529" enable-background="new    " d="m 14.909,18.1174 c 0.02952,-0.07344 0.08352,-0.1296 0.16344,-0.14184 L 14.9234,17.01292 c -0.05904,0.0108 -0.11952,0.0014 -0.17712,0.01872 l -0.0014,-0.0072 c -0.35568,0.10944 -0.6228,0.37512 -0.75816,0.71568 z" style="opacity:0.5;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.17"/>
+                                                                                            <path  id="path531" enable-background="new    " d="M 2.35512,18.0907 C 2.38464,18.01726 2.44008,17.96398 2.52,17.9503 L 2.3688,16.98622 c -0.05904,0.01224 -0.11952,0.0014 -0.1764,0.01944 l -0.00144,-0.005 c -0.3564,0.108 -0.6228,0.37512 -0.76032,0.71424 z" style="opacity:0.5;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.18"/>
+                                                                                            <path  id="path533" enable-background="new    " d="M 10.4206,7.78896 C 10.0786,7.65576 9.7186,7.56 9.33772,7.5168 8.3902,7.41096 7.483,7.6212 6.70756,8.05104 L 6.61104,8.3016 C 7.4772,7.83864 8.48592,7.62408 9.53568,7.74144 9.85824,7.77888 10.17216,7.85088 10.4724,7.94592 Z" style="opacity:0.6;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.19"/>
+                                                                                        </g>
+                                                                                    </g>
+                                                                                </g>
+                                                                            </g>
+                                                                        </g>
+                                                                    </g>
+                                                                </g>
+                                                            </g>
+                                                        </g>
+                                                    </g>
+                                                </g>
+                                            </g>
+                                        </g>
+                                    </g>
+                                    <g  transform="translate(10.389687,-19.578455)">
+                                        <g >
+                                            <g >
+                                                <g  partID="854795220" id="g596" gorn="0.5.0.0.0.0.0.0.0.1.0.0.0">
+                                                    <g  transform="translate(108.843,136.063)">
+                                                        <g >
+                                                            <g >
+                                                                <g  id="g594" gorn="0.5.0.0.0.0.0.0.0.1.0.0.0.0.0.0.0">
+                                                                    <g  transform="rotate(90)">
+                                                                        <g >
+                                                                            <g >
+                                                                                <g  id="g592" gorn="0.5.0.0.0.0.0.0.0.1.0.0.0.0.0.0.0.0.0.0.0">
+                                                                                    <g  id="g590" gorn="0.5.0.0.0.0.0.0.0.1.0.0.0.0.0.0.0.0.0.0.0.0">
+                                                                                        <g  id="g588" gorn="0.5.0.0.0.0.0.0.0.1.0.0.0.0.0.0.0.0.0.0.0.0.0">
+                                                                                            <polygon  id="polygon544" points="16.9819,15.4706 16.9819,23.7449 14.8219,23.7449 14.8219,15.4706 " style="fill:#8c8c8c" gorn="0.5.0.0.0.0.0.0.0.1.0.0.0.0.0.0.0.0.0.0.0.0.0.0"/>
+                                                                                            <polygon  id="polygon546" points="2.58048,0.00072 2.58048,8.27496 0.42192,8.27496 0.42192,0.00072 " style="fill:#8c8c8c" gorn="0.5.0.0.0.0.0.0.0.1.0.0.0.0.0.0.0.0.0.0.0.0.0.1"/>
+                                                                                            <polygon  id="polygon548" points="16.9819,0 16.9819,8.27568 14.8219,8.27568 14.8219,0 " style="fill:#8c8c8c" gorn="0.5.0.0.0.0.0.0.0.1.0.0.0.0.0.0.0.0.0.0.0.0.0.2"/>
+                                                                                            <polygon  id="polygon550" points="2.58192,15.4706 2.58192,23.7463 0.42264,23.7463 0.42264,15.4706 " style="fill:#8c8c8c" gorn="0.5.0.0.0.0.0.0.0.1.0.0.0.0.0.0.0.0.0.0.0.0.0.3"/>
+                                                                                            <rect  height="17.6544" x="0.0086399997" id="rect552" width="17.653" y="3.04704" gorn="0.5.0.0.0.0.0.0.0.1.0.0.0.0.0.0.0.0.0.0.0.0.0.4"/>
+                                                                                            <path  id="path554" d="m 17.6609,19.2614 c 0,0.79272 -0.64512,1.43928 -1.44,1.43928 l -14.77298,2e-5 c -0.79272,0 -1.43928,-0.64656 -1.43928,-1.43928 V 4.4856 c 0,-0.792 0.64656,-1.43856 1.43928,-1.43856 h 14.7751 c 0.79416,0 1.43784,0.64656 1.43784,1.43856 z" style="fill:#999999" gorn="0.5.0.0.0.0.0.0.0.1.0.0.0.0.0.0.0.0.0.0.0.0.0.5"/>
+                                                                                            <circle  cy="5.6181598" id="circle556" r="1.5292799" cx="2.5797601" gorn="0.5.0.0.0.0.0.0.0.1.0.0.0.0.0.0.0.0.0.0.0.0.0.6"/>
+                                                                                            <circle  cy="5.6448002" id="circle558" r="1.5292799" cx="15.133" gorn="0.5.0.0.0.0.0.0.0.1.0.0.0.0.0.0.0.0.0.0.0.0.0.7"/>
+                                                                                            <circle  cy="18.198" id="circle560" r="1.5292799" cx="15.1063" gorn="0.5.0.0.0.0.0.0.0.1.0.0.0.0.0.0.0.0.0.0.0.0.0.8"/>
+                                                                                            <circle  cy="18.169901" id="circle562" r="1.5292799" cx="2.5531199" gorn="0.5.0.0.0.0.0.0.0.1.0.0.0.0.0.0.0.0.0.0.0.0.0.9"/>
+                                                                                            <circle  cy="11.8735" id="circle564" r="5.1479998" cx="8.8344002" style="fill:#3f3f3f" gorn="0.5.0.0.0.0.0.0.0.1.0.0.0.0.0.0.0.0.0.0.0.0.0.10"/>
+                                                                                            <linearGradient  y2="-335.05099" gradientTransform="matrix(1,0,0,-1,273,-448.8574)" id="linearGradient570" y1="-335.05099" x1="-192.873" gradientUnits="userSpaceOnUse" x2="-182.577">
+                                                                                                <stop  id="stop566" offset="0" style="stop-color:#333333"/>
+                                                                                                <stop  id="stop568" offset="1" style="stop-color:#3C3C3C"/>
+                                                                                            </linearGradient>
+                                                                                            <circle  cy="11.8735" id="circle572" r="5.1479998" cx="8.8344002" style="fill:url(#linearGradient2934)" gorn="0.5.0.0.0.0.0.0.0.1.0.0.0.0.0.0.0.0.0.0.0.0.0.12"/>
+                                                                                            <circle  cy="12.4855" id="circle574" enable-background="new    " r="4.5302401" cx="8.9244003" style="opacity:0.6" gorn="0.5.0.0.0.0.0.0.0.1.0.0.0.0.0.0.0.0.0.0.0.0.0.13"/>
+                                                                                            <circle  cy="11.9038" id="circle576" r="4.41504" cx="8.8408804" style="fill:#735348" gorn="0.5.0.0.0.0.0.0.0.1.0.0.0.0.0.0.0.0.0.0.0.0.0.14"/>
+                                                                                            <path  id="path578" enable-background="new    " d="M 2.38176,5.53824 C 2.412,5.46624 2.46744,5.4108 2.54592,5.39712 L 2.39472,4.43376 C 2.33712,4.44312 2.27592,4.4352 2.21904,4.45248 L 2.2176,4.44816 C 1.8612,4.55832 1.5948,4.824 1.45872,5.16312 Z" style="opacity:0.5;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.1.0.0.0.0.0.0.0.0.0.0.0.0.0.15"/>
+                                                                                            <path  id="path580" enable-background="new    " d="M 14.9335,5.56416 C 14.96302,5.49072 15.01846,5.43528 15.09838,5.42232 L 14.94934,4.45896 C 14.8903,4.46976 14.82982,4.4604 14.77294,4.47768 L 14.77078,4.47264 C 14.41582,4.58208 14.1487,4.84776 14.01262,5.1876 Z" style="opacity:0.5;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.1.0.0.0.0.0.0.0.0.0.0.0.0.0.16"/>
+                                                                                            <path  id="path582" enable-background="new    " d="m 14.909,18.1174 c 0.02952,-0.07344 0.08352,-0.1296 0.16344,-0.14184 L 14.9234,17.01292 c -0.05904,0.0108 -0.11952,0.0014 -0.17712,0.01872 l -0.0014,-0.0072 c -0.35568,0.10944 -0.6228,0.37512 -0.75816,0.71568 z" style="opacity:0.5;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.1.0.0.0.0.0.0.0.0.0.0.0.0.0.17"/>
+                                                                                            <path  id="path584" enable-background="new    " d="M 2.35512,18.0907 C 2.38464,18.01726 2.44008,17.96398 2.52,17.9503 L 2.3688,16.98622 c -0.05904,0.01224 -0.11952,0.0014 -0.1764,0.01944 l -0.00144,-0.005 c -0.3564,0.108 -0.6228,0.37512 -0.76032,0.71424 z" style="opacity:0.5;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.1.0.0.0.0.0.0.0.0.0.0.0.0.0.18"/>
+                                                                                            <path  id="path586" enable-background="new    " d="M 10.4206,7.78896 C 10.0786,7.65576 9.7186,7.56 9.33772,7.5168 8.3902,7.41096 7.483,7.6212 6.70756,8.05104 L 6.61104,8.3016 C 7.4772,7.83864 8.48592,7.62408 9.53568,7.74144 9.85824,7.77888 10.17216,7.85088 10.4724,7.94592 Z" style="opacity:0.6;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.1.0.0.0.0.0.0.0.0.0.0.0.0.0.19"/>
+                                                                                        </g>
+                                                                                    </g>
+                                                                                </g>
+                                                                            </g>
+                                                                        </g>
+                                                                    </g>
+                                                                </g>
+                                                            </g>
+                                                        </g>
+                                                    </g>
+                                                </g>
+                                            </g>
+                                        </g>
+                                    </g>
+                                    <g  transform="translate(13.457675,-19.260455)">
+                                        <g >
+                                            <g >
+                                                <g  partID="854795200" id="g650" gorn="0.5.0.0.0.0.0.0.0.2.0.0.0">
+                                                    <g  transform="translate(80.2632,135.745)">
+                                                        <g >
+                                                            <g >
+                                                                <g  id="g648" gorn="0.5.0.0.0.0.0.0.0.2.0.0.0.0.0.0.0">
+                                                                    <g  transform="rotate(90)">
+                                                                        <g >
+                                                                            <g >
+                                                                                <g  id="g646" gorn="0.5.0.0.0.0.0.0.0.2.0.0.0.0.0.0.0.0.0.0.0">
+                                                                                    <g  id="g644" gorn="0.5.0.0.0.0.0.0.0.2.0.0.0.0.0.0.0.0.0.0.0.0">
+                                                                                        <g  id="g642" gorn="0.5.0.0.0.0.0.0.0.2.0.0.0.0.0.0.0.0.0.0.0.0.0">
+                                                                                            <polygon  id="polygon598" points="16.9819,15.4706 16.9819,23.7449 14.8219,23.7449 14.8219,15.4706 " style="fill:#8c8c8c" gorn="0.5.0.0.0.0.0.0.0.2.0.0.0.0.0.0.0.0.0.0.0.0.0.0"/>
+                                                                                            <polygon  id="polygon600" points="2.58048,0.00072 2.58048,8.27496 0.42192,8.27496 0.42192,0.00072 " style="fill:#8c8c8c" gorn="0.5.0.0.0.0.0.0.0.2.0.0.0.0.0.0.0.0.0.0.0.0.0.1"/>
+                                                                                            <polygon  id="polygon602" points="16.9819,0 16.9819,8.27568 14.8219,8.27568 14.8219,0 " style="fill:#8c8c8c" gorn="0.5.0.0.0.0.0.0.0.2.0.0.0.0.0.0.0.0.0.0.0.0.0.2"/>
+                                                                                            <polygon  id="polygon604" points="2.58192,15.4706 2.58192,23.7463 0.42264,23.7463 0.42264,15.4706 " style="fill:#8c8c8c" gorn="0.5.0.0.0.0.0.0.0.2.0.0.0.0.0.0.0.0.0.0.0.0.0.3"/>
+                                                                                            <rect  height="17.6544" x="0.0086399997" id="rect606" width="17.653" y="3.04704" gorn="0.5.0.0.0.0.0.0.0.2.0.0.0.0.0.0.0.0.0.0.0.0.0.4"/>
+                                                                                            <path  id="path608" d="m 17.6609,19.2614 c 0,0.79272 -0.64512,1.43928 -1.44,1.43928 l -14.77298,2e-5 c -0.79272,0 -1.43928,-0.64656 -1.43928,-1.43928 V 4.4856 c 0,-0.792 0.64656,-1.43856 1.43928,-1.43856 h 14.7751 c 0.79416,0 1.43784,0.64656 1.43784,1.43856 z" style="fill:#999999" gorn="0.5.0.0.0.0.0.0.0.2.0.0.0.0.0.0.0.0.0.0.0.0.0.5"/>
+                                                                                            <circle  cy="5.6181598" id="circle610" r="1.5292799" cx="2.5797601" gorn="0.5.0.0.0.0.0.0.0.2.0.0.0.0.0.0.0.0.0.0.0.0.0.6"/>
+                                                                                            <circle  cy="5.6448002" id="circle612" r="1.5292799" cx="15.133" gorn="0.5.0.0.0.0.0.0.0.2.0.0.0.0.0.0.0.0.0.0.0.0.0.7"/>
+                                                                                            <circle  cy="18.198" id="circle614" r="1.5292799" cx="15.1063" gorn="0.5.0.0.0.0.0.0.0.2.0.0.0.0.0.0.0.0.0.0.0.0.0.8"/>
+                                                                                            <circle  cy="18.169901" id="circle616" r="1.5292799" cx="2.5531199" gorn="0.5.0.0.0.0.0.0.0.2.0.0.0.0.0.0.0.0.0.0.0.0.0.9"/>
+                                                                                            <circle  cy="11.8735" id="circle618" r="5.1479998" cx="8.8344002" style="fill:#3f3f3f" gorn="0.5.0.0.0.0.0.0.0.2.0.0.0.0.0.0.0.0.0.0.0.0.0.10"/>
+                                                                                            <linearGradient  y2="-335.05099" gradientTransform="matrix(1,0,0,-1,273,-448.8574)" id="linearGradient624" y1="-335.05099" x1="-192.873" gradientUnits="userSpaceOnUse" x2="-182.577">
+                                                                                                <stop  id="stop620" offset="0" style="stop-color:#333333"/>
+                                                                                                <stop  id="stop622" offset="1" style="stop-color:#3C3C3C"/>
+                                                                                            </linearGradient>
+                                                                                            <circle  cy="11.8735" id="circle626" r="5.1479998" cx="8.8344002" style="fill:url(#linearGradient2928)" gorn="0.5.0.0.0.0.0.0.0.2.0.0.0.0.0.0.0.0.0.0.0.0.0.12"/>
+                                                                                            <circle  cy="12.4855" id="circle628" enable-background="new    " r="4.5302401" cx="8.9244003" style="opacity:0.6" gorn="0.5.0.0.0.0.0.0.0.2.0.0.0.0.0.0.0.0.0.0.0.0.0.13"/>
+                                                                                            <circle  cy="11.9038" id="circle630" r="4.41504" cx="8.8408804" style="fill:#735348" gorn="0.5.0.0.0.0.0.0.0.2.0.0.0.0.0.0.0.0.0.0.0.0.0.14"/>
+                                                                                            <path  id="path632" enable-background="new    " d="M 2.38176,5.53824 C 2.412,5.46624 2.46744,5.4108 2.54592,5.39712 L 2.39472,4.43376 C 2.33712,4.44312 2.27592,4.4352 2.21904,4.45248 L 2.2176,4.44816 C 1.8612,4.55832 1.5948,4.824 1.45872,5.16312 Z" style="opacity:0.5;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.2.0.0.0.0.0.0.0.0.0.0.0.0.0.15"/>
+                                                                                            <path  id="path634" enable-background="new    " d="M 14.9335,5.56416 C 14.96302,5.49072 15.01846,5.43528 15.09838,5.42232 L 14.94934,4.45896 C 14.8903,4.46976 14.82982,4.4604 14.77294,4.47768 L 14.77078,4.47264 C 14.41582,4.58208 14.1487,4.84776 14.01262,5.1876 Z" style="opacity:0.5;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.2.0.0.0.0.0.0.0.0.0.0.0.0.0.16"/>
+                                                                                            <path  id="path636" enable-background="new    " d="m 14.909,18.1174 c 0.02952,-0.07344 0.08352,-0.1296 0.16344,-0.14184 L 14.9234,17.01292 c -0.05904,0.0108 -0.11952,0.0014 -0.17712,0.01872 l -0.0014,-0.0072 c -0.35568,0.10944 -0.6228,0.37512 -0.75816,0.71568 z" style="opacity:0.5;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.2.0.0.0.0.0.0.0.0.0.0.0.0.0.17"/>
+                                                                                            <path  id="path638" enable-background="new    " d="M 2.35512,18.0907 C 2.38464,18.01726 2.44008,17.96398 2.52,17.9503 L 2.3688,16.98622 c -0.05904,0.01224 -0.11952,0.0014 -0.1764,0.01944 l -0.00144,-0.005 c -0.3564,0.108 -0.6228,0.37512 -0.76032,0.71424 z" style="opacity:0.5;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.2.0.0.0.0.0.0.0.0.0.0.0.0.0.18"/>
+                                                                                            <path  id="path640" enable-background="new    " d="M 10.4206,7.78896 C 10.0786,7.65576 9.7186,7.56 9.33772,7.5168 8.3902,7.41096 7.483,7.6212 6.70756,8.05104 L 6.61104,8.3016 C 7.4772,7.83864 8.48592,7.62408 9.53568,7.74144 9.85824,7.77888 10.17216,7.85088 10.4724,7.94592 Z" style="opacity:0.6;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.2.0.0.0.0.0.0.0.0.0.0.0.0.0.19"/>
+                                                                                        </g>
+                                                                                    </g>
+                                                                                </g>
+                                                                            </g>
+                                                                        </g>
+                                                                    </g>
+                                                                </g>
+                                                            </g>
+                                                        </g>
+                                                    </g>
+                                                </g>
+                                            </g>
+                                        </g>
+                                    </g>
+                                    <g  transform="translate(17.159462,-18.943455)">
+                                        <g >
+                                            <g >
+                                                <g  partID="854795180" id="g704" gorn="0.5.0.0.0.0.0.0.0.3.0.0.0">
+                                                    <g  transform="translate(51.0496,135.428)">
+                                                        <g >
+                                                            <g >
+                                                                <g  id="g702" gorn="0.5.0.0.0.0.0.0.0.3.0.0.0.0.0.0.0">
+                                                                    <g  transform="rotate(90)">
+                                                                        <g >
+                                                                            <g >
+                                                                                <g  id="g700" gorn="0.5.0.0.0.0.0.0.0.3.0.0.0.0.0.0.0.0.0.0.0">
+                                                                                    <g  id="g698" gorn="0.5.0.0.0.0.0.0.0.3.0.0.0.0.0.0.0.0.0.0.0.0">
+                                                                                        <g  id="g696" gorn="0.5.0.0.0.0.0.0.0.3.0.0.0.0.0.0.0.0.0.0.0.0.0">
+                                                                                            <polygon  id="polygon652" points="14.8219,15.4706 16.9819,15.4706 16.9819,23.7449 14.8219,23.7449 " style="fill:#8c8c8c" gorn="0.5.0.0.0.0.0.0.0.3.0.0.0.0.0.0.0.0.0.0.0.0.0.0"/>
+                                                                                            <polygon  id="polygon654" points="0.42192,0.00072 2.58048,0.00072 2.58048,8.27496 0.42192,8.27496 " style="fill:#8c8c8c" gorn="0.5.0.0.0.0.0.0.0.3.0.0.0.0.0.0.0.0.0.0.0.0.0.1"/>
+                                                                                            <polygon  id="polygon656" points="14.8219,0 16.9819,0 16.9819,8.27568 14.8219,8.27568 " style="fill:#8c8c8c" gorn="0.5.0.0.0.0.0.0.0.3.0.0.0.0.0.0.0.0.0.0.0.0.0.2"/>
+                                                                                            <polygon  id="polygon658" points="0.42264,15.4706 2.58192,15.4706 2.58192,23.7463 0.42264,23.7463 " style="fill:#8c8c8c" gorn="0.5.0.0.0.0.0.0.0.3.0.0.0.0.0.0.0.0.0.0.0.0.0.3"/>
+                                                                                            <rect  height="17.6544" x="0.0086399997" id="rect660" width="17.653" y="3.04704" gorn="0.5.0.0.0.0.0.0.0.3.0.0.0.0.0.0.0.0.0.0.0.0.0.4"/>
+                                                                                            <path  id="path662" d="m 17.6609,19.2614 c 0,0.79272 -0.64512,1.43928 -1.44,1.43928 l -14.77298,2e-5 c -0.79272,0 -1.43928,-0.64656 -1.43928,-1.43928 V 4.4856 c 0,-0.792 0.64656,-1.43856 1.43928,-1.43856 h 14.7751 c 0.79416,0 1.43784,0.64656 1.43784,1.43856 z" style="fill:#999999" gorn="0.5.0.0.0.0.0.0.0.3.0.0.0.0.0.0.0.0.0.0.0.0.0.5"/>
+                                                                                            <circle  cy="5.6181598" id="circle664" r="1.5292799" cx="2.5797601" gorn="0.5.0.0.0.0.0.0.0.3.0.0.0.0.0.0.0.0.0.0.0.0.0.6"/>
+                                                                                            <circle  cy="5.6448002" id="circle666" r="1.5292799" cx="15.133" gorn="0.5.0.0.0.0.0.0.0.3.0.0.0.0.0.0.0.0.0.0.0.0.0.7"/>
+                                                                                            <circle  cy="18.198" id="circle668" r="1.5292799" cx="15.1063" gorn="0.5.0.0.0.0.0.0.0.3.0.0.0.0.0.0.0.0.0.0.0.0.0.8"/>
+                                                                                            <circle  cy="18.169901" id="circle670" r="1.5292799" cx="2.5531199" gorn="0.5.0.0.0.0.0.0.0.3.0.0.0.0.0.0.0.0.0.0.0.0.0.9"/>
+                                                                                            <circle  cy="11.8735" id="circle672" r="5.1479998" cx="8.8344002" style="fill:#3f3f3f" gorn="0.5.0.0.0.0.0.0.0.3.0.0.0.0.0.0.0.0.0.0.0.0.0.10"/>
+                                                                                            <linearGradient  y2="-335.05099" gradientTransform="matrix(1,0,0,-1,273,-448.8574)" id="linearGradient678" y1="-335.05099" x1="-192.873" gradientUnits="userSpaceOnUse" x2="-182.577">
+                                                                                                <stop  id="stop674" offset="0" style="stop-color:#333333"/>
+                                                                                                <stop  id="stop676" offset="1" style="stop-color:#3C3C3C"/>
+                                                                                            </linearGradient>
+                                                                                            <circle  cy="11.8735" id="circle680" r="5.1479998" cx="8.8344002" style="fill:url(#linearGradient2922)" gorn="0.5.0.0.0.0.0.0.0.3.0.0.0.0.0.0.0.0.0.0.0.0.0.12"/>
+                                                                                            <circle  cy="12.4855" id="circle682" enable-background="new    " r="4.5302401" cx="8.9244003" style="opacity:0.6" gorn="0.5.0.0.0.0.0.0.0.3.0.0.0.0.0.0.0.0.0.0.0.0.0.13"/>
+                                                                                            <circle  cy="11.9038" id="circle684" r="4.41504" cx="8.8408804" style="fill:#735348" gorn="0.5.0.0.0.0.0.0.0.3.0.0.0.0.0.0.0.0.0.0.0.0.0.14"/>
+                                                                                            <path  id="path686" enable-background="new    " d="M 2.38176,5.53824 C 2.412,5.46624 2.46744,5.4108 2.54592,5.39712 L 2.39472,4.43376 C 2.33712,4.44312 2.27592,4.4352 2.21904,4.45248 L 2.2176,4.44816 C 1.8612,4.55832 1.5948,4.824 1.45872,5.16312 Z" style="opacity:0.5;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.3.0.0.0.0.0.0.0.0.0.0.0.0.0.15"/>
+                                                                                            <path  id="path688" enable-background="new    " d="M 14.9335,5.56416 C 14.96302,5.49072 15.01846,5.43528 15.09838,5.42232 L 14.94934,4.45896 C 14.8903,4.46976 14.82982,4.4604 14.77294,4.47768 L 14.77078,4.47264 C 14.41582,4.58208 14.1487,4.84776 14.01262,5.1876 Z" style="opacity:0.5;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.3.0.0.0.0.0.0.0.0.0.0.0.0.0.16"/>
+                                                                                            <path  id="path690" enable-background="new    " d="m 14.909,18.1174 c 0.02952,-0.07344 0.08352,-0.1296 0.16344,-0.14184 L 14.9234,17.01292 c -0.05904,0.0108 -0.11952,0.0014 -0.17712,0.01872 l -0.0014,-0.0072 c -0.35568,0.10944 -0.6228,0.37512 -0.75816,0.71568 z" style="opacity:0.5;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.3.0.0.0.0.0.0.0.0.0.0.0.0.0.17"/>
+                                                                                            <path  id="path692" enable-background="new    " d="M 2.35512,18.0907 C 2.38464,18.01726 2.44008,17.96398 2.52,17.9503 L 2.3688,16.98622 c -0.05904,0.01224 -0.11952,0.0014 -0.1764,0.01944 l -0.00144,-0.005 c -0.3564,0.108 -0.6228,0.37512 -0.76032,0.71424 z" style="opacity:0.5;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.3.0.0.0.0.0.0.0.0.0.0.0.0.0.18"/>
+                                                                                            <path  id="path694" enable-background="new    " d="M 10.4206,7.78896 C 10.0786,7.65576 9.7186,7.56 9.33772,7.5168 8.3902,7.41096 7.483,7.6212 6.70756,8.05104 L 6.61104,8.3016 C 7.4772,7.83864 8.48592,7.62408 9.53568,7.74144 9.85824,7.77888 10.17216,7.85088 10.4724,7.94592 Z" style="opacity:0.6;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.3.0.0.0.0.0.0.0.0.0.0.0.0.0.19"/>
+                                                                                        </g>
+                                                                                    </g>
+                                                                                </g>
+                                                                            </g>
+                                                                        </g>
+                                                                    </g>
+                                                                </g>
+                                                            </g>
+                                                        </g>
+                                                    </g>
+                                                </g>
+                                            </g>
+                                        </g>
+                                    </g>
+                                    <g  transform="translate(6.3694996,-11.088613)">
+                                        <g >
+                                            <g >
+                                                <g  partID="854795160" id="g758" gorn="0.5.0.0.0.0.0.0.0.4.0.0.0">
+                                                    <g  transform="translate(138.375,99.2267)">
+                                                        <g >
+                                                            <g >
+                                                                <g  id="g756" gorn="0.5.0.0.0.0.0.0.0.4.0.0.0.0.0.0.0">
+                                                                    <g  transform="rotate(90)">
+                                                                        <g >
+                                                                            <g >
+                                                                                <g  id="g754" gorn="0.5.0.0.0.0.0.0.0.4.0.0.0.0.0.0.0.0.0.0.0">
+                                                                                    <g  id="g752" gorn="0.5.0.0.0.0.0.0.0.4.0.0.0.0.0.0.0.0.0.0.0.0">
+                                                                                        <g  id="g750" gorn="0.5.0.0.0.0.0.0.0.4.0.0.0.0.0.0.0.0.0.0.0.0.0">
+                                                                                            <polygon  id="polygon706" points="16.9819,15.4706 16.9819,23.7449 14.8219,23.7449 14.8219,15.4706 " style="fill:#8c8c8c" gorn="0.5.0.0.0.0.0.0.0.4.0.0.0.0.0.0.0.0.0.0.0.0.0.0"/>
+                                                                                            <polygon  id="polygon708" points="2.58048,0.00072 2.58048,8.27496 0.42192,8.27496 0.42192,0.00072 " style="fill:#8c8c8c" gorn="0.5.0.0.0.0.0.0.0.4.0.0.0.0.0.0.0.0.0.0.0.0.0.1"/>
+                                                                                            <polygon  id="polygon710" points="16.9819,0 16.9819,8.27568 14.8219,8.27568 14.8219,0 " style="fill:#8c8c8c" gorn="0.5.0.0.0.0.0.0.0.4.0.0.0.0.0.0.0.0.0.0.0.0.0.2"/>
+                                                                                            <polygon  id="polygon712" points="2.58192,15.4706 2.58192,23.7463 0.42264,23.7463 0.42264,15.4706 " style="fill:#8c8c8c" gorn="0.5.0.0.0.0.0.0.0.4.0.0.0.0.0.0.0.0.0.0.0.0.0.3"/>
+                                                                                            <rect  height="17.6544" x="0.0086399997" id="rect714" width="17.653" y="3.04704" gorn="0.5.0.0.0.0.0.0.0.4.0.0.0.0.0.0.0.0.0.0.0.0.0.4"/>
+                                                                                            <path  id="path716" d="m 17.6609,19.2614 c 0,0.79272 -0.64512,1.43928 -1.44,1.43928 l -14.77298,2e-5 c -0.79272,0 -1.43928,-0.64656 -1.43928,-1.43928 V 4.4856 c 0,-0.792 0.64656,-1.43856 1.43928,-1.43856 h 14.7751 c 0.79416,0 1.43784,0.64656 1.43784,1.43856 z" style="fill:#999999" gorn="0.5.0.0.0.0.0.0.0.4.0.0.0.0.0.0.0.0.0.0.0.0.0.5"/>
+                                                                                            <circle  cy="5.6181598" id="circle718" r="1.5292799" cx="2.5797601" gorn="0.5.0.0.0.0.0.0.0.4.0.0.0.0.0.0.0.0.0.0.0.0.0.6"/>
+                                                                                            <circle  cy="5.6448002" id="circle720" r="1.5292799" cx="15.133" gorn="0.5.0.0.0.0.0.0.0.4.0.0.0.0.0.0.0.0.0.0.0.0.0.7"/>
+                                                                                            <circle  cy="18.198" id="circle722" r="1.5292799" cx="15.1063" gorn="0.5.0.0.0.0.0.0.0.4.0.0.0.0.0.0.0.0.0.0.0.0.0.8"/>
+                                                                                            <circle  cy="18.169901" id="circle724" r="1.5292799" cx="2.5531199" gorn="0.5.0.0.0.0.0.0.0.4.0.0.0.0.0.0.0.0.0.0.0.0.0.9"/>
+                                                                                            <circle  cy="11.8735" id="circle726" r="5.1479998" cx="8.8344002" style="fill:#3f3f3f" gorn="0.5.0.0.0.0.0.0.0.4.0.0.0.0.0.0.0.0.0.0.0.0.0.10"/>
+                                                                                            <linearGradient  y2="-335.05099" gradientTransform="matrix(1,0,0,-1,273,-448.8574)" id="linearGradient732" y1="-335.05099" x1="-192.873" gradientUnits="userSpaceOnUse" x2="-182.577">
+                                                                                                <stop  id="stop728" offset="0" style="stop-color:#333333"/>
+                                                                                                <stop  id="stop730" offset="1" style="stop-color:#3C3C3C"/>
+                                                                                            </linearGradient>
+                                                                                            <circle  cy="11.8735" id="circle734" r="5.1479998" cx="8.8344002" style="fill:url(#linearGradient2942)" gorn="0.5.0.0.0.0.0.0.0.4.0.0.0.0.0.0.0.0.0.0.0.0.0.12"/>
+                                                                                            <circle  cy="12.4855" id="circle736" enable-background="new    " r="4.5302401" cx="8.9244003" style="opacity:0.6" gorn="0.5.0.0.0.0.0.0.0.4.0.0.0.0.0.0.0.0.0.0.0.0.0.13"/>
+                                                                                            <circle  cy="11.9038" id="circle738" r="4.41504" cx="8.8408804" style="fill:#735348" gorn="0.5.0.0.0.0.0.0.0.4.0.0.0.0.0.0.0.0.0.0.0.0.0.14"/>
+                                                                                            <path  id="path740" enable-background="new    " d="M 2.38176,5.53824 C 2.412,5.46624 2.46744,5.4108 2.54592,5.39712 L 2.39472,4.43376 C 2.33712,4.44312 2.27592,4.4352 2.21904,4.45248 L 2.2176,4.44816 C 1.8612,4.55832 1.5948,4.824 1.45872,5.16312 Z" style="opacity:0.5;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.4.0.0.0.0.0.0.0.0.0.0.0.0.0.15"/>
+                                                                                            <path  id="path742" enable-background="new    " d="M 14.9335,5.56416 C 14.96302,5.49072 15.01846,5.43528 15.09838,5.42232 L 14.94934,4.45896 C 14.8903,4.46976 14.82982,4.4604 14.77294,4.47768 L 14.77078,4.47264 C 14.41582,4.58208 14.1487,4.84776 14.01262,5.1876 Z" style="opacity:0.5;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.4.0.0.0.0.0.0.0.0.0.0.0.0.0.16"/>
+                                                                                            <path  id="path744" enable-background="new    " d="m 14.909,18.1174 c 0.02952,-0.07344 0.08352,-0.1296 0.16344,-0.14184 L 14.9234,17.01292 c -0.05904,0.0108 -0.11952,0.0014 -0.17712,0.01872 l -0.0014,-0.0072 c -0.35568,0.10944 -0.6228,0.37512 -0.75816,0.71568 z" style="opacity:0.5;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.4.0.0.0.0.0.0.0.0.0.0.0.0.0.17"/>
+                                                                                            <path  id="path746" enable-background="new    " d="M 2.35512,18.0907 C 2.38464,18.01726 2.44008,17.96398 2.52,17.9503 L 2.3688,16.98622 c -0.05904,0.01224 -0.11952,0.0014 -0.1764,0.01944 l -0.00144,-0.005 c -0.3564,0.108 -0.6228,0.37512 -0.76032,0.71424 z" style="opacity:0.5;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.4.0.0.0.0.0.0.0.0.0.0.0.0.0.18"/>
+                                                                                            <path  id="path748" enable-background="new    " d="M 10.4206,7.78896 C 10.0786,7.65576 9.7186,7.56 9.33772,7.5168 8.3902,7.41096 7.483,7.6212 6.70756,8.05104 L 6.61104,8.3016 C 7.4772,7.83864 8.48592,7.62408 9.53568,7.74144 9.85824,7.77888 10.17216,7.85088 10.4724,7.94592 Z" style="opacity:0.6;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.4.0.0.0.0.0.0.0.0.0.0.0.0.0.19"/>
+                                                                                        </g>
+                                                                                    </g>
+                                                                                </g>
+                                                                            </g>
+                                                                        </g>
+                                                                    </g>
+                                                                </g>
+                                                            </g>
+                                                        </g>
+                                                    </g>
+                                                </g>
+                                            </g>
+                                        </g>
+                                    </g>
+                                    <g  transform="translate(9.7546871,-11.406113)">
+                                        <g >
+                                            <g >
+                                                <g  partID="854795140" id="g812" gorn="0.5.0.0.0.0.0.0.0.5.0.0.0">
+                                                    <g  transform="translate(109.478,99.5442)">
+                                                        <g >
+                                                            <g >
+                                                                <g  id="g810" gorn="0.5.0.0.0.0.0.0.0.5.0.0.0.0.0.0.0">
+                                                                    <g  transform="rotate(90)">
+                                                                        <g >
+                                                                            <g >
+                                                                                <g  id="g808" gorn="0.5.0.0.0.0.0.0.0.5.0.0.0.0.0.0.0.0.0.0.0">
+                                                                                    <g  id="g806" gorn="0.5.0.0.0.0.0.0.0.5.0.0.0.0.0.0.0.0.0.0.0.0">
+                                                                                        <g  id="g804" gorn="0.5.0.0.0.0.0.0.0.5.0.0.0.0.0.0.0.0.0.0.0.0.0">
+                                                                                            <polygon  id="polygon760" points="16.9819,15.4706 16.9819,23.7449 14.8219,23.7449 14.8219,15.4706 " style="fill:#8c8c8c" gorn="0.5.0.0.0.0.0.0.0.5.0.0.0.0.0.0.0.0.0.0.0.0.0.0"/>
+                                                                                            <polygon  id="polygon762" points="2.58048,0.00072 2.58048,8.27496 0.42192,8.27496 0.42192,0.00072 " style="fill:#8c8c8c" gorn="0.5.0.0.0.0.0.0.0.5.0.0.0.0.0.0.0.0.0.0.0.0.0.1"/>
+                                                                                            <polygon  id="polygon764" points="16.9819,0 16.9819,8.27568 14.8219,8.27568 14.8219,0 " style="fill:#8c8c8c" gorn="0.5.0.0.0.0.0.0.0.5.0.0.0.0.0.0.0.0.0.0.0.0.0.2"/>
+                                                                                            <polygon  id="polygon766" points="2.58192,15.4706 2.58192,23.7463 0.42264,23.7463 0.42264,15.4706 " style="fill:#8c8c8c" gorn="0.5.0.0.0.0.0.0.0.5.0.0.0.0.0.0.0.0.0.0.0.0.0.3"/>
+                                                                                            <rect  height="17.6544" x="0.0086399997" id="rect768" width="17.653" y="3.04704" gorn="0.5.0.0.0.0.0.0.0.5.0.0.0.0.0.0.0.0.0.0.0.0.0.4"/>
+                                                                                            <path  id="path770" d="m 17.6609,19.2614 c 0,0.79272 -0.64512,1.43928 -1.44,1.43928 l -14.77298,2e-5 c -0.79272,0 -1.43928,-0.64656 -1.43928,-1.43928 V 4.4856 c 0,-0.792 0.64656,-1.43856 1.43928,-1.43856 h 14.7751 c 0.79416,0 1.43784,0.64656 1.43784,1.43856 z" style="fill:#999999" gorn="0.5.0.0.0.0.0.0.0.5.0.0.0.0.0.0.0.0.0.0.0.0.0.5"/>
+                                                                                            <circle  cy="5.6181598" id="circle772" r="1.5292799" cx="2.5797601" gorn="0.5.0.0.0.0.0.0.0.5.0.0.0.0.0.0.0.0.0.0.0.0.0.6"/>
+                                                                                            <circle  cy="5.6448002" id="circle774" r="1.5292799" cx="15.133" gorn="0.5.0.0.0.0.0.0.0.5.0.0.0.0.0.0.0.0.0.0.0.0.0.7"/>
+                                                                                            <circle  cy="18.198" id="circle776" r="1.5292799" cx="15.1063" gorn="0.5.0.0.0.0.0.0.0.5.0.0.0.0.0.0.0.0.0.0.0.0.0.8"/>
+                                                                                            <circle  cy="18.169901" id="circle778" r="1.5292799" cx="2.5531199" gorn="0.5.0.0.0.0.0.0.0.5.0.0.0.0.0.0.0.0.0.0.0.0.0.9"/>
+                                                                                            <circle  cy="11.8735" id="circle780" r="5.1479998" cx="8.8344002" style="fill:#3f3f3f" gorn="0.5.0.0.0.0.0.0.0.5.0.0.0.0.0.0.0.0.0.0.0.0.0.10"/>
+                                                                                            <linearGradient  y2="-335.05099" gradientTransform="matrix(1,0,0,-1,273,-448.8574)" id="linearGradient786" y1="-335.05099" x1="-192.873" gradientUnits="userSpaceOnUse" x2="-182.577">
+                                                                                                <stop  id="stop782" offset="0" style="stop-color:#333333"/>
+                                                                                                <stop  id="stop784" offset="1" style="stop-color:#3C3C3C"/>
+                                                                                            </linearGradient>
+                                                                                            <circle  cy="11.8735" id="circle788" r="5.1479998" cx="8.8344002" style="fill:url(#linearGradient2936)" gorn="0.5.0.0.0.0.0.0.0.5.0.0.0.0.0.0.0.0.0.0.0.0.0.12"/>
+                                                                                            <circle  cy="12.4855" id="circle790" enable-background="new    " r="4.5302401" cx="8.9244003" style="opacity:0.6" gorn="0.5.0.0.0.0.0.0.0.5.0.0.0.0.0.0.0.0.0.0.0.0.0.13"/>
+                                                                                            <circle  cy="11.9038" id="circle792" r="4.41504" cx="8.8408804" style="fill:#735348" gorn="0.5.0.0.0.0.0.0.0.5.0.0.0.0.0.0.0.0.0.0.0.0.0.14"/>
+                                                                                            <path  id="path794" enable-background="new    " d="M 2.38176,5.53824 C 2.412,5.46624 2.46744,5.4108 2.54592,5.39712 L 2.39472,4.43376 C 2.33712,4.44312 2.27592,4.4352 2.21904,4.45248 L 2.2176,4.44816 C 1.8612,4.55832 1.5948,4.824 1.45872,5.16312 Z" style="opacity:0.5;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.5.0.0.0.0.0.0.0.0.0.0.0.0.0.15"/>
+                                                                                            <path  id="path796" enable-background="new    " d="M 14.9335,5.56416 C 14.96302,5.49072 15.01846,5.43528 15.09838,5.42232 L 14.94934,4.45896 C 14.8903,4.46976 14.82982,4.4604 14.77294,4.47768 L 14.77078,4.47264 C 14.41582,4.58208 14.1487,4.84776 14.01262,5.1876 Z" style="opacity:0.5;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.5.0.0.0.0.0.0.0.0.0.0.0.0.0.16"/>
+                                                                                            <path  id="path798" enable-background="new    " d="m 14.909,18.1174 c 0.02952,-0.07344 0.08352,-0.1296 0.16344,-0.14184 L 14.9234,17.01292 c -0.05904,0.0108 -0.11952,0.0014 -0.17712,0.01872 l -0.0014,-0.0072 c -0.35568,0.10944 -0.6228,0.37512 -0.75816,0.71568 z" style="opacity:0.5;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.5.0.0.0.0.0.0.0.0.0.0.0.0.0.17"/>
+                                                                                            <path  id="path800" enable-background="new    " d="M 2.35512,18.0907 C 2.38464,18.01726 2.44008,17.96398 2.52,17.9503 L 2.3688,16.98622 c -0.05904,0.01224 -0.11952,0.0014 -0.1764,0.01944 l -0.00144,-0.005 c -0.3564,0.108 -0.6228,0.37512 -0.76032,0.71424 z" style="opacity:0.5;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.5.0.0.0.0.0.0.0.0.0.0.0.0.0.18"/>
+                                                                                            <path  id="path802" enable-background="new    " d="M 10.4206,7.78896 C 10.0786,7.65576 9.7186,7.56 9.33772,7.5168 8.3902,7.41096 7.483,7.6212 6.70756,8.05104 L 6.61104,8.3016 C 7.4772,7.83864 8.48592,7.62408 9.53568,7.74144 9.85824,7.77888 10.17216,7.85088 10.4724,7.94592 Z" style="opacity:0.6;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.5.0.0.0.0.0.0.0.0.0.0.0.0.0.19"/>
+                                                                                        </g>
+                                                                                    </g>
+                                                                                </g>
+                                                                            </g>
+                                                                        </g>
+                                                                    </g>
+                                                                </g>
+                                                            </g>
+                                                        </g>
+                                                    </g>
+                                                </g>
+                                            </g>
+                                        </g>
+                                    </g>
+                                    <g  transform="translate(12.504875,-11.406113)">
+                                        <g >
+                                            <g >
+                                                <g  partID="854795120" id="g866" gorn="0.5.0.0.0.0.0.0.0.6.0.0.0">
+                                                    <g  transform="translate(81.216,99.5442)">
+                                                        <g >
+                                                            <g >
+                                                                <g  id="g864" gorn="0.5.0.0.0.0.0.0.0.6.0.0.0.0.0.0.0">
+                                                                    <g  transform="rotate(90)">
+                                                                        <g >
+                                                                            <g >
+                                                                                <g  id="g862" gorn="0.5.0.0.0.0.0.0.0.6.0.0.0.0.0.0.0.0.0.0.0">
+                                                                                    <g  id="g860" gorn="0.5.0.0.0.0.0.0.0.6.0.0.0.0.0.0.0.0.0.0.0.0">
+                                                                                        <g  id="g858" gorn="0.5.0.0.0.0.0.0.0.6.0.0.0.0.0.0.0.0.0.0.0.0.0">
+                                                                                            <polygon  id="polygon814" points="16.9819,15.4706 16.9819,23.7449 14.8219,23.7449 14.8219,15.4706 " style="fill:#8c8c8c" gorn="0.5.0.0.0.0.0.0.0.6.0.0.0.0.0.0.0.0.0.0.0.0.0.0"/>
+                                                                                            <polygon  id="polygon816" points="2.58048,0.00072 2.58048,8.27496 0.42192,8.27496 0.42192,0.00072 " style="fill:#8c8c8c" gorn="0.5.0.0.0.0.0.0.0.6.0.0.0.0.0.0.0.0.0.0.0.0.0.1"/>
+                                                                                            <polygon  id="polygon818" points="16.9819,0 16.9819,8.27568 14.8219,8.27568 14.8219,0 " style="fill:#8c8c8c" gorn="0.5.0.0.0.0.0.0.0.6.0.0.0.0.0.0.0.0.0.0.0.0.0.2"/>
+                                                                                            <polygon  id="polygon820" points="2.58192,15.4706 2.58192,23.7463 0.42264,23.7463 0.42264,15.4706 " style="fill:#8c8c8c" gorn="0.5.0.0.0.0.0.0.0.6.0.0.0.0.0.0.0.0.0.0.0.0.0.3"/>
+                                                                                            <rect  height="17.6544" x="0.0086399997" id="rect822" width="17.653" y="3.04704" gorn="0.5.0.0.0.0.0.0.0.6.0.0.0.0.0.0.0.0.0.0.0.0.0.4"/>
+                                                                                            <path  id="path824" d="m 17.6609,19.2614 c 0,0.79272 -0.64512,1.43928 -1.44,1.43928 l -14.77298,2e-5 c -0.79272,0 -1.43928,-0.64656 -1.43928,-1.43928 V 4.4856 c 0,-0.792 0.64656,-1.43856 1.43928,-1.43856 h 14.7751 c 0.79416,0 1.43784,0.64656 1.43784,1.43856 z" style="fill:#999999" gorn="0.5.0.0.0.0.0.0.0.6.0.0.0.0.0.0.0.0.0.0.0.0.0.5"/>
+                                                                                            <circle  cy="5.6181598" id="circle826" r="1.5292799" cx="2.5797601" gorn="0.5.0.0.0.0.0.0.0.6.0.0.0.0.0.0.0.0.0.0.0.0.0.6"/>
+                                                                                            <circle  cy="5.6448002" id="circle828" r="1.5292799" cx="15.133" gorn="0.5.0.0.0.0.0.0.0.6.0.0.0.0.0.0.0.0.0.0.0.0.0.7"/>
+                                                                                            <circle  cy="18.198" id="circle830" r="1.5292799" cx="15.1063" gorn="0.5.0.0.0.0.0.0.0.6.0.0.0.0.0.0.0.0.0.0.0.0.0.8"/>
+                                                                                            <circle  cy="18.169901" id="circle832" r="1.5292799" cx="2.5531199" gorn="0.5.0.0.0.0.0.0.0.6.0.0.0.0.0.0.0.0.0.0.0.0.0.9"/>
+                                                                                            <circle  cy="11.8735" id="circle834" r="5.1479998" cx="8.8344002" style="fill:#3f3f3f" gorn="0.5.0.0.0.0.0.0.0.6.0.0.0.0.0.0.0.0.0.0.0.0.0.10"/>
+                                                                                            <linearGradient  y2="-335.05099" gradientTransform="matrix(1,0,0,-1,273,-448.8574)" id="linearGradient840" y1="-335.05099" x1="-192.873" gradientUnits="userSpaceOnUse" x2="-182.577">
+                                                                                                <stop  id="stop836" offset="0" style="stop-color:#333333"/>
+                                                                                                <stop  id="stop838" offset="1" style="stop-color:#3C3C3C"/>
+                                                                                            </linearGradient>
+                                                                                            <circle  cy="11.8735" id="circle842" r="5.1479998" cx="8.8344002" style="fill:url(#linearGradient2930)" gorn="0.5.0.0.0.0.0.0.0.6.0.0.0.0.0.0.0.0.0.0.0.0.0.12"/>
+                                                                                            <circle  cy="12.4855" id="circle844" enable-background="new    " r="4.5302401" cx="8.9244003" style="opacity:0.6" gorn="0.5.0.0.0.0.0.0.0.6.0.0.0.0.0.0.0.0.0.0.0.0.0.13"/>
+                                                                                            <circle  cy="11.9038" id="circle846" r="4.41504" cx="8.8408804" style="fill:#735348" gorn="0.5.0.0.0.0.0.0.0.6.0.0.0.0.0.0.0.0.0.0.0.0.0.14"/>
+                                                                                            <path  id="path848" enable-background="new    " d="M 2.38176,5.53824 C 2.412,5.46624 2.46744,5.4108 2.54592,5.39712 L 2.39472,4.43376 C 2.33712,4.44312 2.27592,4.4352 2.21904,4.45248 L 2.2176,4.44816 C 1.8612,4.55832 1.5948,4.824 1.45872,5.16312 Z" style="opacity:0.5;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.6.0.0.0.0.0.0.0.0.0.0.0.0.0.15"/>
+                                                                                            <path  id="path850" enable-background="new    " d="M 14.9335,5.56416 C 14.96302,5.49072 15.01846,5.43528 15.09838,5.42232 L 14.94934,4.45896 C 14.8903,4.46976 14.82982,4.4604 14.77294,4.47768 L 14.77078,4.47264 C 14.41582,4.58208 14.1487,4.84776 14.01262,5.1876 Z" style="opacity:0.5;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.6.0.0.0.0.0.0.0.0.0.0.0.0.0.16"/>
+                                                                                            <path  id="path852" enable-background="new    " d="m 14.909,18.1174 c 0.02952,-0.07344 0.08352,-0.1296 0.16344,-0.14184 L 14.9234,17.01292 c -0.05904,0.0108 -0.11952,0.0014 -0.17712,0.01872 l -0.0014,-0.0072 c -0.35568,0.10944 -0.6228,0.37512 -0.75816,0.71568 z" style="opacity:0.5;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.6.0.0.0.0.0.0.0.0.0.0.0.0.0.17"/>
+                                                                                            <path  id="path854" enable-background="new    " d="M 2.35512,18.0907 C 2.38464,18.01726 2.44008,17.96398 2.52,17.9503 L 2.3688,16.98622 c -0.05904,0.01224 -0.11952,0.0014 -0.1764,0.01944 l -0.00144,-0.005 c -0.3564,0.108 -0.6228,0.37512 -0.76032,0.71424 z" style="opacity:0.5;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.6.0.0.0.0.0.0.0.0.0.0.0.0.0.18"/>
+                                                                                            <path  id="path856" enable-background="new    " d="M 10.4206,7.78896 C 10.0786,7.65576 9.7186,7.56 9.33772,7.5168 8.3902,7.41096 7.483,7.6212 6.70756,8.05104 L 6.61104,8.3016 C 7.4772,7.83864 8.48592,7.62408 9.53568,7.74144 9.85824,7.77888 10.17216,7.85088 10.4724,7.94592 Z" style="opacity:0.6;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.6.0.0.0.0.0.0.0.0.0.0.0.0.0.19"/>
+                                                                                        </g>
+                                                                                    </g>
+                                                                                </g>
+                                                                            </g>
+                                                                        </g>
+                                                                    </g>
+                                                                </g>
+                                                            </g>
+                                                        </g>
+                                                    </g>
+                                                </g>
+                                            </g>
+                                        </g>
+                                    </g>
+                                    <g  transform="translate(16.841862,-11.723713)">
+                                        <g >
+                                            <g >
+                                                <g  partID="854795100" id="g920" gorn="0.5.0.0.0.0.0.0.0.7.0.0.0">
+                                                    <g  transform="translate(51.3672,99.8618)">
+                                                        <g >
+                                                            <g >
+                                                                <g  id="g918" gorn="0.5.0.0.0.0.0.0.0.7.0.0.0.0.0.0.0">
+                                                                    <g  transform="rotate(90)">
+                                                                        <g >
+                                                                            <g >
+                                                                                <g  id="g916" gorn="0.5.0.0.0.0.0.0.0.7.0.0.0.0.0.0.0.0.0.0.0">
+                                                                                    <g  id="g914" gorn="0.5.0.0.0.0.0.0.0.7.0.0.0.0.0.0.0.0.0.0.0.0">
+                                                                                        <g  id="g912" gorn="0.5.0.0.0.0.0.0.0.7.0.0.0.0.0.0.0.0.0.0.0.0.0">
+                                                                                            <polygon  id="polygon868" points="14.8219,15.4706 16.9819,15.4706 16.9819,23.7449 14.8219,23.7449 " style="fill:#8c8c8c" gorn="0.5.0.0.0.0.0.0.0.7.0.0.0.0.0.0.0.0.0.0.0.0.0.0"/>
+                                                                                            <polygon  id="polygon870" points="0.42192,0.00072 2.58048,0.00072 2.58048,8.27496 0.42192,8.27496 " style="fill:#8c8c8c" gorn="0.5.0.0.0.0.0.0.0.7.0.0.0.0.0.0.0.0.0.0.0.0.0.1"/>
+                                                                                            <polygon  id="polygon872" points="14.8219,0 16.9819,0 16.9819,8.27568 14.8219,8.27568 " style="fill:#8c8c8c" gorn="0.5.0.0.0.0.0.0.0.7.0.0.0.0.0.0.0.0.0.0.0.0.0.2"/>
+                                                                                            <polygon  id="polygon874" points="0.42264,15.4706 2.58192,15.4706 2.58192,23.7463 0.42264,23.7463 " style="fill:#8c8c8c" gorn="0.5.0.0.0.0.0.0.0.7.0.0.0.0.0.0.0.0.0.0.0.0.0.3"/>
+                                                                                            <rect  height="17.6544" x="0.0086399997" id="rect876" width="17.653" y="3.04704" gorn="0.5.0.0.0.0.0.0.0.7.0.0.0.0.0.0.0.0.0.0.0.0.0.4"/>
+                                                                                            <path  id="path878" d="m 17.6609,19.2614 c 0,0.79272 -0.64512,1.43928 -1.44,1.43928 l -14.77298,2e-5 c -0.79272,0 -1.43928,-0.64656 -1.43928,-1.43928 V 4.4856 c 0,-0.792 0.64656,-1.43856 1.43928,-1.43856 h 14.7751 c 0.79416,0 1.43784,0.64656 1.43784,1.43856 z" style="fill:#999999" gorn="0.5.0.0.0.0.0.0.0.7.0.0.0.0.0.0.0.0.0.0.0.0.0.5"/>
+                                                                                            <circle  cy="5.6181598" id="circle880" r="1.5292799" cx="2.5797601" gorn="0.5.0.0.0.0.0.0.0.7.0.0.0.0.0.0.0.0.0.0.0.0.0.6"/>
+                                                                                            <circle  cy="5.6448002" id="circle882" r="1.5292799" cx="15.133" gorn="0.5.0.0.0.0.0.0.0.7.0.0.0.0.0.0.0.0.0.0.0.0.0.7"/>
+                                                                                            <circle  cy="18.198" id="circle884" r="1.5292799" cx="15.1063" gorn="0.5.0.0.0.0.0.0.0.7.0.0.0.0.0.0.0.0.0.0.0.0.0.8"/>
+                                                                                            <circle  cy="18.169901" id="circle886" r="1.5292799" cx="2.5531199" gorn="0.5.0.0.0.0.0.0.0.7.0.0.0.0.0.0.0.0.0.0.0.0.0.9"/>
+                                                                                            <circle  cy="11.8735" id="circle888" r="5.1479998" cx="8.8344002" style="fill:#3f3f3f" gorn="0.5.0.0.0.0.0.0.0.7.0.0.0.0.0.0.0.0.0.0.0.0.0.10"/>
+                                                                                            <linearGradient  y2="-335.05099" gradientTransform="matrix(1,0,0,-1,273,-448.8574)" id="linearGradient894" y1="-335.05099" x1="-192.873" gradientUnits="userSpaceOnUse" x2="-182.577">
+                                                                                                <stop  id="stop890" offset="0" style="stop-color:#333333"/>
+                                                                                                <stop  id="stop892" offset="1" style="stop-color:#3C3C3C"/>
+                                                                                            </linearGradient>
+                                                                                            <circle  cy="11.8735" id="circle896" r="5.1479998" cx="8.8344002" style="fill:url(#linearGradient2924)" gorn="0.5.0.0.0.0.0.0.0.7.0.0.0.0.0.0.0.0.0.0.0.0.0.12"/>
+                                                                                            <circle  cy="12.4855" id="circle898" enable-background="new    " r="4.5302401" cx="8.9244003" style="opacity:0.6" gorn="0.5.0.0.0.0.0.0.0.7.0.0.0.0.0.0.0.0.0.0.0.0.0.13"/>
+                                                                                            <circle  cy="11.9038" id="circle900" r="4.41504" cx="8.8408804" style="fill:#735348" gorn="0.5.0.0.0.0.0.0.0.7.0.0.0.0.0.0.0.0.0.0.0.0.0.14"/>
+                                                                                            <path  id="path902" enable-background="new    " d="M 2.38176,5.53824 C 2.412,5.46624 2.46744,5.4108 2.54592,5.39712 L 2.39472,4.43376 C 2.33712,4.44312 2.27592,4.4352 2.21904,4.45248 L 2.2176,4.44816 C 1.8612,4.55832 1.5948,4.824 1.45872,5.16312 Z" style="opacity:0.5;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.7.0.0.0.0.0.0.0.0.0.0.0.0.0.15"/>
+                                                                                            <path  id="path904" enable-background="new    " d="M 14.9335,5.56416 C 14.96302,5.49072 15.01846,5.43528 15.09838,5.42232 L 14.94934,4.45896 C 14.8903,4.46976 14.82982,4.4604 14.77294,4.47768 L 14.77078,4.47264 C 14.41582,4.58208 14.1487,4.84776 14.01262,5.1876 Z" style="opacity:0.5;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.7.0.0.0.0.0.0.0.0.0.0.0.0.0.16"/>
+                                                                                            <path  id="path906" enable-background="new    " d="m 14.909,18.1174 c 0.02952,-0.07344 0.08352,-0.1296 0.16344,-0.14184 L 14.9234,17.01292 c -0.05904,0.0108 -0.11952,0.0014 -0.17712,0.01872 l -0.0014,-0.0072 c -0.35568,0.10944 -0.6228,0.37512 -0.75816,0.71568 z" style="opacity:0.5;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.7.0.0.0.0.0.0.0.0.0.0.0.0.0.17"/>
+                                                                                            <path  id="path908" enable-background="new    " d="M 2.35512,18.0907 C 2.38464,18.01726 2.44008,17.96398 2.52,17.9503 L 2.3688,16.98622 c -0.05904,0.01224 -0.11952,0.0014 -0.1764,0.01944 l -0.00144,-0.005 c -0.3564,0.108 -0.6228,0.37512 -0.76032,0.71424 z" style="opacity:0.5;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.7.0.0.0.0.0.0.0.0.0.0.0.0.0.18"/>
+                                                                                            <path  id="path910" enable-background="new    " d="M 10.4206,7.78896 C 10.0786,7.65576 9.7186,7.56 9.33772,7.5168 8.3902,7.41096 7.483,7.6212 6.70756,8.05104 L 6.61104,8.3016 C 7.4772,7.83864 8.48592,7.62408 9.53568,7.74144 9.85824,7.77888 10.17216,7.85088 10.4724,7.94592 Z" style="opacity:0.6;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.7.0.0.0.0.0.0.0.0.0.0.0.0.0.19"/>
+                                                                                        </g>
+                                                                                    </g>
+                                                                                </g>
+                                                                            </g>
+                                                                        </g>
+                                                                    </g>
+                                                                </g>
+                                                            </g>
+                                                        </g>
+                                                    </g>
+                                                </g>
+                                            </g>
+                                        </g>
+                                    </g>
+                                    <g  transform="translate(6.3694996,-4.5044712)">
+                                        <g >
+                                            <g >
+                                                <g  partID="854795080" id="g974" gorn="0.5.0.0.0.0.0.0.0.8.0.0.0">
+                                                    <g  transform="translate(138.375,64.2961)">
+                                                        <g >
+                                                            <g >
+                                                                <g  id="g972" gorn="0.5.0.0.0.0.0.0.0.8.0.0.0.0.0.0.0">
+                                                                    <g  transform="rotate(90)">
+                                                                        <g >
+                                                                            <g >
+                                                                                <g  id="g970" gorn="0.5.0.0.0.0.0.0.0.8.0.0.0.0.0.0.0.0.0.0.0">
+                                                                                    <g  id="g968" gorn="0.5.0.0.0.0.0.0.0.8.0.0.0.0.0.0.0.0.0.0.0.0">
+                                                                                        <g  id="g966" gorn="0.5.0.0.0.0.0.0.0.8.0.0.0.0.0.0.0.0.0.0.0.0.0">
+                                                                                            <polygon  id="polygon922" points="14.8219,15.4706 16.9819,15.4706 16.9819,23.7449 14.8219,23.7449 " style="fill:#8c8c8c" gorn="0.5.0.0.0.0.0.0.0.8.0.0.0.0.0.0.0.0.0.0.0.0.0.0"/>
+                                                                                            <polygon  id="polygon924" points="0.42192,0.00072 2.58048,0.00072 2.58048,8.27496 0.42192,8.27496 " style="fill:#8c8c8c" gorn="0.5.0.0.0.0.0.0.0.8.0.0.0.0.0.0.0.0.0.0.0.0.0.1"/>
+                                                                                            <polygon  id="polygon926" points="14.8219,0 16.9819,0 16.9819,8.27568 14.8219,8.27568 " style="fill:#8c8c8c" gorn="0.5.0.0.0.0.0.0.0.8.0.0.0.0.0.0.0.0.0.0.0.0.0.2"/>
+                                                                                            <polygon  id="polygon928" points="0.42264,15.4706 2.58192,15.4706 2.58192,23.7463 0.42264,23.7463 " style="fill:#8c8c8c" gorn="0.5.0.0.0.0.0.0.0.8.0.0.0.0.0.0.0.0.0.0.0.0.0.3"/>
+                                                                                            <rect  height="17.6544" x="0.0086399997" id="rect930" width="17.653" y="3.04704" gorn="0.5.0.0.0.0.0.0.0.8.0.0.0.0.0.0.0.0.0.0.0.0.0.4"/>
+                                                                                            <path  id="path932" d="m 17.6609,19.2614 c 0,0.79272 -0.64512,1.43928 -1.44,1.43928 l -14.77298,2e-5 c -0.79272,0 -1.43928,-0.64656 -1.43928,-1.43928 V 4.4856 c 0,-0.792 0.64656,-1.43856 1.43928,-1.43856 h 14.7751 c 0.79416,0 1.43784,0.64656 1.43784,1.43856 z" style="fill:#999999" gorn="0.5.0.0.0.0.0.0.0.8.0.0.0.0.0.0.0.0.0.0.0.0.0.5"/>
+                                                                                            <circle  cy="5.6181598" id="circle934" r="1.5292799" cx="2.5797601" gorn="0.5.0.0.0.0.0.0.0.8.0.0.0.0.0.0.0.0.0.0.0.0.0.6"/>
+                                                                                            <circle  cy="5.6448002" id="circle936" r="1.5292799" cx="15.133" gorn="0.5.0.0.0.0.0.0.0.8.0.0.0.0.0.0.0.0.0.0.0.0.0.7"/>
+                                                                                            <circle  cy="18.198" id="circle938" r="1.5292799" cx="15.1063" gorn="0.5.0.0.0.0.0.0.0.8.0.0.0.0.0.0.0.0.0.0.0.0.0.8"/>
+                                                                                            <circle  cy="18.169901" id="circle940" r="1.5292799" cx="2.5531199" gorn="0.5.0.0.0.0.0.0.0.8.0.0.0.0.0.0.0.0.0.0.0.0.0.9"/>
+                                                                                            <circle  cy="11.8735" id="circle942" r="5.1479998" cx="8.8344002" style="fill:#3f3f3f" gorn="0.5.0.0.0.0.0.0.0.8.0.0.0.0.0.0.0.0.0.0.0.0.0.10"/>
+                                                                                            <linearGradient  y2="-335.05099" gradientTransform="matrix(1,0,0,-1,273,-448.8574)" id="linearGradient948" y1="-335.05099" x1="-192.873" gradientUnits="userSpaceOnUse" x2="-182.577">
+                                                                                                <stop  id="stop944" offset="0" style="stop-color:#333333"/>
+                                                                                                <stop  id="stop946" offset="1" style="stop-color:#3C3C3C"/>
+                                                                                            </linearGradient>
+                                                                                            <circle  cy="11.8735" id="circle950" r="5.1479998" cx="8.8344002" style="fill:url(#linearGradient2944)" gorn="0.5.0.0.0.0.0.0.0.8.0.0.0.0.0.0.0.0.0.0.0.0.0.12"/>
+                                                                                            <circle  cy="12.4855" id="circle952" enable-background="new    " r="4.5302401" cx="8.9244003" style="opacity:0.6" gorn="0.5.0.0.0.0.0.0.0.8.0.0.0.0.0.0.0.0.0.0.0.0.0.13"/>
+                                                                                            <circle  cy="11.9038" id="circle954" r="4.41504" cx="8.8408804" style="fill:#735348" gorn="0.5.0.0.0.0.0.0.0.8.0.0.0.0.0.0.0.0.0.0.0.0.0.14"/>
+                                                                                            <path  id="path956" enable-background="new    " d="M 2.38176,5.53824 C 2.412,5.46624 2.46744,5.4108 2.54592,5.39712 L 2.39472,4.43376 C 2.33712,4.44312 2.27592,4.4352 2.21904,4.45248 L 2.2176,4.44816 C 1.8612,4.55832 1.5948,4.824 1.45872,5.16312 Z" style="opacity:0.5;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.8.0.0.0.0.0.0.0.0.0.0.0.0.0.15"/>
+                                                                                            <path  id="path958" enable-background="new    " d="M 14.9335,5.56416 C 14.96302,5.49072 15.01846,5.43528 15.09838,5.42232 L 14.94934,4.45896 C 14.8903,4.46976 14.82982,4.4604 14.77294,4.47768 L 14.77078,4.47264 C 14.41582,4.58208 14.1487,4.84776 14.01262,5.1876 Z" style="opacity:0.5;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.8.0.0.0.0.0.0.0.0.0.0.0.0.0.16"/>
+                                                                                            <path  id="path960" enable-background="new    " d="m 14.909,18.1174 c 0.02952,-0.07344 0.08352,-0.1296 0.16344,-0.14184 L 14.9234,17.01292 c -0.05904,0.0108 -0.11952,0.0014 -0.17712,0.01872 l -0.0014,-0.0072 c -0.35568,0.10944 -0.6228,0.37512 -0.75816,0.71568 z" style="opacity:0.5;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.8.0.0.0.0.0.0.0.0.0.0.0.0.0.17"/>
+                                                                                            <path  id="path962" enable-background="new    " d="M 2.35512,18.0907 C 2.38464,18.01726 2.44008,17.96398 2.52,17.9503 L 2.3688,16.98622 c -0.05904,0.01224 -0.11952,0.0014 -0.1764,0.01944 l -0.00144,-0.005 c -0.3564,0.108 -0.6228,0.37512 -0.76032,0.71424 z" style="opacity:0.5;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.8.0.0.0.0.0.0.0.0.0.0.0.0.0.18"/>
+                                                                                            <path  id="path964" enable-background="new    " d="M 10.4206,7.78896 C 10.0786,7.65576 9.7186,7.56 9.33772,7.5168 8.3902,7.41096 7.483,7.6212 6.70756,8.05104 L 6.61104,8.3016 C 7.4772,7.83864 8.48592,7.62408 9.53568,7.74144 9.85824,7.77888 10.17216,7.85088 10.4724,7.94592 Z" style="opacity:0.6;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.8.0.0.0.0.0.0.0.0.0.0.0.0.0.19"/>
+                                                                                        </g>
+                                                                                    </g>
+                                                                                </g>
+                                                                            </g>
+                                                                        </g>
+                                                                    </g>
+                                                                </g>
+                                                            </g>
+                                                        </g>
+                                                    </g>
+                                                </g>
+                                            </g>
+                                        </g>
+                                    </g>
+                                    <g  transform="translate(9.7546871,-5.1394712)">
+                                        <g >
+                                            <g >
+                                                <g  partID="854795060" id="g1028" gorn="0.5.0.0.0.0.0.0.0.9.0.0.0">
+                                                    <g  transform="translate(109.478,64.9311)">
+                                                        <g >
+                                                            <g >
+                                                                <g  id="g1026" gorn="0.5.0.0.0.0.0.0.0.9.0.0.0.0.0.0.0">
+                                                                    <g  transform="rotate(90)">
+                                                                        <g >
+                                                                            <g >
+                                                                                <g  id="g1024" gorn="0.5.0.0.0.0.0.0.0.9.0.0.0.0.0.0.0.0.0.0.0">
+                                                                                    <g  id="g1022" gorn="0.5.0.0.0.0.0.0.0.9.0.0.0.0.0.0.0.0.0.0.0.0">
+                                                                                        <g  id="g1020" gorn="0.5.0.0.0.0.0.0.0.9.0.0.0.0.0.0.0.0.0.0.0.0.0">
+                                                                                            <polygon  id="polygon976" points="16.9819,15.4706 16.9819,23.7449 14.8219,23.7449 14.8219,15.4706 " style="fill:#8c8c8c" gorn="0.5.0.0.0.0.0.0.0.9.0.0.0.0.0.0.0.0.0.0.0.0.0.0"/>
+                                                                                            <polygon  id="polygon978" points="2.58048,0.00072 2.58048,8.27496 0.42192,8.27496 0.42192,0.00072 " style="fill:#8c8c8c" gorn="0.5.0.0.0.0.0.0.0.9.0.0.0.0.0.0.0.0.0.0.0.0.0.1"/>
+                                                                                            <polygon  id="polygon980" points="16.9819,0 16.9819,8.27568 14.8219,8.27568 14.8219,0 " style="fill:#8c8c8c" gorn="0.5.0.0.0.0.0.0.0.9.0.0.0.0.0.0.0.0.0.0.0.0.0.2"/>
+                                                                                            <polygon  id="polygon982" points="2.58192,15.4706 2.58192,23.7463 0.42264,23.7463 0.42264,15.4706 " style="fill:#8c8c8c" gorn="0.5.0.0.0.0.0.0.0.9.0.0.0.0.0.0.0.0.0.0.0.0.0.3"/>
+                                                                                            <rect  height="17.6544" x="0.0086399997" id="rect984" width="17.653" y="3.04704" gorn="0.5.0.0.0.0.0.0.0.9.0.0.0.0.0.0.0.0.0.0.0.0.0.4"/>
+                                                                                            <path  id="path986" d="m 17.6609,19.2614 c 0,0.79272 -0.64512,1.43928 -1.44,1.43928 l -14.77298,2e-5 c -0.79272,0 -1.43928,-0.64656 -1.43928,-1.43928 V 4.4856 c 0,-0.792 0.64656,-1.43856 1.43928,-1.43856 h 14.7751 c 0.79416,0 1.43784,0.64656 1.43784,1.43856 z" style="fill:#999999" gorn="0.5.0.0.0.0.0.0.0.9.0.0.0.0.0.0.0.0.0.0.0.0.0.5"/>
+                                                                                            <circle  cy="5.6181598" id="circle988" r="1.5292799" cx="2.5797601" gorn="0.5.0.0.0.0.0.0.0.9.0.0.0.0.0.0.0.0.0.0.0.0.0.6"/>
+                                                                                            <circle  cy="5.6448002" id="circle990" r="1.5292799" cx="15.133" gorn="0.5.0.0.0.0.0.0.0.9.0.0.0.0.0.0.0.0.0.0.0.0.0.7"/>
+                                                                                            <circle  cy="18.198" id="circle992" r="1.5292799" cx="15.1063" gorn="0.5.0.0.0.0.0.0.0.9.0.0.0.0.0.0.0.0.0.0.0.0.0.8"/>
+                                                                                            <circle  cy="18.169901" id="circle994" r="1.5292799" cx="2.5531199" gorn="0.5.0.0.0.0.0.0.0.9.0.0.0.0.0.0.0.0.0.0.0.0.0.9"/>
+                                                                                            <circle  cy="11.8735" id="circle996" r="5.1479998" cx="8.8344002" style="fill:#3f3f3f" gorn="0.5.0.0.0.0.0.0.0.9.0.0.0.0.0.0.0.0.0.0.0.0.0.10"/>
+                                                                                            <linearGradient  y2="-335.05099" gradientTransform="matrix(1,0,0,-1,273,-448.8574)" id="linearGradient1002" y1="-335.05099" x1="-192.873" gradientUnits="userSpaceOnUse" x2="-182.577">
+                                                                                                <stop  id="stop998" offset="0" style="stop-color:#333333"/>
+                                                                                                <stop  id="stop1000" offset="1" style="stop-color:#3C3C3C"/>
+                                                                                            </linearGradient>
+                                                                                            <circle  cy="11.8735" id="circle1004" r="5.1479998" cx="8.8344002" style="fill:url(#linearGradient2938)" gorn="0.5.0.0.0.0.0.0.0.9.0.0.0.0.0.0.0.0.0.0.0.0.0.12"/>
+                                                                                            <circle  cy="12.4855" id="circle1006" enable-background="new    " r="4.5302401" cx="8.9244003" style="opacity:0.6" gorn="0.5.0.0.0.0.0.0.0.9.0.0.0.0.0.0.0.0.0.0.0.0.0.13"/>
+                                                                                            <circle  cy="11.9038" id="circle1008" r="4.41504" cx="8.8408804" style="fill:#735348" gorn="0.5.0.0.0.0.0.0.0.9.0.0.0.0.0.0.0.0.0.0.0.0.0.14"/>
+                                                                                            <path  id="path1010" enable-background="new    " d="M 2.38176,5.53824 C 2.412,5.46624 2.46744,5.4108 2.54592,5.39712 L 2.39472,4.43376 C 2.33712,4.44312 2.27592,4.4352 2.21904,4.45248 L 2.2176,4.44816 C 1.8612,4.55832 1.5948,4.824 1.45872,5.16312 Z" style="opacity:0.5;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.9.0.0.0.0.0.0.0.0.0.0.0.0.0.15"/>
+                                                                                            <path  id="path1012" enable-background="new    " d="M 14.9335,5.56416 C 14.96302,5.49072 15.01846,5.43528 15.09838,5.42232 L 14.94934,4.45896 C 14.8903,4.46976 14.82982,4.4604 14.77294,4.47768 L 14.77078,4.47264 C 14.41582,4.58208 14.1487,4.84776 14.01262,5.1876 Z" style="opacity:0.5;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.9.0.0.0.0.0.0.0.0.0.0.0.0.0.16"/>
+                                                                                            <path  id="path1014" enable-background="new    " d="m 14.909,18.1174 c 0.02952,-0.07344 0.08352,-0.1296 0.16344,-0.14184 L 14.9234,17.01292 c -0.05904,0.0108 -0.11952,0.0014 -0.17712,0.01872 l -0.0014,-0.0072 c -0.35568,0.10944 -0.6228,0.37512 -0.75816,0.71568 z" style="opacity:0.5;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.9.0.0.0.0.0.0.0.0.0.0.0.0.0.17"/>
+                                                                                            <path  id="path1016" enable-background="new    " d="M 2.35512,18.0907 C 2.38464,18.01726 2.44008,17.96398 2.52,17.9503 L 2.3688,16.98622 c -0.05904,0.01224 -0.11952,0.0014 -0.1764,0.01944 l -0.00144,-0.005 c -0.3564,0.108 -0.6228,0.37512 -0.76032,0.71424 z" style="opacity:0.5;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.9.0.0.0.0.0.0.0.0.0.0.0.0.0.18"/>
+                                                                                            <path  id="path1018" enable-background="new    " d="M 10.4206,7.78896 C 10.0786,7.65576 9.7186,7.56 9.33772,7.5168 8.3902,7.41096 7.483,7.6212 6.70756,8.05104 L 6.61104,8.3016 C 7.4772,7.83864 8.48592,7.62408 9.53568,7.74144 9.85824,7.77888 10.17216,7.85088 10.4724,7.94592 Z" style="opacity:0.6;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.9.0.0.0.0.0.0.0.0.0.0.0.0.0.19"/>
+                                                                                        </g>
+                                                                                    </g>
+                                                                                </g>
+                                                                            </g>
+                                                                        </g>
+                                                                    </g>
+                                                                </g>
+                                                            </g>
+                                                        </g>
+                                                    </g>
+                                                </g>
+                                            </g>
+                                        </g>
+                                    </g>
+                                    <g  transform="translate(12.187275,-4.5044712)">
+                                        <g >
+                                            <g >
+                                                <g  partID="854795040" id="g1082" gorn="0.5.0.0.0.0.0.0.0.10.0.0.0">
+                                                    <g  transform="translate(81.5336,64.2961)">
+                                                        <g >
+                                                            <g >
+                                                                <g  id="g1080" gorn="0.5.0.0.0.0.0.0.0.10.0.0.0.0.0.0.0">
+                                                                    <g  transform="rotate(90)">
+                                                                        <g >
+                                                                            <g >
+                                                                                <g  id="g1078" gorn="0.5.0.0.0.0.0.0.0.10.0.0.0.0.0.0.0.0.0.0.0">
+                                                                                    <g  id="g1076" gorn="0.5.0.0.0.0.0.0.0.10.0.0.0.0.0.0.0.0.0.0.0.0">
+                                                                                        <g  id="g1074" gorn="0.5.0.0.0.0.0.0.0.10.0.0.0.0.0.0.0.0.0.0.0.0.0">
+                                                                                            <polygon  id="polygon1030" points="14.8219,15.4706 16.9819,15.4706 16.9819,23.7449 14.8219,23.7449 " style="fill:#8c8c8c" gorn="0.5.0.0.0.0.0.0.0.10.0.0.0.0.0.0.0.0.0.0.0.0.0.0"/>
+                                                                                            <polygon  id="polygon1032" points="0.42192,0.00072 2.58048,0.00072 2.58048,8.27496 0.42192,8.27496 " style="fill:#8c8c8c" gorn="0.5.0.0.0.0.0.0.0.10.0.0.0.0.0.0.0.0.0.0.0.0.0.1"/>
+                                                                                            <polygon  id="polygon1034" points="14.8219,0 16.9819,0 16.9819,8.27568 14.8219,8.27568 " style="fill:#8c8c8c" gorn="0.5.0.0.0.0.0.0.0.10.0.0.0.0.0.0.0.0.0.0.0.0.0.2"/>
+                                                                                            <polygon  id="polygon1036" points="0.42264,15.4706 2.58192,15.4706 2.58192,23.7463 0.42264,23.7463 " style="fill:#8c8c8c" gorn="0.5.0.0.0.0.0.0.0.10.0.0.0.0.0.0.0.0.0.0.0.0.0.3"/>
+                                                                                            <rect  height="17.6544" x="0.0086399997" id="rect1038" width="17.653" y="3.04704" gorn="0.5.0.0.0.0.0.0.0.10.0.0.0.0.0.0.0.0.0.0.0.0.0.4"/>
+                                                                                            <path  id="path1040" d="m 17.6609,19.2614 c 0,0.79272 -0.64512,1.43928 -1.44,1.43928 l -14.77298,2e-5 c -0.79272,0 -1.43928,-0.64656 -1.43928,-1.43928 V 4.4856 c 0,-0.792 0.64656,-1.43856 1.43928,-1.43856 h 14.7751 c 0.79416,0 1.43784,0.64656 1.43784,1.43856 z" style="fill:#999999" gorn="0.5.0.0.0.0.0.0.0.10.0.0.0.0.0.0.0.0.0.0.0.0.0.5"/>
+                                                                                            <circle  cy="5.6181598" id="circle1042" r="1.5292799" cx="2.5797601" gorn="0.5.0.0.0.0.0.0.0.10.0.0.0.0.0.0.0.0.0.0.0.0.0.6"/>
+                                                                                            <circle  cy="5.6448002" id="circle1044" r="1.5292799" cx="15.133" gorn="0.5.0.0.0.0.0.0.0.10.0.0.0.0.0.0.0.0.0.0.0.0.0.7"/>
+                                                                                            <circle  cy="18.198" id="circle1046" r="1.5292799" cx="15.1063" gorn="0.5.0.0.0.0.0.0.0.10.0.0.0.0.0.0.0.0.0.0.0.0.0.8"/>
+                                                                                            <circle  cy="18.169901" id="circle1048" r="1.5292799" cx="2.5531199" gorn="0.5.0.0.0.0.0.0.0.10.0.0.0.0.0.0.0.0.0.0.0.0.0.9"/>
+                                                                                            <circle  cy="11.8735" id="circle1050" r="5.1479998" cx="8.8344002" style="fill:#3f3f3f" gorn="0.5.0.0.0.0.0.0.0.10.0.0.0.0.0.0.0.0.0.0.0.0.0.10"/>
+                                                                                            <linearGradient  y2="-335.05099" gradientTransform="matrix(1,0,0,-1,273,-448.8574)" id="linearGradient1056" y1="-335.05099" x1="-192.873" gradientUnits="userSpaceOnUse" x2="-182.577">
+                                                                                                <stop  id="stop1052" offset="0" style="stop-color:#333333"/>
+                                                                                                <stop  id="stop1054" offset="1" style="stop-color:#3C3C3C"/>
+                                                                                            </linearGradient>
+                                                                                            <circle  cy="11.8735" id="circle1058" r="5.1479998" cx="8.8344002" style="fill:url(#linearGradient2932)" gorn="0.5.0.0.0.0.0.0.0.10.0.0.0.0.0.0.0.0.0.0.0.0.0.12"/>
+                                                                                            <circle  cy="12.4855" id="circle1060" enable-background="new    " r="4.5302401" cx="8.9244003" style="opacity:0.6" gorn="0.5.0.0.0.0.0.0.0.10.0.0.0.0.0.0.0.0.0.0.0.0.0.13"/>
+                                                                                            <circle  cy="11.9038" id="circle1062" r="4.41504" cx="8.8408804" style="fill:#735348" gorn="0.5.0.0.0.0.0.0.0.10.0.0.0.0.0.0.0.0.0.0.0.0.0.14"/>
+                                                                                            <path  id="path1064" enable-background="new    " d="M 2.38176,5.53824 C 2.412,5.46624 2.46744,5.4108 2.54592,5.39712 L 2.39472,4.43376 C 2.33712,4.44312 2.27592,4.4352 2.21904,4.45248 L 2.2176,4.44816 C 1.8612,4.55832 1.5948,4.824 1.45872,5.16312 Z" style="opacity:0.5;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.10.0.0.0.0.0.0.0.0.0.0.0.0.0.15"/>
+                                                                                            <path  id="path1066" enable-background="new    " d="M 14.9335,5.56416 C 14.96302,5.49072 15.01846,5.43528 15.09838,5.42232 L 14.94934,4.45896 C 14.8903,4.46976 14.82982,4.4604 14.77294,4.47768 L 14.77078,4.47264 C 14.41582,4.58208 14.1487,4.84776 14.01262,5.1876 Z" style="opacity:0.5;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.10.0.0.0.0.0.0.0.0.0.0.0.0.0.16"/>
+                                                                                            <path  id="path1068" enable-background="new    " d="m 14.909,18.1174 c 0.02952,-0.07344 0.08352,-0.1296 0.16344,-0.14184 L 14.9234,17.01292 c -0.05904,0.0108 -0.11952,0.0014 -0.17712,0.01872 l -0.0014,-0.0072 c -0.35568,0.10944 -0.6228,0.37512 -0.75816,0.71568 z" style="opacity:0.5;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.10.0.0.0.0.0.0.0.0.0.0.0.0.0.17"/>
+                                                                                            <path  id="path1070" enable-background="new    " d="M 2.35512,18.0907 C 2.38464,18.01726 2.44008,17.96398 2.52,17.9503 L 2.3688,16.98622 c -0.05904,0.01224 -0.11952,0.0014 -0.1764,0.01944 l -0.00144,-0.005 c -0.3564,0.108 -0.6228,0.37512 -0.76032,0.71424 z" style="opacity:0.5;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.10.0.0.0.0.0.0.0.0.0.0.0.0.0.18"/>
+                                                                                            <path  id="path1072" enable-background="new    " d="M 10.4206,7.78896 C 10.0786,7.65576 9.7186,7.56 9.33772,7.5168 8.3902,7.41096 7.483,7.6212 6.70756,8.05104 L 6.61104,8.3016 C 7.4772,7.83864 8.48592,7.62408 9.53568,7.74144 9.85824,7.77888 10.17216,7.85088 10.4724,7.94592 Z" style="opacity:0.6;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.10.0.0.0.0.0.0.0.0.0.0.0.0.0.19"/>
+                                                                                        </g>
+                                                                                    </g>
+                                                                                </g>
+                                                                            </g>
+                                                                        </g>
+                                                                    </g>
+                                                                </g>
+                                                            </g>
+                                                        </g>
+                                                    </g>
+                                                </g>
+                                            </g>
+                                        </g>
+                                    </g>
+                                    <g  transform="translate(16.841862,-4.5044712)">
+                                        <g >
+                                            <g >
+                                                <g  partID="854795000" id="g1136" gorn="0.5.0.0.0.0.0.0.0.11.0.0.0">
+                                                    <g  transform="translate(51.3672,64.2961)">
+                                                        <g >
+                                                            <g >
+                                                                <g  id="g1134" gorn="0.5.0.0.0.0.0.0.0.11.0.0.0.0.0.0.0">
+                                                                    <g  transform="rotate(90)">
+                                                                        <g >
+                                                                            <g >
+                                                                                <g  id="g1132" gorn="0.5.0.0.0.0.0.0.0.11.0.0.0.0.0.0.0.0.0.0.0">
+                                                                                    <g  id="g1130" gorn="0.5.0.0.0.0.0.0.0.11.0.0.0.0.0.0.0.0.0.0.0.0">
+                                                                                        <g  id="g1128" gorn="0.5.0.0.0.0.0.0.0.11.0.0.0.0.0.0.0.0.0.0.0.0.0">
+                                                                                            <polygon  id="polygon1084" points="14.8219,15.4706 16.9819,15.4706 16.9819,23.7449 14.8219,23.7449 " style="fill:#8c8c8c" gorn="0.5.0.0.0.0.0.0.0.11.0.0.0.0.0.0.0.0.0.0.0.0.0.0"/>
+                                                                                            <polygon  id="polygon1086" points="0.42192,0.00072 2.58048,0.00072 2.58048,8.27496 0.42192,8.27496 " style="fill:#8c8c8c" gorn="0.5.0.0.0.0.0.0.0.11.0.0.0.0.0.0.0.0.0.0.0.0.0.1"/>
+                                                                                            <polygon  id="polygon1088" points="14.8219,0 16.9819,0 16.9819,8.27568 14.8219,8.27568 " style="fill:#8c8c8c" gorn="0.5.0.0.0.0.0.0.0.11.0.0.0.0.0.0.0.0.0.0.0.0.0.2"/>
+                                                                                            <polygon  id="polygon1090" points="0.42264,15.4706 2.58192,15.4706 2.58192,23.7463 0.42264,23.7463 " style="fill:#8c8c8c" gorn="0.5.0.0.0.0.0.0.0.11.0.0.0.0.0.0.0.0.0.0.0.0.0.3"/>
+                                                                                            <rect  height="17.6544" x="0.0086399997" id="rect1092" width="17.653" y="3.04704" gorn="0.5.0.0.0.0.0.0.0.11.0.0.0.0.0.0.0.0.0.0.0.0.0.4"/>
+                                                                                            <path  id="path1094" d="m 17.6609,19.2614 c 0,0.79272 -0.64512,1.43928 -1.44,1.43928 l -14.77298,2e-5 c -0.79272,0 -1.43928,-0.64656 -1.43928,-1.43928 V 4.4856 c 0,-0.792 0.64656,-1.43856 1.43928,-1.43856 h 14.7751 c 0.79416,0 1.43784,0.64656 1.43784,1.43856 z" style="fill:#999999" gorn="0.5.0.0.0.0.0.0.0.11.0.0.0.0.0.0.0.0.0.0.0.0.0.5"/>
+                                                                                            <circle  cy="5.6181598" id="circle1096" r="1.5292799" cx="2.5797601" gorn="0.5.0.0.0.0.0.0.0.11.0.0.0.0.0.0.0.0.0.0.0.0.0.6"/>
+                                                                                            <circle  cy="5.6448002" id="circle1098" r="1.5292799" cx="15.133" gorn="0.5.0.0.0.0.0.0.0.11.0.0.0.0.0.0.0.0.0.0.0.0.0.7"/>
+                                                                                            <circle  cy="18.198" id="circle1100" r="1.5292799" cx="15.1063" gorn="0.5.0.0.0.0.0.0.0.11.0.0.0.0.0.0.0.0.0.0.0.0.0.8"/>
+                                                                                            <circle  cy="18.169901" id="circle1102" r="1.5292799" cx="2.5531199" gorn="0.5.0.0.0.0.0.0.0.11.0.0.0.0.0.0.0.0.0.0.0.0.0.9"/>
+                                                                                            <circle  cy="11.8735" id="circle1104" r="5.1479998" cx="8.8344002" style="fill:#3f3f3f" gorn="0.5.0.0.0.0.0.0.0.11.0.0.0.0.0.0.0.0.0.0.0.0.0.10"/>
+                                                                                            <linearGradient  y2="-335.05099" gradientTransform="matrix(1,0,0,-1,273,-448.8574)" id="linearGradient1110" y1="-335.05099" x1="-192.873" gradientUnits="userSpaceOnUse" x2="-182.577">
+                                                                                                <stop  id="stop1106" offset="0" style="stop-color:#333333"/>
+                                                                                                <stop  id="stop1108" offset="1" style="stop-color:#3C3C3C"/>
+                                                                                            </linearGradient>
+                                                                                            <circle  cy="11.8735" id="circle1112" r="5.1479998" cx="8.8344002" style="fill:url(#linearGradient2926)" gorn="0.5.0.0.0.0.0.0.0.11.0.0.0.0.0.0.0.0.0.0.0.0.0.12"/>
+                                                                                            <circle  cy="12.4855" id="circle1114" enable-background="new    " r="4.5302401" cx="8.9244003" style="opacity:0.6" gorn="0.5.0.0.0.0.0.0.0.11.0.0.0.0.0.0.0.0.0.0.0.0.0.13"/>
+                                                                                            <circle  cy="11.9038" id="circle1116" r="4.41504" cx="8.8408804" style="fill:#735348" gorn="0.5.0.0.0.0.0.0.0.11.0.0.0.0.0.0.0.0.0.0.0.0.0.14"/>
+                                                                                            <path  id="path1118" enable-background="new    " d="M 2.38176,5.53824 C 2.412,5.46624 2.46744,5.4108 2.54592,5.39712 L 2.39472,4.43376 C 2.33712,4.44312 2.27592,4.4352 2.21904,4.45248 L 2.2176,4.44816 C 1.8612,4.55832 1.5948,4.824 1.45872,5.16312 Z" style="opacity:0.5;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.11.0.0.0.0.0.0.0.0.0.0.0.0.0.15"/>
+                                                                                            <path  id="path1120" enable-background="new    " d="M 14.9335,5.56416 C 14.96302,5.49072 15.01846,5.43528 15.09838,5.42232 L 14.94934,4.45896 C 14.8903,4.46976 14.82982,4.4604 14.77294,4.47768 L 14.77078,4.47264 C 14.41582,4.58208 14.1487,4.84776 14.01262,5.1876 Z" style="opacity:0.5;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.11.0.0.0.0.0.0.0.0.0.0.0.0.0.16"/>
+                                                                                            <path  id="path1122" enable-background="new    " d="m 14.909,18.1174 c 0.02952,-0.07344 0.08352,-0.1296 0.16344,-0.14184 L 14.9234,17.01292 c -0.05904,0.0108 -0.11952,0.0014 -0.17712,0.01872 l -0.0014,-0.0072 c -0.35568,0.10944 -0.6228,0.37512 -0.75816,0.71568 z" style="opacity:0.5;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.11.0.0.0.0.0.0.0.0.0.0.0.0.0.17"/>
+                                                                                            <path  id="path1124" enable-background="new    " d="M 2.35512,18.0907 C 2.38464,18.01726 2.44008,17.96398 2.52,17.9503 L 2.3688,16.98622 c -0.05904,0.01224 -0.11952,0.0014 -0.1764,0.01944 l -0.00144,-0.005 c -0.3564,0.108 -0.6228,0.37512 -0.76032,0.71424 z" style="opacity:0.5;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.11.0.0.0.0.0.0.0.0.0.0.0.0.0.18"/>
+                                                                                            <path  id="path1126" enable-background="new    " d="M 10.4206,7.78896 C 10.0786,7.65576 9.7186,7.56 9.33772,7.5168 8.3902,7.41096 7.483,7.6212 6.70756,8.05104 L 6.61104,8.3016 C 7.4772,7.83864 8.48592,7.62408 9.53568,7.74144 9.85824,7.77888 10.17216,7.85088 10.4724,7.94592 Z" style="opacity:0.6;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.11.0.0.0.0.0.0.0.0.0.0.0.0.0.19"/>
+                                                                                        </g>
+                                                                                    </g>
+                                                                                </g>
+                                                                            </g>
+                                                                        </g>
+                                                                    </g>
+                                                                </g>
+                                                            </g>
+                                                        </g>
+                                                    </g>
+                                                </g>
+                                            </g>
+                                        </g>
+                                    </g>
+                                    <g  transform="translate(6.6864996,3.0323706)">
+                                        <g >
+                                            <g >
+                                                <g  partID="854794980" id="g1190" gorn="0.5.0.0.0.0.0.0.0.12.0.0.0">
+                                                    <g  transform="translate(138.058,28.4128)">
+                                                        <g >
+                                                            <g >
+                                                                <g  id="g1188" gorn="0.5.0.0.0.0.0.0.0.12.0.0.0.0.0.0.0">
+                                                                    <g  transform="rotate(90)">
+                                                                        <g >
+                                                                            <g >
+                                                                                <g  id="g1186" gorn="0.5.0.0.0.0.0.0.0.12.0.0.0.0.0.0.0.0.0.0.0">
+                                                                                    <g  id="g1184" gorn="0.5.0.0.0.0.0.0.0.12.0.0.0.0.0.0.0.0.0.0.0.0">
+                                                                                        <g  id="g1182" gorn="0.5.0.0.0.0.0.0.0.12.0.0.0.0.0.0.0.0.0.0.0.0.0">
+                                                                                            <polygon  id="polygon1138" points="14.8219,15.4706 16.9819,15.4706 16.9819,23.7449 14.8219,23.7449 " style="fill:#8c8c8c" gorn="0.5.0.0.0.0.0.0.0.12.0.0.0.0.0.0.0.0.0.0.0.0.0.0"/>
+                                                                                            <polygon  id="polygon1140" points="0.42192,0.00072 2.58048,0.00072 2.58048,8.27496 0.42192,8.27496 " style="fill:#8c8c8c" gorn="0.5.0.0.0.0.0.0.0.12.0.0.0.0.0.0.0.0.0.0.0.0.0.1"/>
+                                                                                            <polygon  id="polygon1142" points="14.8219,0 16.9819,0 16.9819,8.27568 14.8219,8.27568 " style="fill:#8c8c8c" gorn="0.5.0.0.0.0.0.0.0.12.0.0.0.0.0.0.0.0.0.0.0.0.0.2"/>
+                                                                                            <polygon  id="polygon1144" points="0.42264,15.4706 2.58192,15.4706 2.58192,23.7463 0.42264,23.7463 " style="fill:#8c8c8c" gorn="0.5.0.0.0.0.0.0.0.12.0.0.0.0.0.0.0.0.0.0.0.0.0.3"/>
+                                                                                            <rect  height="17.6544" x="0.0086399997" id="rect1146" width="17.653" y="3.04704" gorn="0.5.0.0.0.0.0.0.0.12.0.0.0.0.0.0.0.0.0.0.0.0.0.4"/>
+                                                                                            <path  id="path1148" d="m 17.6609,19.2614 c 0,0.79272 -0.64512,1.43928 -1.44,1.43928 l -14.77298,2e-5 c -0.79272,0 -1.43928,-0.64656 -1.43928,-1.43928 V 4.4856 c 0,-0.792 0.64656,-1.43856 1.43928,-1.43856 h 14.7751 c 0.79416,0 1.43784,0.64656 1.43784,1.43856 z" style="fill:#999999" gorn="0.5.0.0.0.0.0.0.0.12.0.0.0.0.0.0.0.0.0.0.0.0.0.5"/>
+                                                                                            <circle  cy="5.6181598" id="circle1150" r="1.5292799" cx="2.5797601" gorn="0.5.0.0.0.0.0.0.0.12.0.0.0.0.0.0.0.0.0.0.0.0.0.6"/>
+                                                                                            <circle  cy="5.6448002" id="circle1152" r="1.5292799" cx="15.133" gorn="0.5.0.0.0.0.0.0.0.12.0.0.0.0.0.0.0.0.0.0.0.0.0.7"/>
+                                                                                            <circle  cy="18.198" id="circle1154" r="1.5292799" cx="15.1063" gorn="0.5.0.0.0.0.0.0.0.12.0.0.0.0.0.0.0.0.0.0.0.0.0.8"/>
+                                                                                            <circle  cy="18.169901" id="circle1156" r="1.5292799" cx="2.5531199" gorn="0.5.0.0.0.0.0.0.0.12.0.0.0.0.0.0.0.0.0.0.0.0.0.9"/>
+                                                                                            <circle  cy="11.8735" id="circle1158" r="5.1479998" cx="8.8344002" style="fill:#3f3f3f" gorn="0.5.0.0.0.0.0.0.0.12.0.0.0.0.0.0.0.0.0.0.0.0.0.10"/>
+                                                                                            <linearGradient  y2="-335.05099" gradientTransform="matrix(1,0,0,-1,273,-448.8574)" id="linearGradient1164" y1="-335.05099" x1="-192.873" gradientUnits="userSpaceOnUse" x2="-182.577">
+                                                                                                <stop  id="stop1160" offset="0" style="stop-color:#333333"/>
+                                                                                                <stop  id="stop1162" offset="1" style="stop-color:#3C3C3C"/>
+                                                                                            </linearGradient>
+                                                                                            <circle  cy="11.8735" id="circle1166" r="5.1479998" cx="8.8344002" style="fill:url(#linearGradient2696)" gorn="0.5.0.0.0.0.0.0.0.12.0.0.0.0.0.0.0.0.0.0.0.0.0.12"/>
+                                                                                            <circle  cy="12.4855" id="circle1168" enable-background="new    " r="4.5302401" cx="8.9244003" style="opacity:0.6" gorn="0.5.0.0.0.0.0.0.0.12.0.0.0.0.0.0.0.0.0.0.0.0.0.13"/>
+                                                                                            <circle  cy="11.9038" id="circle1170" r="4.41504" cx="8.8408804" style="fill:#735348" gorn="0.5.0.0.0.0.0.0.0.12.0.0.0.0.0.0.0.0.0.0.0.0.0.14"/>
+                                                                                            <path  id="path1172" enable-background="new    " d="M 2.38176,5.53824 C 2.412,5.46624 2.46744,5.4108 2.54592,5.39712 L 2.39472,4.43376 C 2.33712,4.44312 2.27592,4.4352 2.21904,4.45248 L 2.2176,4.44816 C 1.8612,4.55832 1.5948,4.824 1.45872,5.16312 Z" style="opacity:0.5;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.12.0.0.0.0.0.0.0.0.0.0.0.0.0.15"/>
+                                                                                            <path  id="path1174" enable-background="new    " d="M 14.9335,5.56416 C 14.96302,5.49072 15.01846,5.43528 15.09838,5.42232 L 14.94934,4.45896 C 14.8903,4.46976 14.82982,4.4604 14.77294,4.47768 L 14.77078,4.47264 C 14.41582,4.58208 14.1487,4.84776 14.01262,5.1876 Z" style="opacity:0.5;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.12.0.0.0.0.0.0.0.0.0.0.0.0.0.16"/>
+                                                                                            <path  id="path1176" enable-background="new    " d="m 14.909,18.1174 c 0.02952,-0.07344 0.08352,-0.1296 0.16344,-0.14184 L 14.9234,17.01292 c -0.05904,0.0108 -0.11952,0.0014 -0.17712,0.01872 l -0.0014,-0.0072 c -0.35568,0.10944 -0.6228,0.37512 -0.75816,0.71568 z" style="opacity:0.5;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.12.0.0.0.0.0.0.0.0.0.0.0.0.0.17"/>
+                                                                                            <path  id="path1178" enable-background="new    " d="M 2.35512,18.0907 C 2.38464,18.01726 2.44008,17.96398 2.52,17.9503 L 2.3688,16.98622 c -0.05904,0.01224 -0.11952,0.0014 -0.1764,0.01944 l -0.00144,-0.005 c -0.3564,0.108 -0.6228,0.37512 -0.76032,0.71424 z" style="opacity:0.5;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.12.0.0.0.0.0.0.0.0.0.0.0.0.0.18"/>
+                                                                                            <path  id="path1180" enable-background="new    " d="M 10.4206,7.78896 C 10.0786,7.65576 9.7186,7.56 9.33772,7.5168 8.3902,7.41096 7.483,7.6212 6.70756,8.05104 L 6.61104,8.3016 C 7.4772,7.83864 8.48592,7.62408 9.53568,7.74144 9.85824,7.77888 10.17216,7.85088 10.4724,7.94592 Z" style="opacity:0.6;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.12.0.0.0.0.0.0.0.0.0.0.0.0.0.19"/>
+                                                                                        </g>
+                                                                                    </g>
+                                                                                </g>
+                                                                            </g>
+                                                                        </g>
+                                                                    </g>
+                                                                </g>
+                                                            </g>
+                                                        </g>
+                                                    </g>
+                                                </g>
+                                            </g>
+                                        </g>
+                                    </g>
+                                    <g  transform="translate(9.7536871,2.7148706)">
+                                        <g >
+                                            <g >
+                                                <g  partID="854794960" id="g1244" gorn="0.5.0.0.0.0.0.0.0.13.0.0.0">
+                                                    <g  transform="translate(109.479,28.7303)">
+                                                        <g >
+                                                            <g >
+                                                                <g  id="g1242" gorn="0.5.0.0.0.0.0.0.0.13.0.0.0.0.0.0.0">
+                                                                    <g  transform="rotate(90)">
+                                                                        <g >
+                                                                            <g >
+                                                                                <g  id="g1240" gorn="0.5.0.0.0.0.0.0.0.13.0.0.0.0.0.0.0.0.0.0.0">
+                                                                                    <g  id="g1238" gorn="0.5.0.0.0.0.0.0.0.13.0.0.0.0.0.0.0.0.0.0.0.0">
+                                                                                        <g  id="g1236" gorn="0.5.0.0.0.0.0.0.0.13.0.0.0.0.0.0.0.0.0.0.0.0.0">
+                                                                                            <polygon  id="polygon1192" points="14.8219,15.4706 16.9819,15.4706 16.9819,23.7449 14.8219,23.7449 " style="fill:#8c8c8c" gorn="0.5.0.0.0.0.0.0.0.13.0.0.0.0.0.0.0.0.0.0.0.0.0.0"/>
+                                                                                            <polygon  id="polygon1194" points="0.42192,0.00072 2.58048,0.00072 2.58048,8.27496 0.42192,8.27496 " style="fill:#8c8c8c" gorn="0.5.0.0.0.0.0.0.0.13.0.0.0.0.0.0.0.0.0.0.0.0.0.1"/>
+                                                                                            <polygon  id="polygon1196" points="14.8219,0 16.9819,0 16.9819,8.27568 14.8219,8.27568 " style="fill:#8c8c8c" gorn="0.5.0.0.0.0.0.0.0.13.0.0.0.0.0.0.0.0.0.0.0.0.0.2"/>
+                                                                                            <polygon  id="polygon1198" points="0.42264,15.4706 2.58192,15.4706 2.58192,23.7463 0.42264,23.7463 " style="fill:#8c8c8c" gorn="0.5.0.0.0.0.0.0.0.13.0.0.0.0.0.0.0.0.0.0.0.0.0.3"/>
+                                                                                            <rect  height="17.6544" x="0.0086399997" id="rect1200" width="17.653" y="3.04704" gorn="0.5.0.0.0.0.0.0.0.13.0.0.0.0.0.0.0.0.0.0.0.0.0.4"/>
+                                                                                            <path  id="path1202" d="m 17.6609,19.2614 c 0,0.79272 -0.64512,1.43928 -1.44,1.43928 l -14.77298,2e-5 c -0.79272,0 -1.43928,-0.64656 -1.43928,-1.43928 V 4.4856 c 0,-0.792 0.64656,-1.43856 1.43928,-1.43856 h 14.7751 c 0.79416,0 1.43784,0.64656 1.43784,1.43856 z" style="fill:#999999" gorn="0.5.0.0.0.0.0.0.0.13.0.0.0.0.0.0.0.0.0.0.0.0.0.5"/>
+                                                                                            <circle  cy="5.6181598" id="circle1204" r="1.5292799" cx="2.5797601" gorn="0.5.0.0.0.0.0.0.0.13.0.0.0.0.0.0.0.0.0.0.0.0.0.6"/>
+                                                                                            <circle  cy="5.6448002" id="circle1206" r="1.5292799" cx="15.133" gorn="0.5.0.0.0.0.0.0.0.13.0.0.0.0.0.0.0.0.0.0.0.0.0.7"/>
+                                                                                            <circle  cy="18.198" id="circle1208" r="1.5292799" cx="15.1063" gorn="0.5.0.0.0.0.0.0.0.13.0.0.0.0.0.0.0.0.0.0.0.0.0.8"/>
+                                                                                            <circle  cy="18.169901" id="circle1210" r="1.5292799" cx="2.5531199" gorn="0.5.0.0.0.0.0.0.0.13.0.0.0.0.0.0.0.0.0.0.0.0.0.9"/>
+                                                                                            <circle  cy="11.8735" id="circle1212" r="5.1479998" cx="8.8344002" style="fill:#3f3f3f" gorn="0.5.0.0.0.0.0.0.0.13.0.0.0.0.0.0.0.0.0.0.0.0.0.10"/>
+                                                                                            <linearGradient  y2="-335.05099" gradientTransform="matrix(1,0,0,-1,273,-448.8574)" id="linearGradient1218" y1="-335.05099" x1="-192.873" gradientUnits="userSpaceOnUse" x2="-182.577">
+                                                                                                <stop  id="stop1214" offset="0" style="stop-color:#333333"/>
+                                                                                                <stop  id="stop1216" offset="1" style="stop-color:#3C3C3C"/>
+                                                                                            </linearGradient>
+                                                                                            <circle  cy="11.8735" id="circle1220" r="5.1479998" cx="8.8344002" style="fill:url(#linearGradient2698)" gorn="0.5.0.0.0.0.0.0.0.13.0.0.0.0.0.0.0.0.0.0.0.0.0.12"/>
+                                                                                            <circle  cy="12.4855" id="circle1222" enable-background="new    " r="4.5302401" cx="8.9244003" style="opacity:0.6" gorn="0.5.0.0.0.0.0.0.0.13.0.0.0.0.0.0.0.0.0.0.0.0.0.13"/>
+                                                                                            <circle  cy="11.9038" id="circle1224" r="4.41504" cx="8.8408804" style="fill:#735348" gorn="0.5.0.0.0.0.0.0.0.13.0.0.0.0.0.0.0.0.0.0.0.0.0.14"/>
+                                                                                            <path  id="path1226" enable-background="new    " d="M 2.38176,5.53824 C 2.412,5.46624 2.46744,5.4108 2.54592,5.39712 L 2.39472,4.43376 C 2.33712,4.44312 2.27592,4.4352 2.21904,4.45248 L 2.2176,4.44816 C 1.8612,4.55832 1.5948,4.824 1.45872,5.16312 Z" style="opacity:0.5;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.13.0.0.0.0.0.0.0.0.0.0.0.0.0.15"/>
+                                                                                            <path  id="path1228" enable-background="new    " d="M 14.9335,5.56416 C 14.96302,5.49072 15.01846,5.43528 15.09838,5.42232 L 14.94934,4.45896 C 14.8903,4.46976 14.82982,4.4604 14.77294,4.47768 L 14.77078,4.47264 C 14.41582,4.58208 14.1487,4.84776 14.01262,5.1876 Z" style="opacity:0.5;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.13.0.0.0.0.0.0.0.0.0.0.0.0.0.16"/>
+                                                                                            <path  id="path1230" enable-background="new    " d="m 14.909,18.1174 c 0.02952,-0.07344 0.08352,-0.1296 0.16344,-0.14184 L 14.9234,17.01292 c -0.05904,0.0108 -0.11952,0.0014 -0.17712,0.01872 l -0.0014,-0.0072 c -0.35568,0.10944 -0.6228,0.37512 -0.75816,0.71568 z" style="opacity:0.5;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.13.0.0.0.0.0.0.0.0.0.0.0.0.0.17"/>
+                                                                                            <path  id="path1232" enable-background="new    " d="M 2.35512,18.0907 C 2.38464,18.01726 2.44008,17.96398 2.52,17.9503 L 2.3688,16.98622 c -0.05904,0.01224 -0.11952,0.0014 -0.1764,0.01944 l -0.00144,-0.005 c -0.3564,0.108 -0.6228,0.37512 -0.76032,0.71424 z" style="opacity:0.5;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.13.0.0.0.0.0.0.0.0.0.0.0.0.0.18"/>
+                                                                                            <path  id="path1234" enable-background="new    " d="M 10.4206,7.78896 C 10.0786,7.65576 9.7186,7.56 9.33772,7.5168 8.3902,7.41096 7.483,7.6212 6.70756,8.05104 L 6.61104,8.3016 C 7.4772,7.83864 8.48592,7.62408 9.53568,7.74144 9.85824,7.77888 10.17216,7.85088 10.4724,7.94592 Z" style="opacity:0.6;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.13.0.0.0.0.0.0.0.0.0.0.0.0.0.19"/>
+                                                                                        </g>
+                                                                                    </g>
+                                                                                </g>
+                                                                            </g>
+                                                                        </g>
+                                                                    </g>
+                                                                </g>
+                                                            </g>
+                                                        </g>
+                                                    </g>
+                                                </g>
+                                            </g>
+                                        </g>
+                                    </g>
+                                    <g  transform="translate(13.456875,3.3499706)">
+                                        <g >
+                                            <g >
+                                                <g  partID="854794940" id="g1298" gorn="0.5.0.0.0.0.0.0.0.14.0.0.0">
+                                                    <g  transform="translate(80.264,28.0952)">
+                                                        <g >
+                                                            <g >
+                                                                <g  id="g1296" gorn="0.5.0.0.0.0.0.0.0.14.0.0.0.0.0.0.0">
+                                                                    <g  transform="rotate(90)">
+                                                                        <g >
+                                                                            <g >
+                                                                                <g  id="g1294" gorn="0.5.0.0.0.0.0.0.0.14.0.0.0.0.0.0.0.0.0.0.0">
+                                                                                    <g  id="g1292" gorn="0.5.0.0.0.0.0.0.0.14.0.0.0.0.0.0.0.0.0.0.0.0">
+                                                                                        <g  id="g1290" gorn="0.5.0.0.0.0.0.0.0.14.0.0.0.0.0.0.0.0.0.0.0.0.0">
+                                                                                            <polygon  id="polygon1246" points="14.8219,15.4706 16.9819,15.4706 16.9819,23.7449 14.8219,23.7449 " style="fill:#8c8c8c" gorn="0.5.0.0.0.0.0.0.0.14.0.0.0.0.0.0.0.0.0.0.0.0.0.0"/>
+                                                                                            <polygon  id="polygon1248" points="0.42192,0.00072 2.58048,0.00072 2.58048,8.27496 0.42192,8.27496 " style="fill:#8c8c8c" gorn="0.5.0.0.0.0.0.0.0.14.0.0.0.0.0.0.0.0.0.0.0.0.0.1"/>
+                                                                                            <polygon  id="polygon1250" points="14.8219,0 16.9819,0 16.9819,8.27568 14.8219,8.27568 " style="fill:#8c8c8c" gorn="0.5.0.0.0.0.0.0.0.14.0.0.0.0.0.0.0.0.0.0.0.0.0.2"/>
+                                                                                            <polygon  id="polygon1252" points="0.42264,15.4706 2.58192,15.4706 2.58192,23.7463 0.42264,23.7463 " style="fill:#8c8c8c" gorn="0.5.0.0.0.0.0.0.0.14.0.0.0.0.0.0.0.0.0.0.0.0.0.3"/>
+                                                                                            <rect  height="17.6544" x="0.0086399997" id="rect1254" width="17.653" y="3.04704" gorn="0.5.0.0.0.0.0.0.0.14.0.0.0.0.0.0.0.0.0.0.0.0.0.4"/>
+                                                                                            <path  id="path1256" d="m 17.6609,19.2614 c 0,0.79272 -0.64512,1.43928 -1.44,1.43928 l -14.77298,2e-5 c -0.79272,0 -1.43928,-0.64656 -1.43928,-1.43928 V 4.4856 c 0,-0.792 0.64656,-1.43856 1.43928,-1.43856 h 14.7751 c 0.79416,0 1.43784,0.64656 1.43784,1.43856 z" style="fill:#999999" gorn="0.5.0.0.0.0.0.0.0.14.0.0.0.0.0.0.0.0.0.0.0.0.0.5"/>
+                                                                                            <circle  cy="5.6181598" id="circle1258" r="1.5292799" cx="2.5797601" gorn="0.5.0.0.0.0.0.0.0.14.0.0.0.0.0.0.0.0.0.0.0.0.0.6"/>
+                                                                                            <circle  cy="5.6448002" id="circle1260" r="1.5292799" cx="15.133" gorn="0.5.0.0.0.0.0.0.0.14.0.0.0.0.0.0.0.0.0.0.0.0.0.7"/>
+                                                                                            <circle  cy="18.198" id="circle1262" r="1.5292799" cx="15.1063" gorn="0.5.0.0.0.0.0.0.0.14.0.0.0.0.0.0.0.0.0.0.0.0.0.8"/>
+                                                                                            <circle  cy="18.169901" id="circle1264" r="1.5292799" cx="2.5531199" gorn="0.5.0.0.0.0.0.0.0.14.0.0.0.0.0.0.0.0.0.0.0.0.0.9"/>
+                                                                                            <circle  cy="11.8735" id="circle1266" r="5.1479998" cx="8.8344002" style="fill:#3f3f3f" gorn="0.5.0.0.0.0.0.0.0.14.0.0.0.0.0.0.0.0.0.0.0.0.0.10"/>
+                                                                                            <linearGradient  y2="-335.05099" gradientTransform="matrix(1,0,0,-1,273,-448.8574)" id="linearGradient1272" y1="-335.05099" x1="-192.873" gradientUnits="userSpaceOnUse" x2="-182.577">
+                                                                                                <stop  id="stop1268" offset="0" style="stop-color:#333333"/>
+                                                                                                <stop  id="stop1270" offset="1" style="stop-color:#3C3C3C"/>
+                                                                                            </linearGradient>
+                                                                                            <circle  cy="11.8735" id="circle1274" r="5.1479998" cx="8.8344002" style="fill:url(#linearGradient2700)" gorn="0.5.0.0.0.0.0.0.0.14.0.0.0.0.0.0.0.0.0.0.0.0.0.12"/>
+                                                                                            <circle  cy="12.4855" id="circle1276" enable-background="new    " r="4.5302401" cx="8.9244003" style="opacity:0.6" gorn="0.5.0.0.0.0.0.0.0.14.0.0.0.0.0.0.0.0.0.0.0.0.0.13"/>
+                                                                                            <circle  cy="11.9038" id="circle1278" r="4.41504" cx="8.8408804" style="fill:#735348" gorn="0.5.0.0.0.0.0.0.0.14.0.0.0.0.0.0.0.0.0.0.0.0.0.14"/>
+                                                                                            <path  id="path1280" enable-background="new    " d="M 2.38176,5.53824 C 2.412,5.46624 2.46744,5.4108 2.54592,5.39712 L 2.39472,4.43376 C 2.33712,4.44312 2.27592,4.4352 2.21904,4.45248 L 2.2176,4.44816 C 1.8612,4.55832 1.5948,4.824 1.45872,5.16312 Z" style="opacity:0.5;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.14.0.0.0.0.0.0.0.0.0.0.0.0.0.15"/>
+                                                                                            <path  id="path1282" enable-background="new    " d="M 14.9335,5.56416 C 14.96302,5.49072 15.01846,5.43528 15.09838,5.42232 L 14.94934,4.45896 C 14.8903,4.46976 14.82982,4.4604 14.77294,4.47768 L 14.77078,4.47264 C 14.41582,4.58208 14.1487,4.84776 14.01262,5.1876 Z" style="opacity:0.5;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.14.0.0.0.0.0.0.0.0.0.0.0.0.0.16"/>
+                                                                                            <path  id="path1284" enable-background="new    " d="m 14.909,18.1174 c 0.02952,-0.07344 0.08352,-0.1296 0.16344,-0.14184 L 14.9234,17.01292 c -0.05904,0.0108 -0.11952,0.0014 -0.17712,0.01872 l -0.0014,-0.0072 c -0.35568,0.10944 -0.6228,0.37512 -0.75816,0.71568 z" style="opacity:0.5;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.14.0.0.0.0.0.0.0.0.0.0.0.0.0.17"/>
+                                                                                            <path  id="path1286" enable-background="new    " d="M 2.35512,18.0907 C 2.38464,18.01726 2.44008,17.96398 2.52,17.9503 L 2.3688,16.98622 c -0.05904,0.01224 -0.11952,0.0014 -0.1764,0.01944 l -0.00144,-0.005 c -0.3564,0.108 -0.6228,0.37512 -0.76032,0.71424 z" style="opacity:0.5;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.14.0.0.0.0.0.0.0.0.0.0.0.0.0.18"/>
+                                                                                            <path  id="path1288" enable-background="new    " d="M 10.4206,7.78896 C 10.0786,7.65576 9.7186,7.56 9.33772,7.5168 8.3902,7.41096 7.483,7.6212 6.70756,8.05104 L 6.61104,8.3016 C 7.4772,7.83864 8.48592,7.62408 9.53568,7.74144 9.85824,7.77888 10.17216,7.85088 10.4724,7.94592 Z" style="opacity:0.6;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.14.0.0.0.0.0.0.0.0.0.0.0.0.0.19"/>
+                                                                                        </g>
+                                                                                    </g>
+                                                                                </g>
+                                                                            </g>
+                                                                        </g>
+                                                                    </g>
+                                                                </g>
+                                                            </g>
+                                                        </g>
+                                                    </g>
+                                                </g>
+                                            </g>
+                                        </g>
+                                    </g>
+                                    <g  transform="translate(16.534662,3.6463706)">
+                                        <g >
+                                            <g >
+                                                <g  partID="854794690" id="g1352" gorn="0.5.0.0.0.0.0.0.0.15.0.0.0">
+                                                    <g  transform="translate(51.6744,27.7988)">
+                                                        <g >
+                                                            <g >
+                                                                <g  id="g1350" gorn="0.5.0.0.0.0.0.0.0.15.0.0.0.0.0.0.0">
+                                                                    <g  transform="rotate(90)">
+                                                                        <g >
+                                                                            <g >
+                                                                                <g  id="g1348" gorn="0.5.0.0.0.0.0.0.0.15.0.0.0.0.0.0.0.0.0.0.0">
+                                                                                    <g  id="g1346" gorn="0.5.0.0.0.0.0.0.0.15.0.0.0.0.0.0.0.0.0.0.0.0">
+                                                                                        <g  id="g1344" gorn="0.5.0.0.0.0.0.0.0.15.0.0.0.0.0.0.0.0.0.0.0.0.0">
+                                                                                            <polygon  id="polygon1300" points="16.9819,23.7449 14.8219,23.7449 14.8219,15.4706 16.9819,15.4706 " style="fill:#8c8c8c" gorn="0.5.0.0.0.0.0.0.0.15.0.0.0.0.0.0.0.0.0.0.0.0.0.0"/>
+                                                                                            <polygon  id="polygon1302" points="2.58048,8.27496 0.42192,8.27496 0.42192,0.00072 2.58048,0.00072 " style="fill:#8c8c8c" gorn="0.5.0.0.0.0.0.0.0.15.0.0.0.0.0.0.0.0.0.0.0.0.0.1"/>
+                                                                                            <polygon  id="polygon1304" points="16.9819,8.27568 14.8219,8.27568 14.8219,0 16.9819,0 " style="fill:#8c8c8c" gorn="0.5.0.0.0.0.0.0.0.15.0.0.0.0.0.0.0.0.0.0.0.0.0.2"/>
+                                                                                            <polygon  id="polygon1306" points="2.58192,23.7463 0.42264,23.7463 0.42264,15.4706 2.58192,15.4706 " style="fill:#8c8c8c" gorn="0.5.0.0.0.0.0.0.0.15.0.0.0.0.0.0.0.0.0.0.0.0.0.3"/>
+                                                                                            <rect  height="17.6544" x="0.0086399997" id="rect1308" width="17.653" y="3.04704" gorn="0.5.0.0.0.0.0.0.0.15.0.0.0.0.0.0.0.0.0.0.0.0.0.4"/>
+                                                                                            <path  id="path1310" d="m 17.6609,19.2614 c 0,0.79272 -0.64512,1.43928 -1.44,1.43928 l -14.77298,2e-5 c -0.79272,0 -1.43928,-0.64656 -1.43928,-1.43928 V 4.4856 c 0,-0.792 0.64656,-1.43856 1.43928,-1.43856 h 14.7751 c 0.79416,0 1.43784,0.64656 1.43784,1.43856 z" style="fill:#999999" gorn="0.5.0.0.0.0.0.0.0.15.0.0.0.0.0.0.0.0.0.0.0.0.0.5"/>
+                                                                                            <circle  cy="5.6181598" id="circle1312" r="1.5292799" cx="2.5797601" gorn="0.5.0.0.0.0.0.0.0.15.0.0.0.0.0.0.0.0.0.0.0.0.0.6"/>
+                                                                                            <circle  cy="5.6448002" id="circle1314" r="1.5292799" cx="15.133" gorn="0.5.0.0.0.0.0.0.0.15.0.0.0.0.0.0.0.0.0.0.0.0.0.7"/>
+                                                                                            <circle  cy="18.198" id="circle1316" r="1.5292799" cx="15.1063" gorn="0.5.0.0.0.0.0.0.0.15.0.0.0.0.0.0.0.0.0.0.0.0.0.8"/>
+                                                                                            <circle  cy="18.169901" id="circle1318" r="1.5292799" cx="2.5531199" gorn="0.5.0.0.0.0.0.0.0.15.0.0.0.0.0.0.0.0.0.0.0.0.0.9"/>
+                                                                                            <circle  cy="11.8735" id="circle1320" r="5.1479998" cx="8.8344002" style="fill:#3f3f3f" gorn="0.5.0.0.0.0.0.0.0.15.0.0.0.0.0.0.0.0.0.0.0.0.0.10"/>
+                                                                                            <linearGradient  y2="-335.05099" gradientTransform="matrix(1,0,0,-1,273,-448.8574)" id="linearGradient1326" y1="-335.05099" x1="-192.873" gradientUnits="userSpaceOnUse" x2="-182.577">
+                                                                                                <stop  id="stop1322" offset="0" style="stop-color:#333333"/>
+                                                                                                <stop  id="stop1324" offset="1" style="stop-color:#3C3C3C"/>
+                                                                                            </linearGradient>
+                                                                                            <circle  cy="11.8735" id="circle1328" r="5.1479998" cx="8.8344002" style="fill:url(#linearGradient2812)" gorn="0.5.0.0.0.0.0.0.0.15.0.0.0.0.0.0.0.0.0.0.0.0.0.12"/>
+                                                                                            <circle  cy="12.4855" id="circle1330" enable-background="new    " r="4.5302401" cx="8.9244003" style="opacity:0.6" gorn="0.5.0.0.0.0.0.0.0.15.0.0.0.0.0.0.0.0.0.0.0.0.0.13"/>
+                                                                                            <circle  cy="11.9038" id="circle1332" r="4.41504" cx="8.8408804" style="fill:#735348" gorn="0.5.0.0.0.0.0.0.0.15.0.0.0.0.0.0.0.0.0.0.0.0.0.14"/>
+                                                                                            <path  id="path1334" enable-background="new    " d="M 2.38176,5.53824 C 2.412,5.46624 2.46744,5.4108 2.54592,5.39712 L 2.39472,4.43376 C 2.33712,4.44312 2.27592,4.4352 2.21904,4.45248 L 2.2176,4.44816 C 1.8612,4.55832 1.5948,4.824 1.45872,5.16312 Z" style="opacity:0.5;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.15.0.0.0.0.0.0.0.0.0.0.0.0.0.15"/>
+                                                                                            <path  id="path1336" enable-background="new    " d="M 14.9335,5.56416 C 14.96302,5.49072 15.01846,5.43528 15.09838,5.42232 L 14.94934,4.45896 C 14.8903,4.46976 14.82982,4.4604 14.77294,4.47768 L 14.77078,4.47264 C 14.41582,4.58208 14.1487,4.84776 14.01262,5.1876 Z" style="opacity:0.5;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.15.0.0.0.0.0.0.0.0.0.0.0.0.0.16"/>
+                                                                                            <path  id="path1338" enable-background="new    " d="m 14.909,18.1174 c 0.02952,-0.07344 0.08352,-0.1296 0.16344,-0.14184 L 14.9234,17.01292 c -0.05904,0.0108 -0.11952,0.0014 -0.17712,0.01872 l -0.0014,-0.0072 c -0.35568,0.10944 -0.6228,0.37512 -0.75816,0.71568 z" style="opacity:0.5;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.15.0.0.0.0.0.0.0.0.0.0.0.0.0.17"/>
+                                                                                            <path  id="path1340" enable-background="new    " d="M 2.35512,18.0907 C 2.38464,18.01726 2.44008,17.96398 2.52,17.9503 L 2.3688,16.98622 c -0.05904,0.01224 -0.11952,0.0014 -0.1764,0.01944 l -0.00144,-0.005 c -0.3564,0.108 -0.6228,0.37512 -0.76032,0.71424 z" style="opacity:0.5;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.15.0.0.0.0.0.0.0.0.0.0.0.0.0.18"/>
+                                                                                            <path  id="path1342" enable-background="new    " d="M 10.4206,7.78896 C 10.0786,7.65576 9.7186,7.56 9.33772,7.5168 8.3902,7.41096 7.483,7.6212 6.70756,8.05104 L 6.61104,8.3016 C 7.4772,7.83864 8.48592,7.62408 9.53568,7.74144 9.85824,7.77888 10.17216,7.85088 10.4724,7.94592 Z" style="opacity:0.6;fill:#ffffff" gorn="0.5.0.0.0.0.0.0.0.15.0.0.0.0.0.0.0.0.0.0.0.0.0.19"/>
+                                                                                        </g>
+                                                                                    </g>
+                                                                                </g>
+                                                                            </g>
+                                                                        </g>
+                                                                    </g>
+                                                                </g>
+                                                            </g>
+                                                        </g>
+                                                    </g>
+                                                </g>
+                                            </g>
+                                        </g>
+                                    </g>
+                                    <g  transform="translate(30.499747,59.407152)">
+                                        <g >
+                                            <g >
+                                                <g  id="g1494" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0">
+                                                    <g  transform="rotate(90)">
+                                                        <g >
+                                                            <g >
+                                                                <g  id="g1492" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0">
+                                                                    <g  id="g1490" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0">
+                                                                        <polygon  id="polygon1354" points="5.63578,7.2 7.2,5.63578 7.2,1.56321 5.63578,0 1.56321,0 0,1.56321 0,5.63578 1.56321,7.2 " style="fill:#404040" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.0"/>
+                                                                        <rect  height="2.7913799" x="2.2042999" id="rect1356" width="2.7913799" style="fill:none" y="2.2042999" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.1"/>
+                                                                        <g  height="2.26231" x="2.51834" id="connector0terminal" width="2.1643" style="fill:none" y="2.46934" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.2"/>
+                                                                        <rect  height="2.2983201" id="rect1359" x="2.4513299" width="2.2983201" style="fill:#8d8c8c" y="2.4513299" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.3"/>
+                                                                        <rect  height="1.18216" id="connector21pin" x="3.0094099" width="1.18216" style="fill:#8c8663" y="3.0094099" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.4"/>
+                                                                        <polygon  id="polygon1363" points="2.45133,2.45133 3.00941,3.00941 4.19058,3.00941 4.74965,2.45133 " style="fill:#b8af82" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.5"/>
+                                                                        <polygon  id="polygon1365" points="4.19058,4.19058 4.19058,3.00941 4.74965,2.45133 4.74965,4.74965 " style="fill:#80795b" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.6"/>
+                                                                        <polygon  id="polygon1367" points="3.00941,4.19058 4.19058,4.19058 4.74965,4.74965 2.45133,4.74965 " style="fill:#5e5b43" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.7"/>
+                                                                        <polygon  id="polygon1369" points="2.45133,2.45133 3.00941,3.00941 3.00941,4.19058 2.45133,4.74965 " style="fill:#9a916c" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.8"/>
+                                                                        <polygon  id="polygon1371" points="12.8358,7.2 14.4,5.63578 14.4,1.56321 12.8358,0 8.76319,0 7.2,1.56321 7.2,5.63578 8.76319,7.2 " style="fill:#404040" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.9"/>
+                                                                        <rect  height="2.7913799" x="9.4042797" id="rect1373" width="2.7913799" style="fill:none" y="2.2042999" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.10"/>
+                                                                        <g  height="2.26231" x="9.71834" id="connector1terminal" width="2.1643" style="fill:none" y="2.46934" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.11"/>
+                                                                        <rect  height="2.2983201" id="rect1376" x="9.65131" width="2.2983201" style="fill:#8d8c8c" y="2.4513299" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.12"/>
+                                                                        <rect  height="1.18216" id="connector22pin" x="10.2094" width="1.18216" style="fill:#8c8663" y="3.0094099" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.13"/>
+                                                                        <polygon  id="polygon1380" points="9.65131,2.45133 10.2094,3.00941 11.3906,3.00941 11.9496,2.45133 " style="fill:#b8af82" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.14"/>
+                                                                        <polygon  id="polygon1382" points="11.3906,4.19058 11.3906,3.00941 11.9496,2.45133 11.9496,4.74965 " style="fill:#80795b" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.15"/>
+                                                                        <polygon  id="polygon1384" points="10.2094,4.19058 11.3906,4.19058 11.9496,4.74965 9.65131,4.74965 " style="fill:#5e5b43" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.16"/>
+                                                                        <polygon  id="polygon1386" points="9.65131,2.45133 10.2094,3.00941 10.2094,4.19058 9.65131,4.74965 " style="fill:#9a916c" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.17"/>
+                                                                        <polygon  id="polygon1388" points="20.0358,7.2 21.6,5.63578 21.6,1.56321 20.0358,0 15.9632,0 14.4,1.56321 14.4,5.63578 15.9632,7.2 " style="fill:#404040" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.18"/>
+                                                                        <rect  height="2.7913799" x="16.6043" id="rect1390" width="2.7913799" style="fill:none" y="2.2042999" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.19"/>
+                                                                        <g  height="2.26231" x="16.9183" id="connector2terminal" width="2.1643" style="fill:none" y="2.46934" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.20"/>
+                                                                        <rect  height="2.2983201" id="rect1393" x="16.851299" width="2.2983201" style="fill:#8d8c8c" y="2.4513299" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.21"/>
+                                                                        <rect  height="1.18216" id="connector23pin" x="17.409401" width="1.18216" style="fill:#8c8663" y="3.0094099" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.22"/>
+                                                                        <polygon  id="polygon1397" points="16.8513,2.45133 17.4094,3.00941 18.5906,3.00941 19.1496,2.45133 " style="fill:#b8af82" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.23"/>
+                                                                        <polygon  id="polygon1399" points="18.5906,4.19058 18.5906,3.00941 19.1496,2.45133 19.1496,4.74965 " style="fill:#80795b" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.24"/>
+                                                                        <polygon  id="polygon1401" points="17.4094,4.19058 18.5906,4.19058 19.1496,4.74965 16.8513,4.74965 " style="fill:#5e5b43" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.25"/>
+                                                                        <polygon  id="polygon1403" points="16.8513,2.45133 17.4094,3.00941 17.4094,4.19058 16.8513,4.74965 " style="fill:#9a916c" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.26"/>
+                                                                        <polygon  id="polygon1405" points="27.2358,7.2 28.8,5.63578 28.8,1.56321 27.2358,0 23.1632,0 21.6,1.56321 21.6,5.63578 23.1632,7.2 " style="fill:#404040" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.27"/>
+                                                                        <rect  height="2.7913799" x="23.8043" id="rect1407" width="2.7913799" style="fill:none" y="2.2042999" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.28"/>
+                                                                        <g  height="2.26231" x="24.1183" id="connector3terminal" width="2.1643" style="fill:none" y="2.46934" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.29"/>
+                                                                        <rect  height="2.2983201" id="rect1410" x="24.0513" width="2.2983201" style="fill:#8d8c8c" y="2.4513299" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.30"/>
+                                                                        <rect  height="1.18216" id="connector24pin" x="24.6094" width="1.18216" style="fill:#8c8663" y="3.0094099" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.31"/>
+                                                                        <polygon  id="polygon1414" points="24.0513,2.45133 24.6094,3.00941 25.7906,3.00941 26.3496,2.45133 " style="fill:#b8af82" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.32"/>
+                                                                        <polygon  id="polygon1416" points="25.7906,4.19058 25.7906,3.00941 26.3496,2.45133 26.3496,4.74965 " style="fill:#80795b" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.33"/>
+                                                                        <polygon  id="polygon1418" points="24.6094,4.19058 25.7906,4.19058 26.3496,4.74965 24.0513,4.74965 " style="fill:#5e5b43" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.34"/>
+                                                                        <polygon  id="polygon1420" points="24.0513,2.45133 24.6094,3.00941 24.6094,4.19058 24.0513,4.74965 " style="fill:#9a916c" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.35"/>
+                                                                        <polygon  id="polygon1422" points="34.4358,7.2 36,5.63578 36,1.56321 34.4358,0 30.3632,0 28.8,1.56321 28.8,5.63578 30.3632,7.2 " style="fill:#404040" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.36"/>
+                                                                        <rect  height="2.7913799" x="31.004299" id="rect1424" width="2.7913799" style="fill:none" y="2.2042999" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.37"/>
+                                                                        <g  height="2.26231" x="31.3183" id="connector4terminal" width="2.1643" style="fill:none" y="2.46934" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.38"/>
+                                                                        <rect  height="2.2983201" id="rect1427" x="31.251301" width="2.2983201" style="fill:#8d8c8c" y="2.4513299" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.39"/>
+                                                                        <rect  height="1.18216" id="connector25pin" x="31.809401" width="1.18216" style="fill:#8c8663" y="3.0094099" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.40"/>
+                                                                        <polygon  id="polygon1431" points="31.2513,2.45133 31.8094,3.00941 32.9905,3.00941 33.5496,2.45133 " style="fill:#b8af82" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.41"/>
+                                                                        <polygon  id="polygon1433" points="32.9905,4.19058 32.9905,3.00941 33.5496,2.45133 33.5496,4.74965 " style="fill:#80795b" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.42"/>
+                                                                        <polygon  id="polygon1435" points="31.8094,4.19058 32.9905,4.19058 33.5496,4.74965 31.2513,4.74965 " style="fill:#5e5b43" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.43"/>
+                                                                        <polygon  id="polygon1437" points="31.2513,2.45133 31.8094,3.00941 31.8094,4.19058 31.2513,4.74965 " style="fill:#9a916c" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.44"/>
+                                                                        <polygon  id="polygon1439" points="41.6358,7.2 43.2,5.63578 43.2,1.56321 41.6358,0 37.5632,0 36,1.56321 36,5.63578 37.5632,7.2 " style="fill:#404040" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.45"/>
+                                                                        <rect  height="2.7913799" x="38.2043" id="rect1441" width="2.7913799" style="fill:none" y="2.2042999" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.46"/>
+                                                                        <g  height="2.26231" x="38.5183" id="connector5terminal" width="2.1643" style="fill:none" y="2.46934" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.47"/>
+                                                                        <rect  height="2.2983201" id="rect1444" x="38.451302" width="2.2983201" style="fill:#8d8c8c" y="2.4513299" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.48"/>
+                                                                        <rect  height="1.18216" id="connector26pin" x="39.009399" width="1.18216" style="fill:#8c8663" y="3.0094099" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.49"/>
+                                                                        <polygon  id="polygon1448" points="38.4513,2.45133 39.0094,3.00941 40.1905,3.00941 40.7496,2.45133 " style="fill:#b8af82" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.50"/>
+                                                                        <polygon  id="polygon1450" points="40.1905,4.19058 40.1905,3.00941 40.7496,2.45133 40.7496,4.74965 " style="fill:#80795b" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.51"/>
+                                                                        <polygon  id="polygon1452" points="39.0094,4.19058 40.1905,4.19058 40.7496,4.74965 38.4513,4.74965 " style="fill:#5e5b43" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.52"/>
+                                                                        <polygon  id="polygon1454" points="38.4513,2.45133 39.0094,3.00941 39.0094,4.19058 38.4513,4.74965 " style="fill:#9a916c" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.53"/>
+                                                                        <polygon  id="polygon1456" points="48.8358,7.2 50.4,5.63578 50.4,1.56321 48.8358,0 44.7632,0 43.2,1.56321 43.2,5.63578 44.7632,7.2 " style="fill:#404040" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.54"/>
+                                                                        <rect  height="2.7913799" x="45.404301" id="rect1458" width="2.7913799" style="fill:none" y="2.2042999" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.55"/>
+                                                                        <g  height="2.26231" x="45.7183" id="connector6terminal" width="2.1643" style="fill:none" y="2.46934" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.56"/>
+                                                                        <rect  height="2.2983201" id="rect1461" x="45.651299" width="2.2983201" style="fill:#8d8c8c" y="2.4513299" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.57"/>
+                                                                        <rect  height="1.18216" id="connector27pin" x="46.2094" width="1.18216" style="fill:#8c8663" y="3.0094099" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.58"/>
+                                                                        <polygon  id="polygon1465" points="45.6513,2.45133 46.2094,3.00941 47.3905,3.00941 47.9496,2.45133 " style="fill:#b8af82" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.59"/>
+                                                                        <polygon  id="polygon1467" points="47.3905,4.19058 47.3905,3.00941 47.9496,2.45133 47.9496,4.74965 " style="fill:#80795b" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.60"/>
+                                                                        <polygon  id="polygon1469" points="46.2094,4.19058 47.3905,4.19058 47.9496,4.74965 45.6513,4.74965 " style="fill:#5e5b43" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.61"/>
+                                                                        <polygon  id="polygon1471" points="45.6513,2.45133 46.2094,3.00941 46.2094,4.19058 45.6513,4.74965 " style="fill:#9a916c" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.62"/>
+                                                                        <polygon  id="polygon1473" points="56.0358,7.2 57.6,5.63578 57.6,1.56321 56.0358,0 51.9632,0 50.4,1.56321 50.4,5.63578 51.9632,7.2 " style="fill:#404040" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.63"/>
+                                                                        <rect  height="2.7913799" x="52.604301" id="rect1475" width="2.7913799" style="fill:none" y="2.2042999" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.64"/>
+                                                                        <g  height="2.26231" x="52.9183" id="connector7terminal" width="2.1643" style="fill:none" y="2.46934" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.65"/>
+                                                                        <rect  height="2.2983201" id="rect1478" x="52.851299" width="2.2983201" style="fill:#8d8c8c" y="2.4513299" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.66"/>
+                                                                        <rect  height="1.18216" id="connector28pin" x="53.409401" width="1.18216" style="fill:#8c8663" y="3.0094099" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.67"/>
+                                                                        <polygon  id="polygon1482" points="52.8513,2.45133 53.4094,3.00941 54.5905,3.00941 55.1496,2.45133 " style="fill:#b8af82" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.68"/>
+                                                                        <polygon  id="polygon1484" points="54.5905,4.19058 54.5905,3.00941 55.1496,2.45133 55.1496,4.74965 " style="fill:#80795b" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.69"/>
+                                                                        <polygon  id="polygon1486" points="53.4094,4.19058 54.5905,4.19058 55.1496,4.74965 52.8513,4.74965 " style="fill:#5e5b43" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.70"/>
+                                                                        <polygon  id="polygon1488" points="52.8513,2.45133 53.4094,3.00941 53.4094,4.19058 52.8513,4.74965 " style="fill:#9a916c" gorn="0.5.0.0.0.0.0.0.0.16.0.0.0.0.0.0.0.0.71"/>
+                                                                    </g>
+                                                                </g>
+                                                            </g>
+                                                        </g>
+                                                    </g>
+                                                </g>
+                                            </g>
+                                        </g>
+                                    </g>
+                                </g>
+                            </g>
+                        </g>
+                    </g>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>

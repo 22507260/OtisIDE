@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>OtisIDE — Arduino ve breadboard tasarım stüdyosu</title>
+<meta name="description" content="OtisIDE, sürükle bırak devre tasarımı, yapay zekâ destekli kablolama ve Arduino kod üretimi sunan ücretsiz masaüstü uygulaması. Windows kurulum dosyasını indirin." />
+<link rel="icon" href="assets/favicon.ico" />
+<meta property="og:title" content="OtisIDE — Arduino ve breadboard tasarım stüdyosu" />
+<meta property="og:description" content="Devreni çiz, kabloları bağla, kodu üret ve karta yükle. Windows için ücretsiz indir." />
+<meta property="og:image" content="assets/otis-mascot.png" />
+<meta property="og:type" content="website" />
+<style>
+  :root {
+    --bg: #0b0b18;
+    --bg-soft: #12122a;
+    --panel: rgba(255, 255, 255, 0.04);
+    --border: rgba(255, 255, 255, 0.09);
+    --text: #eef1f8;
+    --muted: #a2aac4;
+    --accent: #4ecca3;
+    --accent-2: #38d9f0;
+    --pink: #f792c0;
+    --radius: 16px;
+    --maxw: 1120px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Segoe UI", system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background:
+      radial-gradient(60rem 40rem at 12% -10%, rgba(78, 204, 163, 0.16), transparent 60%),
+      radial-gradient(50rem 34rem at 92% 4%, rgba(247, 146, 192, 0.14), transparent 62%),
+      linear-gradient(180deg, #0b0b18 0%, #0b0b18 40%, #0a0a15 100%);
+  }
+
+  a { color: inherit; text-decoration: none; }
+
+  .wrap { width: min(100% - 2.5rem, var(--maxw)); margin-inline: auto; }
+
+  /* ---------- header ---------- */
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    backdrop-filter: blur(14px);
+    background: rgba(11, 11, 24, 0.72);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .nav {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    height: 66px;
+  }
+
+  .brand { display: flex; align-items: center; gap: 0.65rem; font-weight: 700; letter-spacing: 0.2px; }
+  .brand img { width: 34px; height: 34px; }
+  .brand span small { display: block; font-size: 0.68rem; color: var(--muted); font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; }
+
+  .nav-links { display: flex; gap: 1.4rem; margin-left: auto; font-size: 0.94rem; color: var(--muted); }
+  .nav-links a:hover { color: var(--text); }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    border-radius: 999px;
+    padding: 0.72rem 1.35rem;
+    font-weight: 650;
+    font-size: 0.95rem;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.2s ease, background 0.2s ease;
+    white-space: nowrap;
+  }
+
+  .btn-primary {
+    background: linear-gradient(120deg, var(--accent) 0%, var(--accent-2) 100%);
+    color: #06121b;
+    box-shadow: 0 10px 30px -12px rgba(78, 204, 163, 0.75);
+  }
+
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 16px 38px -14px rgba(78, 204, 163, 0.9); }
+
+  .btn-ghost { border-color: var(--border); color: var(--text); background: var(--panel); }
+  .btn-ghost:hover { border-color: rgba(255, 255, 255, 0.28); transform: translateY(-2px); }
+
+  .btn-sm { padding: 0.5rem 1rem; font-size: 0.88rem; }
+
+  /* ---------- hero ---------- */
+  .hero { padding: 5rem 0 3.5rem; }
+
+  .hero-grid {
+    display: grid;
+    grid-template-columns: 1.15fr 0.85fr;
+    gap: 3rem;
+    align-items: center;
+  }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    border-radius: 999px;
+    padding: 0.35rem 0.85rem;
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin-bottom: 1.35rem;
+  }
+
+  .pill b { color: var(--accent); font-weight: 650; }
+
+  h1 {
+    font-size: clamp(2.2rem, 5vw, 3.4rem);
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    margin-bottom: 1.1rem;
+  }
+
+  h1 em {
+    font-style: normal;
+    background: linear-gradient(120deg, var(--accent) 10%, var(--accent-2) 60%, var(--pink) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .lead { color: var(--muted); font-size: 1.08rem; max-width: 46ch; margin-bottom: 2rem; }
+
+  .cta-row { display: flex; flex-wrap: wrap; gap: 0.85rem; align-items: center; }
+
+  .cta-meta { margin-top: 1.1rem; color: var(--muted); font-size: 0.86rem; display: flex; flex-wrap: wrap; gap: 0.4rem 1rem; }
+  .cta-meta span { display: inline-flex; align-items: center; gap: 0.4rem; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); display: inline-block; }
+
+  .hero-art { position: relative; display: flex; justify-content: center; }
+  .hero-art img { width: min(340px, 100%); filter: drop-shadow(0 30px 50px rgba(0, 0, 0, 0.55)); animation: float 6s ease-in-out infinite; }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-14px); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hero-art img { animation: none; }
+    .btn:hover { transform: none; }
+  }
+
+  /* ---------- preview ---------- */
+  .preview { padding: 1rem 0 4.5rem; }
+
+  .preview-frame {
+    border: 1px solid var(--border);
+    border-radius: 22px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
+    padding: 0.7rem;
+    box-shadow: 0 40px 80px -40px rgba(0, 0, 0, 0.9);
+  }
+
+  .preview-frame img { display: block; width: 100%; border-radius: 15px; }
+
+  .preview-caption { text-align: center; color: var(--muted); font-size: 0.86rem; margin-top: 0.9rem; }
+
+  /* ---------- sections ---------- */
+  section { padding: 4rem 0; }
+
+  .section-head { max-width: 60ch; margin-bottom: 2.5rem; }
+  .section-head h2 { font-size: clamp(1.6rem, 3vw, 2.15rem); letter-spacing: -0.01em; margin-bottom: 0.6rem; }
+  .section-head p { color: var(--muted); }
+
+  .kicker { color: var(--accent); font-size: 0.8rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 0.7rem; }
+
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(268px, 1fr)); gap: 1.15rem; }
+
+  .card {
+    border: 1px solid var(--border);
+    background: var(--panel);
+    border-radius: var(--radius);
+    padding: 1.6rem 1.5rem;
+    transition: border-color 0.2s ease, transform 0.2s ease;
+  }
+
+  .card:hover { border-color: rgba(78, 204, 163, 0.45); transform: translateY(-3px); }
+  .card h3 { font-size: 1.05rem; margin-bottom: 0.5rem; }
+  .card p { color: var(--muted); font-size: 0.94rem; }
+  .card .ico { font-size: 1.5rem; margin-bottom: 0.9rem; display: block; }
+
+  /* ---------- boards ---------- */
+  .chips { display: flex; flex-wrap: wrap; gap: 0.55rem; }
+  .chip {
+    border: 1px solid var(--border);
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 999px;
+    padding: 0.42rem 0.95rem;
+    font-size: 0.87rem;
+    color: var(--muted);
+  }
+
+  /* ---------- steps ---------- */
+  .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.15rem; counter-reset: step; }
+  .step {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    background: var(--panel);
+    position: relative;
+  }
+  .step::before {
+    counter-increment: step;
+    content: counter(step);
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(120deg, var(--accent), var(--accent-2));
+    color: #06121b;
+    font-weight: 800;
+    font-size: 0.92rem;
+    margin-bottom: 0.9rem;
+  }
+  .step h3 { font-size: 1rem; margin-bottom: 0.4rem; }
+  .step p { color: var(--muted); font-size: 0.93rem; }
+
+  .note {
+    margin-top: 1.6rem;
+    border: 1px solid rgba(247, 146, 192, 0.35);
+    background: rgba(247, 146, 192, 0.08);
+    border-radius: var(--radius);
+    padding: 1.2rem 1.35rem;
+    font-size: 0.94rem;
+    color: #f6dcea;
+  }
+  .note b { color: #fff; }
+
+  /* ---------- download band ---------- */
+  .download-band {
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    background:
+      radial-gradient(40rem 20rem at 20% 0%, rgba(78, 204, 163, 0.18), transparent 65%),
+      radial-gradient(30rem 18rem at 90% 100%, rgba(247, 146, 192, 0.16), transparent 60%),
+      rgba(255, 255, 255, 0.03);
+    padding: 3rem 2rem;
+    text-align: center;
+  }
+  .download-band h2 { font-size: clamp(1.6rem, 3vw, 2.2rem); margin-bottom: 0.7rem; }
+  .download-band p { color: var(--muted); max-width: 52ch; margin: 0 auto 1.8rem; }
+  .download-band .cta-row { justify-content: center; }
+  .download-band .cta-meta { justify-content: center; }
+
+  .checksum { margin-top: 1.4rem; font-size: 0.78rem; color: var(--muted); }
+  .checksum code {
+    display: inline-block;
+    margin-top: 0.4rem;
+    max-width: 100%;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.3rem 0.6rem;
+    font-size: 0.74rem;
+    line-height: 1.5;
+    word-break: break-all;
+  }
+
+  /* ---------- faq ---------- */
+  details {
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: var(--panel);
+    padding: 1.05rem 1.3rem;
+    margin-bottom: 0.8rem;
+  }
+  details[open] { border-color: rgba(78, 204, 163, 0.4); }
+  summary { cursor: pointer; font-weight: 650; list-style: none; display: flex; justify-content: space-between; gap: 1rem; align-items: center; }
+  summary::-webkit-details-marker { display: none; }
+  summary::after { content: "+"; color: var(--accent); font-size: 1.25rem; line-height: 1; }
+  details[open] summary::after { content: "−"; }
+  details p { color: var(--muted); font-size: 0.94rem; margin-top: 0.75rem; }
+  details code {
+    background: rgba(255, 255, 255, 0.07);
+    padding: 0.1rem 0.4rem;
+    border-radius: 5px;
+    font-size: 0.88em;
+  }
+
+  /* ---------- footer ---------- */
+  footer { border-top: 1px solid var(--border); padding: 2.5rem 0 3rem; color: var(--muted); font-size: 0.9rem; }
+  .footer-grid { display: flex; flex-wrap: wrap; gap: 1.2rem; justify-content: space-between; align-items: center; }
+  .footer-links { display: flex; flex-wrap: wrap; gap: 1.2rem; }
+  .footer-links a:hover { color: var(--text); }
+
+  @media (max-width: 860px) {
+    .hero-grid { grid-template-columns: 1fr; }
+    .hero-art { order: -1; }
+    .hero-art img { width: 200px; }
+    .nav-links { display: none; }
+    .hero { padding-top: 3rem; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap nav">
+    <a class="brand" href="#top">
+      <img src="assets/otis-mascot.png" alt="" />
+      <span>OtisIDE<small>Devre stüdyosu</small></span>
+    </a>
+    <nav class="nav-links">
+      <a href="#ozellikler">Özellikler</a>
+      <a href="#kartlar">Kartlar</a>
+      <a href="#kurulum">Kurulum</a>
+      <a href="#sss">SSS</a>
+      <a href="https://github.com/22507260/OtisIDE" target="_blank" rel="noopener">GitHub</a>
+    </nav>
+    <a class="btn btn-primary btn-sm" href="#indir">İndir</a>
+  </div>
+</header>
+
+<main id="top">
+  <section class="hero">
+    <div class="wrap hero-grid">
+      <div>
+        <div class="pill"><span class="dot"></span> Sürüm <b>1.2.0</b> · Windows 10/11 · 64 bit</div>
+        <h1>Devreni çiz, <em>yapay zekâ</em> kabloları bağlasın.</h1>
+        <p class="lead">
+          OtisIDE; breadboard üzerine sürükle bırak devre kurma, pin farkındalıklı kablolama,
+          Arduino kodu üretme ve kartına doğrudan yükleme işlerini tek pencerede toplar.
+        </p>
+        <div class="cta-row">
+          <a class="btn btn-primary" href="downloads/OtisIDE-1.2.0-x64.exe" download>
+            ⬇ Windows için indir (.exe)
+          </a>
+          <a class="btn btn-ghost" href="https://github.com/22507260/OtisIDE/releases" target="_blank" rel="noopener">
+            Tüm sürümler · GitHub
+          </a>
+        </div>
+        <div class="cta-meta">
+          <span><span class="dot"></span> Kurulum sihirbazı (NSIS)</span>
+          <span><span class="dot"></span> <span data-file-size>111 MB</span></span>
+          <span><span class="dot"></span> Ücretsiz ve açık kaynak</span>
+        </div>
+      </div>
+      <div class="hero-art">
+        <img src="assets/otis-mascot.png" alt="OtisIDE maskotu" />
+      </div>
+    </div>
+  </section>
+
+  <section class="preview" style="padding-top:0">
+    <div class="wrap">
+      <div class="preview-frame">
+        <img src="assets/workspace-tr.png" alt="OtisIDE çalışma alanı: sol panelde bileşen paleti, ortada Arduino Uno ve breadboard, sağda özellikler paneli, altta Arduino kod editörü" />
+      </div>
+      <p class="preview-caption">OtisIDE 1.2.0, Türkçe arayüz. Solda bileşen paleti, ortada devre tuvali, sağda özellikler ve yapay zekâ paneli, altta kod editörü.</p>
+    </div>
+  </section>
+
+  <section id="ozellikler">
+    <div class="wrap">
+      <div class="section-head">
+        <div class="kicker">Neler yapabilir</div>
+        <h2>Prototipten karta kadar tek uygulama</h2>
+        <p>Devre çizimi, kod ve donanım iletişimi ayrı ayrı programlara dağılmaz; hepsi aynı çalışma alanında durur.</p>
+      </div>
+      <div class="cards">
+        <article class="card">
+          <span class="ico">🧩</span>
+          <h3>Sürükle bırak tuval</h3>
+          <p>Bileşenleri breadboard deliklerine hizalayan akıllı yapışma, sağ tık menüsü, döndürme ve pin seviyesinde bağlantı noktaları.</p>
+        </article>
+        <article class="card">
+          <span class="ico">🔌</span>
+          <h3>Gerçekçi kablolama</h3>
+          <p>Kart pinleri, breadboard delikleri ve bileşen bacakları arasında renk seçilebilir kablolar; kalabalık pinler için otomatik açılım.</p>
+        </article>
+        <article class="card">
+          <span class="ico">🤖</span>
+          <h3>Yapay zekâ asistanı</h3>
+          <p>Groq, OpenAI, Gemini veya kendi OpenAI uyumlu sunucun. Devreyi kurar, kabloları çizer ve Arduino kodunu yazar.</p>
+        </article>
+        <article class="card">
+          <span class="ico">⚡</span>
+          <h3>USB ile derle ve yükle</h3>
+          <p>Arduino CLI'yi kendisi indirir, kartını tanır, çekirdeği kurar; doğrula ve yükle butonlarıyla kod doğrudan karta gider.</p>
+        </article>
+        <article class="card">
+          <span class="ico">📈</span>
+          <h3>Ölçüm araçları</h3>
+          <p>Seri monitör, cihaz konsolu, osiloskop grafiği ve problu multimetre ile devreyi çalışırken izle.</p>
+        </article>
+        <article class="card">
+          <span class="ico">🇹🇷</span>
+          <h3>Türkçe ve İngilizce</h3>
+          <p>Arayüz tek tıkla dil değiştirir; Deneyap kartları ve modülleri hazır kütüphanede gelir.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section id="kartlar">
+    <div class="wrap">
+      <div class="section-head">
+        <div class="kicker">Desteklenen kartlar</div>
+        <h2>18 kart, pin haritalarıyla birlikte</h2>
+        <p>Her kartın pin yerleşimi ayrı tanımlıdır; kabloyu yanlış pine bağlamak zorlaşır.</p>
+      </div>
+      <div class="chips">
+        <span class="chip">Arduino Uno</span>
+        <span class="chip">Uno R4 WiFi</span>
+        <span class="chip">Nano</span>
+        <span class="chip">Mega 2560</span>
+        <span class="chip">Leonardo</span>
+        <span class="chip">Arduino Fio</span>
+        <span class="chip">Deneyap Kart 1A</span>
+        <span class="chip">Deneyap Kart 1A v2</span>
+        <span class="chip">Deneyap Kart G</span>
+        <span class="chip">Deneyap Mini</span>
+        <span class="chip">Deneyap Mini v2</span>
+        <span class="chip">NodeMCU ESP8266</span>
+        <span class="chip">NodeMCU V3</span>
+        <span class="chip">WeMos D1 Mini</span>
+        <span class="chip">SparkFun Pro Micro</span>
+        <span class="chip">Raspberry Pi Pico</span>
+        <span class="chip">HUZZAH32 Feather</span>
+        <span class="chip">ESP32-S3 DevKitC-1</span>
+      </div>
+    </div>
+  </section>
+
+  <section id="kurulum">
+    <div class="wrap">
+      <div class="section-head">
+        <div class="kicker">Kurulum</div>
+        <h2>Üç adımda çalışır hale gelir</h2>
+        <p>Kurulum sihirbazı klasör seçimine izin verir, masaüstü ve başlat menüsü kısayollarını oluşturur.</p>
+      </div>
+      <div class="steps">
+        <div class="step">
+          <h3>Kurulum dosyasını indir</h3>
+          <p>Yukarıdaki indirme butonu <code>OtisIDE-1.2.0-x64.exe</code> dosyasını verir. 64 bit Windows 10 veya 11 gerekir.</p>
+        </div>
+        <div class="step">
+          <h3>Sihirbazı çalıştır</h3>
+          <p>Kurulum klasörünü seç, ileri de. Kurulum bittiğinde OtisIDE masaüstünden açılabilir.</p>
+        </div>
+        <div class="step">
+          <h3>Kartını tak</h3>
+          <p>USB kablosunu tak, üst çubuktan cihazı seç ve <b>IDE Hazırla</b> de. Arduino CLI ilk açılışta otomatik iner.</p>
+        </div>
+      </div>
+      <div class="note">
+        <b>Windows uyarısı çıkarsa:</b> Kurulum dosyası ücretli bir kod imzalama sertifikasıyla imzalanmadığı için
+        SmartScreen “Bilinmeyen yayımcı” uyarısı gösterebilir. <b>Daha fazla bilgi → Yine de çalıştır</b> ile devam edebilirsin.
+      </div>
+    </div>
+  </section>
+
+  <section id="indir">
+    <div class="wrap">
+      <div class="download-band">
+        <h2>OtisIDE'yi indir</h2>
+        <p>Windows için kurulum sihirbazlı sürüm. Kurulum sonrası internet olmadan da çizim, kod ve simülasyon çalışır.</p>
+        <div class="cta-row">
+          <a class="btn btn-primary" href="downloads/OtisIDE-1.2.0-x64.exe" download>
+            ⬇ OtisIDE-1.2.0-x64.exe
+          </a>
+          <a class="btn btn-ghost" href="https://github.com/22507260/OtisIDE/releases" target="_blank" rel="noopener">
+            GitHub sürümleri
+          </a>
+        </div>
+        <div class="cta-meta">
+          <span><span class="dot"></span> Sürüm 1.2.0</span>
+          <span><span class="dot"></span> <span data-file-size>111 MB</span></span>
+          <span><span class="dot"></span> Windows 10/11 · x64</span>
+        </div>
+        <p class="checksum">
+          Dosya doğrulama (SHA-256): <code data-sha256>5b65885d528729ddaf35b9f3dcda23ae56289c2442f0b21a93e251d7945684e8</code>
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section id="sss">
+    <div class="wrap">
+      <div class="section-head">
+        <div class="kicker">Sık sorulanlar</div>
+        <h2>Merak edilenler</h2>
+      </div>
+
+      <details>
+        <summary>Yapay zekâ paneli için ücret ödemem gerekir mi?</summary>
+        <p>OtisIDE ücretsizdir, ancak yapay zekâ paneli kendi API anahtarınla çalışır. Groq, OpenAI, Google Gemini veya
+        OpenAI uyumlu herhangi bir adres (örneğin bilgisayarında çalışan Ollama) kullanılabilir. Anahtar yalnızca kendi bilgisayarında saklanır.</p>
+      </details>
+
+      <details>
+        <summary>Devreyi karta yüklemek için Arduino IDE kurmam gerekir mi?</summary>
+        <p>Hayır. OtisIDE, Arduino CLI'yi ilk <code>IDE Hazırla</code> isteğinde kendi klasörüne indirir ve kartın için gerekli
+        çekirdeği kurar. Bu adım için internet bağlantısı gerekir.</p>
+      </details>
+
+      <details>
+        <summary>İnternet olmadan çalışır mı?</summary>
+        <p>Evet. Devre tuvali, kod editörü ve simülasyon çevrimdışı çalışır. Yalnızca yapay zekâ istekleri ve
+        Arduino CLI / kart çekirdeği indirmeleri bağlantı ister.</p>
+      </details>
+
+      <details>
+        <summary>Simülasyon gerçek bir devre simülatörü mü?</summary>
+        <p>Tam bir SPICE simülatörü değildir. <code>digitalWrite</code>, <code>delay</code>, <code>Serial.print</code>,
+        LED, servo, motor ve LCD gibi davranışları hafif bir çalışma zamanıyla canlandırır; amaç hızlı prototip ve öğretimdir.</p>
+      </details>
+
+      <details>
+        <summary>macOS veya Linux sürümü var mı?</summary>
+        <p>Şu an hazır kurulum dosyası yalnızca Windows için üretiliyor. Kaynak koddan <code>npm run electron:dev</code> ile
+        diğer sistemlerde de çalıştırabilirsin.</p>
+      </details>
+
+      <details>
+        <summary>Projelerim nereye kaydediliyor?</summary>
+        <p>Projeler seçtiğin klasöre <code>.json</code> olarak kaydedilir. Aynı dosyayı <b>Aç</b> ile geri yükleyebilir,
+        tuvali PNG olarak dışa aktarabilirsin.</p>
+      </details>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap footer-grid">
+    <div>© <span id="year">2026</span> OtisIDE · otis21 · ISC lisansı</div>
+    <div class="footer-links">
+      <a href="https://github.com/22507260/OtisIDE" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/22507260/OtisIDE/issues" target="_blank" rel="noopener">Hata bildir</a>
+      <a href="https://buymeacoffee.com/otis21" target="_blank" rel="noopener">Destek ol</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+  document.getElementById('year').textContent = new Date().getFullYear();
+</script>
+</body>
+</html>
