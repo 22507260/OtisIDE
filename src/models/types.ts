@@ -182,22 +182,63 @@ export const DEFAULT_AI_PROVIDER: AIProvider = 'groq';
 export const DEFAULT_AI_BASE_URL = AI_PROVIDER_CONFIGS[DEFAULT_AI_PROVIDER].baseUrl;
 export const DEFAULT_AI_MODEL = AI_PROVIDER_CONFIGS[DEFAULT_AI_PROVIDER].model;
 
+/**
+ * Pins are placed on the connectors their artwork declares, in order. These
+ * parts need a different mapping: either the drawing numbers its pads in
+ * another order, or it holds more connectors than the module has pins. An
+ * entry of -1 keeps the hand written coordinates for a pad the artwork never
+ * marked.
+ */
+export const CONNECTOR_ORDERS: Partial<Record<ComponentType, number[]>> = {
+  // The artwork holds the die in the cathode cup on connector0, so the
+  // anode is the other leg.
+  led: [1, 0],
+  // The stripe marking the cathode sits on connector0 in the artwork.
+  diode: [1, 0],
+  // The artwork prints "-" next to the first connector and "+" next to the second.
+  buzzer: [1, 0],
+  // The breakout draws every pad of the sensor and its passives; the header
+  // itself is connectors 10 to 16, labelled VIN, 2v8, GND, GPIO, SHDN, SCL
+  // and SDA from left to right.
+  vl53l0x: [10, 11, 12, 13, 14, 15, 16],
+  // The silkscreen reads CLK, DIO, GND, VCC downwards, which is connectors
+  // 3, 2, 1, 0; the display segments take the remaining twelve connectors.
+  tm1637: [1, 0, 2, 3],
+  // The artwork labels all sixteen pads but only marks fifteen connectors:
+  // the pad at the bottom of the right hand column (a GND) has none, so that
+  // pin keeps its own coordinates while the rest follow the silkscreen, MISO
+  // to GND up the right column and ANT to DIO2 down the left one.
+  rfm69hcw: [-1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14],
+  // The board prints Gnd/OE/S1/S0 down one header and Vcc/Out/S2/S3 down
+  // the other, starting at connector1 rather than connector0.
+  tcs230: [1, 2, 3, 4, 5, 6, 7, 8],
+  // Most of the connectors belong to the parts on the board; the header is
+  // connectors 6, 7 and 8, marked +, Out and - on the silkscreen.
+  'uv-sensor': [6, 7, 8],
+  // The FC-51 header is printed OUT, GND, VCC from left to right.
+  'ir-sensor': [2, 0, 1],
+  // The drawing wires the coil to connectors 1 and 4, joins connectors 2 and
+  // 3 into the armature rail (COM), and puts the contacts on 0 and 5. The
+  // armature rests on the upper contact, so connector0 is NC and 5 is NO.
+  relay: [1, 4, 2, 5, 0],
+  // The artwork is an L293D in a DIP-16 with the notch on the left, so
+  // connector0 is package pin 1 and the numbering runs along the bottom row
+  // and back along the top. The order below maps each signal to its real
+  // pin: EN1 1, IN1 2, OUT1 3, GND 4, OUT2 6, IN2 7, EN2 9, IN3 10,
+  // OUT3 11, OUT4 14, IN4 15, VCC1 16.
+  'motor-driver': [1, 6, 9, 14, 0, 8, 2, 5, 10, 13, 15, 3],
+};
+
 // ===== Default pin definitions for each component type =====
 export function getDefaultPins(type: ComponentType): Pin[] {
-  const withSvgLayout = (pins: Pin[], connectorOrder?: number[]) =>
-    applySvgPinLayout(type, pins, connectorOrder);
+  const withSvgLayout = (pins: Pin[]) => applySvgPinLayout(type, pins, CONNECTOR_ORDERS[type]);
 
   switch (type) {
     case 'led':
-      // The artwork holds the die in the cathode cup on connector0, so the
-      // anode is the other leg.
-      return withSvgLayout(
-        [
-          { id: 'anode', name: 'Anode (+)', type: 'passive', x: 0, y: -20 },
-          { id: 'cathode', name: 'Cathode (-)', type: 'passive', x: 0, y: 20 },
-        ],
-        [1, 0]
-      );
+      return withSvgLayout([
+        { id: 'anode', name: 'Anode (+)', type: 'passive', x: 0, y: -20 },
+        { id: 'cathode', name: 'Cathode (-)', type: 'passive', x: 0, y: 20 },
+      ]);
     case 'resistor':
       return withSvgLayout([
         { id: 'pin1', name: 'Pin 1', type: 'passive', x: -25, y: 0 },
@@ -209,14 +250,10 @@ export function getDefaultPins(type: ComponentType): Pin[] {
         { id: 'pin2', name: 'Pin 2 (-)', type: 'passive', x: 15, y: 0 },
       ]);
     case 'diode':
-      // The stripe marking the cathode sits on connector0 in the artwork.
-      return withSvgLayout(
-        [
-          { id: 'anode', name: 'Anode', type: 'passive', x: -20, y: 0 },
-          { id: 'cathode', name: 'Cathode', type: 'passive', x: 20, y: 0 },
-        ],
-        [1, 0]
-      );
+      return withSvgLayout([
+        { id: 'anode', name: 'Anode', type: 'passive', x: -20, y: 0 },
+        { id: 'cathode', name: 'Cathode', type: 'passive', x: 20, y: 0 },
+      ]);
     case 'button':
       return withSvgLayout([
         { id: 'pin1', name: 'Pin 1', type: 'passive', x: -15, y: -10 },
@@ -245,14 +282,10 @@ export function getDefaultPins(type: ComponentType): Pin[] {
         { id: 'sw', name: 'SW', type: 'digital', x: 24, y: 18 },
       ]);
     case 'buzzer':
-      // The artwork prints "-" next to the first connector and "+" next to the second.
-      return withSvgLayout(
-        [
-          { id: 'positive', name: '+', type: 'passive', x: -10, y: 0 },
-          { id: 'negative', name: '-', type: 'passive', x: 10, y: 0 },
-        ],
-        [1, 0]
-      );
+      return withSvgLayout([
+        { id: 'positive', name: '+', type: 'passive', x: -10, y: 0 },
+        { id: 'negative', name: '-', type: 'passive', x: 10, y: 0 },
+      ]);
     case 'servo':
       return withSvgLayout([
         { id: 'signal', name: 'Signal (Orange)', type: 'pwm', x: -15, y: -10 },
@@ -627,7 +660,7 @@ export function getDefaultPins(type: ComponentType): Pin[] {
       ]);
     case 'rfm69hcw':
       return withSvgLayout([
-        { id: 'gnd_1', name: 'GND 1', type: 'ground', x: -30, y: 18 },
+        { id: 'gnd_1', name: 'GND 1', type: 'ground', x: 20.6, y: 33.2 },
         { id: 'miso', name: 'MISO', type: 'digital', x: -26, y: 18 },
         { id: 'mosi', name: 'MOSI', type: 'digital', x: -22, y: 18 },
         { id: 'sck', name: 'SCK', type: 'digital', x: -18, y: 18 },
@@ -651,21 +684,16 @@ export function getDefaultPins(type: ComponentType): Pin[] {
         { id: 'out', name: 'OUT', type: 'digital', x: 12, y: 18 },
       ]);
     case 'tcs230':
-      // The board prints Gnd/OE/S1/S0 down one header and Vcc/Out/S2/S3 down
-      // the other, starting at connector1 rather than connector0.
-      return withSvgLayout(
-        [
-          { id: 'gnd', name: 'GND', type: 'ground', x: -28, y: 18 },
-          { id: 'oe', name: 'OE', type: 'digital', x: -20, y: 18 },
-          { id: 's1', name: 'S1', type: 'digital', x: -12, y: 18 },
-          { id: 's0', name: 'S0', type: 'digital', x: -4, y: 18 },
-          { id: 's3', name: 'S3', type: 'digital', x: 4, y: 18 },
-          { id: 's2', name: 'S2', type: 'digital', x: 12, y: 18 },
-          { id: 'out', name: 'OUT', type: 'digital', x: 20, y: 18 },
-          { id: 'vcc', name: 'VCC', type: 'power', x: 28, y: 18 },
-        ],
-        [1, 2, 3, 4, 5, 6, 7, 8]
-      );
+      return withSvgLayout([
+        { id: 'gnd', name: 'GND', type: 'ground', x: -28, y: 18 },
+        { id: 'oe', name: 'OE', type: 'digital', x: -20, y: 18 },
+        { id: 's1', name: 'S1', type: 'digital', x: -12, y: 18 },
+        { id: 's0', name: 'S0', type: 'digital', x: -4, y: 18 },
+        { id: 's3', name: 'S3', type: 'digital', x: 4, y: 18 },
+        { id: 's2', name: 'S2', type: 'digital', x: 12, y: 18 },
+        { id: 'out', name: 'OUT', type: 'digital', x: 20, y: 18 },
+        { id: 'vcc', name: 'VCC', type: 'power', x: 28, y: 18 },
+      ]);
     case 'uv-sensor':
       return withSvgLayout([
         { id: 'vcc', name: '5V', type: 'power', x: -12, y: 18 },

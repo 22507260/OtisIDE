@@ -376,6 +376,33 @@ function toGroupCoordinates(type: ComponentType, point: Point): Point | null {
  * and asking the browser. Resolving nested transforms by hand used to place
  * pins hundreds of units away from their pads on some artwork.
  */
+/**
+ * A few Fritzing exports carry no viewBox and are sized in millimetres, so their
+ * user space is whatever the browser lays the element out at. Reading "16mm" off
+ * the width attribute would scale every connector by the DPI ratio and scatter
+ * the pins far outside the artwork, so measure the rendered viewport instead.
+ */
+function measureViewport(
+  svg: SVGSVGElement,
+  screenToUser: DOMMatrix
+): { minX: number; minY: number; width: number; height: number } | null {
+  const rect = svg.getBoundingClientRect();
+  if (rect.width <= 0 || rect.height <= 0) return null;
+
+  const topLeft = svg.createSVGPoint();
+  topLeft.x = rect.left;
+  topLeft.y = rect.top;
+  const bottomRight = svg.createSVGPoint();
+  bottomRight.x = rect.right;
+  bottomRight.y = rect.bottom;
+
+  const start = topLeft.matrixTransform(screenToUser);
+  const end = bottomRight.matrixTransform(screenToUser);
+  if (end.x <= start.x || end.y <= start.y) return null;
+
+  return { minX: start.x, minY: start.y, width: end.x - start.x, height: end.y - start.y };
+}
+
 function measurePinLayout(type: ComponentType): Point[] | null {
   const config = SVG_CONFIGS[type];
   if (typeof document === 'undefined' || !document.body) return null;
@@ -397,7 +424,7 @@ function measurePinLayout(type: ComponentType): Point[] | null {
     const viewBox =
       box && box.width > 0 && box.height > 0
         ? { minX: box.x, minY: box.y, width: box.width, height: box.height }
-        : getViewBox(config.raw);
+        : measureViewport(svg, screenToUser) ?? getViewBox(config.raw);
     if (!viewBox) return null;
 
     const scaleX = config.width / viewBox.width;
@@ -444,16 +471,33 @@ function getPinLayout(type: ComponentType): Point[] | null {
   return layout;
 }
 
+/**
+ * Places pins on the connectors found in the part's artwork.
+ *
+ * Pins are matched to connectors by position, which is wrong for parts whose
+ * artwork numbers them the other way round — the LED carries its cathode on
+ * connector0. Those parts pass `connectorOrder`.
+ *
+ * Its values are positions in the connector list sorted by number, which equals
+ * the connector number only when the artwork numbers from zero without gaps. A
+ * negative value leaves that pin where it was declared, for the odd pad the
+ * artwork never marked.
+ */
 export function applySvgPinLayout(
   type: ComponentType,
   pins: Pin[],
   connectorOrder?: number[]
 ): Pin[] {
   const layout = getPinLayout(type);
-  if (!layout || layout.length < pins.length) return pins;
+  if (!layout) return pins;
+
+  const required = connectorOrder ? Math.max(...connectorOrder) + 1 : pins.length;
+  if (layout.length < required) return pins;
 
   return pins.map((pin, index) => {
     const connectorIndex = connectorOrder?.[index] ?? index;
+    if (connectorIndex < 0) return pin;
+
     const point = layout[connectorIndex] ?? layout[index];
 
     return {

@@ -12,6 +12,9 @@ export default defineConfig({
     environment: 'node',
     setupFiles: ['src/test/setup.ts'],
     include: ['src/**/*.test.ts', 'electron/**/*.test.js'],
+    // The runtime tests let a sketch actually run for a couple of seconds, so
+    // the default five second budget is too tight on a busy CI runner.
+    testTimeout: 20000,
   },
   resolve: {
     alias: {
