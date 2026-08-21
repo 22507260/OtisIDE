@@ -26,6 +26,7 @@ const PropertiesPanel: React.FC = () => {
   const updateComponentProperty = useCircuitStore((s) => s.updateComponentProperty);
   const updateComponent = useCircuitStore((s) => s.updateComponent);
   const removeComponent = useCircuitStore((s) => s.removeComponent);
+  const captureUndoSnapshot = useCircuitStore((s) => s.captureUndoSnapshot);
   const language = useCircuitStore((s) => s.language);
 
   const selectedComp = components.find((component) => component.id === selectedComponentId);
@@ -180,8 +181,13 @@ const PropertiesPanel: React.FC = () => {
             className="property-input"
             type="number"
             value={displayComp.x}
+            onFocus={captureUndoSnapshot}
             onChange={(event) =>
-              updateComponent(selectedComp.id, { x: Number(event.target.value) })
+              updateComponent(
+                selectedComp.id,
+                { x: Number(event.target.value) },
+                { recordHistory: false }
+              )
             }
           />
         </div>
@@ -191,8 +197,13 @@ const PropertiesPanel: React.FC = () => {
             className="property-input"
             type="number"
             value={displayComp.y}
+            onFocus={captureUndoSnapshot}
             onChange={(event) =>
-              updateComponent(selectedComp.id, { y: Number(event.target.value) })
+              updateComponent(
+                selectedComp.id,
+                { y: Number(event.target.value) },
+                { recordHistory: false }
+              )
             }
           />
         </div>
@@ -203,10 +214,13 @@ const PropertiesPanel: React.FC = () => {
             type="number"
             value={displayComp.rotation}
             step={90}
+            onFocus={captureUndoSnapshot}
             onChange={(event) =>
-              updateComponent(selectedComp.id, {
-                rotation: Number(event.target.value),
-              })
+              updateComponent(
+                selectedComp.id,
+                { rotation: Number(event.target.value) },
+                { recordHistory: false }
+              )
             }
           />
         </div>
@@ -296,12 +310,15 @@ const PropertiesPanel: React.FC = () => {
                 className="property-input"
                 type={typeof value === 'number' ? 'number' : 'text'}
                 value={value as string | number}
+                onFocus={captureUndoSnapshot}
                 onChange={(event) => {
                   const newValue =
                     typeof value === 'number'
                       ? Number(event.target.value)
                       : event.target.value;
-                  updateComponentProperty(selectedComp.id, key, newValue);
+                  updateComponentProperty(selectedComp.id, key, newValue, {
+                    recordHistory: false,
+                  });
                 }}
               />
             )}

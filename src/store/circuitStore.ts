@@ -71,9 +71,18 @@ interface CircuitStore {
   // Component actions
   addComponent: (type: ComponentType, x: number, y: number) => void;
   removeComponent: (id: string) => void;
-  updateComponent: (id: string, updates: Partial<CircuitComponent>) => void;
+  updateComponent: (
+    id: string,
+    updates: Partial<CircuitComponent>,
+    options?: { recordHistory?: boolean }
+  ) => void;
   selectComponent: (id: string | null) => void;
-  updateComponentProperty: (id: string, key: string, value: string | number | boolean) => void;
+  updateComponentProperty: (
+    id: string,
+    key: string,
+    value: string | number | boolean,
+    options?: { recordHistory?: boolean }
+  ) => void;
 
   // Wire actions
   addWire: (wire: Omit<Wire, 'id'>) => void;
@@ -564,9 +573,9 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
     syncRuntimeIfRunning();
   },
 
-  updateComponent: (id, updates) => {
+  updateComponent: (id, updates, options) => {
     if (!get().components.some((component) => component.id === id)) return;
-    pushUndoSnapshot();
+    if (options?.recordHistory !== false) pushUndoSnapshot();
     set((s) => ({
       components: s.components.map((c) =>
         c.id === id ? { ...c, ...updates } : c
@@ -578,9 +587,9 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
   selectComponent: (id) =>
     set({ selectedComponentId: id, selectedWireId: null, rightTab: id ? 'properties' : 'properties' }),
 
-  updateComponentProperty: (id, key, value) => {
+  updateComponentProperty: (id, key, value, options) => {
     if (!get().components.some((component) => component.id === id)) return;
-    pushUndoSnapshot();
+    if (options?.recordHistory !== false) pushUndoSnapshot();
     set((s) => ({
       components: s.components.map((c) =>
         c.id === id
