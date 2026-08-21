@@ -1011,6 +1011,11 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
 
 let draftTimer: number | null = null;
 
+const saveProjectDraftNow = () => {
+  const project = useCircuitStore.getState().getProjectData();
+  writeStorage(PROJECT_DRAFT_STORAGE_KEY, JSON.stringify(project));
+};
+
 /** Writes the circuit back once it has stopped changing for a moment. */
 const scheduleProjectDraftSave = () => {
   if (typeof window === 'undefined') return;
@@ -1018,10 +1023,19 @@ const scheduleProjectDraftSave = () => {
   if (draftTimer !== null) window.clearTimeout(draftTimer);
   draftTimer = window.setTimeout(() => {
     draftTimer = null;
-    const project = useCircuitStore.getState().getProjectData();
-    writeStorage(PROJECT_DRAFT_STORAGE_KEY, JSON.stringify(project));
+    saveProjectDraftNow();
   }, PROJECT_DRAFT_DELAY_MS);
 };
+
+if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+  // Closing the window during the pause would otherwise drop the last edit.
+  window.addEventListener('beforeunload', () => {
+    if (draftTimer === null) return;
+    window.clearTimeout(draftTimer);
+    draftTimer = null;
+    saveProjectDraftNow();
+  });
+}
 
 useCircuitStore.subscribe((state, previous) => {
   const changed =
