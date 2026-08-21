@@ -1,4 +1,9 @@
-import * as monaco from 'monaco-editor';
+// The editor core with every editor feature, but none of the languages: the
+// full monaco-editor entry point also pulls in the TypeScript, CSS, HTML and
+// JSON language services and their web workers, which is nine megabytes of
+// installer for a program that only ever edits Arduino C++.
+import * as monaco from 'monaco-editor/esm/vs/editor/edcore.main';
+import 'monaco-editor/esm/vs/basic-languages/cpp/cpp.contribution';
 import EditorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker&inline';
 import { loader } from '@monaco-editor/react';
 
