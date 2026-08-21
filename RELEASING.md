@@ -24,43 +24,56 @@ Kullanıcı hiçbir şey yapmasa bile güncelleme bir sonraki çıkışta kurulu
   güncelleme kontrolü 404 alır ve sessizce başarısız olur.
 - Yayınlanan release **taslak (draft) veya ön sürüm (prerelease) olmamalı**.
 
-### Yol 1 — Tek komut (önerilen)
+### Yol 1 — Etiket at, gerisini GitHub yapsın (önerilen)
 
 ```powershell
-# 1. Sürümü artır
-npm version 1.3.1 --no-git-tag-version
-
-# 2. GitHub token'ı ver (repo yetkisi olan bir personal access token)
-$env:GH_TOKEN = "ghp_xxxxxxxxxxxx"
-
-# 3. Derle ve yayınla
-npm run release
+npm version 1.6.2 --no-git-tag-version
+git add -A
+git commit -m "release: 1.6.2"
+git tag v1.6.2
+git push origin main
+git push origin main:master
+git push origin v1.6.2
 ```
 
-`npm run release` exe'yi üretir ve gereken **üç dosyayı** GitHub'da `v1.3.1` release'ine yükler:
+`v*` etiketi `.github/workflows/release.yml` iş akışını tetikler. İş akışı Windows
+sunucusunda testleri çalıştırır, etiketle `package.json` sürümünün aynı olduğunu doğrular,
+kurulum dosyasını derler ve **üç dosyayı** release'e yükler:
 
 | Dosya | Ne işe yarar |
 | --- | --- |
-| `OtisIDE-1.3.1-x64.exe` | Kurulum dosyası |
+| `OtisIDE-1.6.2-x64.exe` | Kurulum dosyası |
 | `latest.yml` | **Güncelleme kontrolü bunu okur — olmazsa güncelleme çalışmaz** |
-| `OtisIDE-1.3.1-x64.exe.blockmap` | Fark indirmesi (sadece değişen kısmı indirir, hızlandırır) |
+| `OtisIDE-1.6.2-x64.exe.blockmap` | Fark indirmesi (sadece değişen kısmı indirir, hızlandırır) |
 
-### Yol 2 — Elle yükleme
+Son adımda iş akışı üç dosyanın da yüklendiğini kendisi kontrol eder; eksik varsa kırmızı
+yanar. 111 MB'lik yükleme senin bağlantından gitmediği için yarıda kopma sorunu da kalmaz.
+
+Release açıklamasını GitHub arayüzünden düzenleyebilirsin; o metin kullanıcılara güncelleme
+penceresinde "Yenilikler" olarak görünür.
+
+### Yol 2 — Elle yükleme (yedek yöntem)
+
+CI çalışmıyorsa ya da acil bir durum varsa:
 
 ```powershell
-npm version 1.3.1 --no-git-tag-version
+npm version 1.6.2 --no-git-tag-version
 npm run electron:build
 ```
 
 Sonra GitHub'da **Releases → Draft a new release**:
 
-- Tag: `v1.3.1` (başında `v` olsun)
-- `release\` klasöründen şu üç dosyayı sürükle: `OtisIDE-1.3.1-x64.exe`,
-  `latest.yml`, `OtisIDE-1.3.1-x64.exe.blockmap`
+- Tag: `v1.6.2` (başında `v` olsun)
+- `release\` klasöründen şu üç dosyayı sürükle: `OtisIDE-1.6.2-x64.exe`,
+  `latest.yml`, `OtisIDE-1.6.2-x64.exe.blockmap`
 - **Publish release** (draft olarak bırakma)
 
-Release açıklamasına yazdığın metin, kullanıcıya güncelleme penceresinde "Yenilikler"
-başlığı altında görünür.
+Elle yüklediğinde üç dosyanın da gerçekten yüklendiğini **kendin doğrula**; bir kez exe
+yüklemesi yarıda koptu ve release'de yalnızca `latest.yml` kaldı — o hâlde bütün
+istemcilerde güncelleme 404 alır.
+
+`npm run release` komutunu yerelde çalıştıracaksan `GH_TOKEN` ortam değişkeni gerekir;
+CI'da bu değişken otomatik sağlanır.
 
 ### İndirme sitesini de güncellemek
 

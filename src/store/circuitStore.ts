@@ -27,6 +27,7 @@ import {
 } from '../models/arduinoUno';
 import { DEFAULT_BREADBOARD_POSITION } from '../models/breadboard';
 import { sanitizeProjectData } from '../lib/projectFile';
+import { readStorage, removeStorage, writeStorage } from '../lib/storage';
 import { v4 as uuidv4 } from 'uuid';
 import { startMockArduinoRuntime, stopMockArduinoRuntime } from '../lib/mockArduinoRuntime';
 
@@ -199,18 +200,20 @@ const cloneWires = (wires: Wire[]): Wire[] =>
     points: [...wire.points],
   }));
 
+const MAX_STORED_AI_CONVERSATIONS = 50;
+
 const AI_CONVERSATIONS_STORAGE_KEY = 'ai_conversations';
 const AI_CURRENT_CONVERSATION_STORAGE_KEY = 'ai_currentConversationId';
 const APP_LANGUAGE_STORAGE_KEY = 'app_language';
 const AI_PROVIDER_STORAGE_KEY = 'ai_provider';
 
 const loadLanguage = (): AppLanguage => {
-  const stored = localStorage.getItem(APP_LANGUAGE_STORAGE_KEY);
+  const stored = readStorage(APP_LANGUAGE_STORAGE_KEY);
   return stored === 'tr' ? 'tr' : 'en';
 };
 
 const loadAIProvider = (): AIProvider => {
-  const stored = localStorage.getItem(AI_PROVIDER_STORAGE_KEY);
+  const stored = readStorage(AI_PROVIDER_STORAGE_KEY);
   if (
     stored === 'groq' ||
     stored === 'openai' ||
@@ -229,7 +232,7 @@ const normalizeConversations = (conversations: AIConversation[]) =>
 
 const loadAIConversations = (defaultConversationTitle: string): AIConversation[] => {
   try {
-    const raw = localStorage.getItem(AI_CONVERSATIONS_STORAGE_KEY);
+    const raw = readStorage(AI_CONVERSATIONS_STORAGE_KEY);
     if (!raw) return [];
 
     const parsed = JSON.parse(raw);
@@ -281,7 +284,7 @@ const loadAIConversations = (defaultConversationTitle: string): AIConversation[]
 };
 
 const loadCurrentAIConversationId = (conversations: AIConversation[]) => {
-  const storedId = localStorage.getItem(AI_CURRENT_CONVERSATION_STORAGE_KEY);
+  const storedId = readStorage(AI_CURRENT_CONVERSATION_STORAGE_KEY);
   if (!storedId) return null;
   return conversations.some((conversation) => conversation.id === storedId)
     ? storedId
@@ -292,18 +295,21 @@ const persistAIConversationState = (
   conversations: AIConversation[],
   currentConversationId: string | null
 ) => {
-  localStorage.setItem(
-    AI_CONVERSATIONS_STORAGE_KEY,
-    JSON.stringify(conversations)
-  );
+  // Storage is finite, so only the most recent chats are kept, and a rejected
+  // write sheds the oldest ones and tries once more rather than throwing.
+  let kept = conversations.slice(0, MAX_STORED_AI_CONVERSATIONS);
+
+  while (
+    !writeStorage(AI_CONVERSATIONS_STORAGE_KEY, JSON.stringify(kept)) &&
+    kept.length > 1
+  ) {
+    kept = kept.slice(0, Math.floor(kept.length / 2));
+  }
 
   if (currentConversationId) {
-    localStorage.setItem(
-      AI_CURRENT_CONVERSATION_STORAGE_KEY,
-      currentConversationId
-    );
+    writeStorage(AI_CURRENT_CONVERSATION_STORAGE_KEY, currentConversationId);
   } else {
-    localStorage.removeItem(AI_CURRENT_CONVERSATION_STORAGE_KEY);
+    removeStorage(AI_CURRENT_CONVERSATION_STORAGE_KEY);
   }
 };
 
@@ -511,7 +517,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
   setBottomTab: (tab) => set({ bottomTab: tab }),
   language: initialLanguage,
   setLanguage: (language) => {
-    localStorage.setItem(APP_LANGUAGE_STORAGE_KEY, language);
+    writeStorage(APP_LANGUAGE_STORAGE_KEY, language);
     set({ language });
   },
 
@@ -860,17 +866,17 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
     );
   },
   setAILoading: (loading) => set({ aiLoading: loading }),
-  apiKey: localStorage.getItem('ai_apiKey') || '',
-  setApiKey: (key) => { localStorage.setItem('ai_apiKey', key); set({ apiKey: key }); },
+  apiKey: readStorage('ai_apiKey') || '',
+  setApiKey: (key) => { writeStorage('ai_apiKey', key); set({ apiKey: key }); },
   aiProvider: loadAIProvider(),
   setAIProvider: (provider) => {
-    localStorage.setItem(AI_PROVIDER_STORAGE_KEY, provider);
+    writeStorage(AI_PROVIDER_STORAGE_KEY, provider);
     set({ aiProvider: provider });
   },
-  aiModel: localStorage.getItem('ai_model') || '',
-  setAIModel: (model) => { localStorage.setItem('ai_model', model); set({ aiModel: model }); },
-  aiBaseUrl: localStorage.getItem('ai_baseUrl') || '',
-  setAIBaseUrl: (url) => { localStorage.setItem('ai_baseUrl', url); set({ aiBaseUrl: url }); },
+  aiModel: readStorage('ai_model') || '',
+  setAIModel: (model) => { writeStorage('ai_model', model); set({ aiModel: model }); },
+  aiBaseUrl: readStorage('ai_baseUrl') || '',
+  setAIBaseUrl: (url) => { writeStorage('ai_baseUrl', url); set({ aiBaseUrl: url }); },
 
   // Project
   clearProject: () => {

@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import ErrorBoundary from './components/ErrorBoundary';
 import Layout from './components/Layout';
 import { useCircuitStore } from './store/circuitStore';
 import { useHardwareStore } from './store/hardwareStore';
@@ -33,7 +34,11 @@ const App: React.FC = () => {
     };
   }, [disposeUpdates, initUpdates]);
 
-  return <Layout />;
+  return (
+    <ErrorBoundary>
+      <Layout />
+    </ErrorBoundary>
+  );
 };
 
 export default App;

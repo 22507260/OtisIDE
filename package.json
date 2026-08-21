@@ -1,12 +1,14 @@
 {
   "name": "otiside",
-  "version": "1.6.1",
+  "version": "1.6.2",
   "description": "AI-assisted Arduino and breadboard designer with visual wiring, code generation, and Electron desktop support",
   "main": "electron/main.js",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "preview": "vite preview",
     "build:icons": "node scripts/ensure-icons.cjs",
     "electron:dev": "concurrently \"vite\" \"wait-on http://localhost:5173 && node scripts/run-electron-command.cjs . --dev\"",
@@ -14,9 +16,9 @@
     "desktop:dev": "npm run electron:dev",
     "desktop:build": "npm run electron:build",
     "start": "vite",
+    "release": "npm run build:icons && vite build && electron-builder --publish always",
     "website:prepare": "node scripts/prepare-website.cjs",
-    "website:build": "npm run electron:build && npm run website:prepare",
-    "release": "npm run build:icons && vite build && electron-builder --publish always"
+    "website:build": "npm run electron:build && npm run website:prepare"
   },
   "keywords": [
     "arduino",
@@ -112,6 +114,7 @@
     "electron-builder": "^26.8.1",
     "typescript": "^5.9.3",
     "vite": "^8.0.0",
+    "vitest": "^4.1.11",
     "wait-on": "^9.0.4"
   }
 }

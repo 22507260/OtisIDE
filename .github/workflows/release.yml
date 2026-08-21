@@ -1,0 +1,63 @@
+name: Release
+
+# Pushing a v* tag builds the Windows installer on GitHub's runners and attaches
+# it to the release, together with the latest.yml and .blockmap files the
+# in-app updater reads. Publishing from a developer machine used to fail
+# halfway through the 111 MB upload and left releases without their installer.
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Run tests
+        run: npm test
+
+      - name: Refuse to publish a tag that does not match package.json
+        shell: bash
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          version="$(node -p "require('./package.json').version")"
+          if [ "$tag" != "$version" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match package.json version $version"
+            exit 1
+          fi
+
+      - name: Build and publish the installer
+        run: npm run release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Confirm the release carries all three assets
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          assets="$(gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name')"
+          echo "$assets"
+          for file in "OtisIDE-$version-x64.exe" "latest.yml" "OtisIDE-$version-x64.exe.blockmap"; do
+            echo "$assets" | grep -qx "$file" || { echo "Missing asset: $file"; exit 1; }
+          done

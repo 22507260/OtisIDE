@@ -1708,3 +1708,68 @@ body::after {
   width: 24px;
   height: 24px;
 }
+
+/* ===== Crash screen ===== */
+.crash-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 5000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  background: var(--bg-primary);
+}
+
+.crash-card {
+  width: min(520px, 100%);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 28px;
+}
+
+.crash-title {
+  font-size: 17px;
+  font-weight: 650;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.crash-text {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 20px;
+}
+
+.crash-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.crash-details-toggle {
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 11px;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+}
+
+.crash-details {
+  margin-top: 12px;
+  max-height: 220px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.35);
+  padding: 12px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+}
