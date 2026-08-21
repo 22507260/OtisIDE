@@ -143,7 +143,6 @@ export interface SvgConfig {
 }
 
 type Point = { x: number; y: number };
-type Matrix = [number, number, number, number, number, number];
 
 const CONNECTOR_ID = /^connector(\d+)pin$/i;
 const pinLayoutCache = new Map<ComponentType, Point[] | null>();
@@ -324,112 +323,6 @@ export const SVG_CONFIGS: Record<ComponentType, SvgConfig> = {
   'motor-driver': { url: motorDriverSvg,   raw: motorDriverSvgRaw,   width: 72,  height: 30, offsetX: 36,  offsetY: 8  },
 };
 
-function identityMatrix(): Matrix {
-  return [1, 0, 0, 1, 0, 0];
-}
-
-function multiplyMatrices(left: Matrix, right: Matrix): Matrix {
-  return [
-    left[0] * right[0] + left[2] * right[1],
-    left[1] * right[0] + left[3] * right[1],
-    left[0] * right[2] + left[2] * right[3],
-    left[1] * right[2] + left[3] * right[3],
-    left[0] * right[4] + left[2] * right[5] + left[4],
-    left[1] * right[4] + left[3] * right[5] + left[5],
-  ];
-}
-
-function applyMatrix(point: Point, matrix: Matrix): Point {
-  return {
-    x: matrix[0] * point.x + matrix[2] * point.y + matrix[4],
-    y: matrix[1] * point.x + matrix[3] * point.y + matrix[5],
-  };
-}
-
-function parseTransform(transform: string | null): Matrix {
-  if (!transform) return identityMatrix();
-
-  const trimmed = transform.trim();
-  const openIdx = trimmed.indexOf('(');
-  const closeIdx = trimmed.lastIndexOf(')');
-  if (openIdx === -1 || closeIdx === -1) return identityMatrix();
-
-  const kind = trimmed.slice(0, openIdx).trim();
-  const values = trimmed
-    .slice(openIdx + 1, closeIdx)
-    .split(/[\s,]+/)
-    .map((value) => Number(value))
-    .filter((value) => !Number.isNaN(value));
-
-  switch (kind) {
-    case 'translate': {
-      const [tx = 0, ty = 0] = values;
-      return [1, 0, 0, 1, tx, ty];
-    }
-    case 'scale': {
-      const [sx = 1, sy = sx] = values;
-      return [sx, 0, 0, sy, 0, 0];
-    }
-    case 'rotate': {
-      const [angle = 0, cx = 0, cy = 0] = values;
-      const rad = (angle * Math.PI) / 180;
-      const cos = Math.cos(rad);
-      const sin = Math.sin(rad);
-      const moveToOrigin: Matrix = [1, 0, 0, 1, -cx, -cy];
-      const rotateMatrix: Matrix = [cos, sin, -sin, cos, 0, 0];
-      const moveBack: Matrix = [1, 0, 0, 1, cx, cy];
-      return multiplyMatrices(moveBack, multiplyMatrices(rotateMatrix, moveToOrigin));
-    }
-    case 'matrix': {
-      const [a = 1, b = 0, c = 0, d = 1, e = 0, f = 0] = values;
-      return [a, b, c, d, e, f];
-    }
-    default:
-      return identityMatrix();
-  }
-}
-
-function getRectCenter(element: Element): Point {
-  const x = Number(element.getAttribute('x') ?? 0);
-  const y = Number(element.getAttribute('y') ?? 0);
-  const width = Number(element.getAttribute('width') ?? 0);
-  const height = Number(element.getAttribute('height') ?? 0);
-  return { x: x + width / 2, y: y + height / 2 };
-}
-
-function getCircleCenter(element: Element): Point {
-  return {
-    x: Number(element.getAttribute('cx') ?? 0),
-    y: Number(element.getAttribute('cy') ?? 0),
-  };
-}
-
-function getPathCenter(element: Element): Point {
-  const d = element.getAttribute('d') ?? '';
-  const numbers = d.match(/-?\d*\.?\d+(?:e[-+]?\d+)?/gi)?.map(Number) ?? [];
-  if (numbers.length < 2) return { x: 0, y: 0 };
-
-  const xs: number[] = [];
-  const ys: number[] = [];
-  for (let idx = 0; idx + 1 < numbers.length; idx += 2) {
-    xs.push(numbers[idx]);
-    ys.push(numbers[idx + 1]);
-  }
-
-  return {
-    x: (Math.min(...xs) + Math.max(...xs)) / 2,
-    y: (Math.min(...ys) + Math.max(...ys)) / 2,
-  };
-}
-
-function getConnectorCenter(element: Element): Point {
-  const tag = element.tagName.toLowerCase();
-  if (tag === 'rect') return getRectCenter(element);
-  if (tag === 'circle') return getCircleCenter(element);
-  if (tag === 'path') return getPathCenter(element);
-  return { x: 0, y: 0 };
-}
-
 function getViewBox(raw: string): { minX: number; minY: number; width: number; height: number } | null {
   const viewBox = raw.match(/viewBox\s*=\s*"([^"]+)"/i)?.[1] ?? raw.match(/viewBox\s*=\s*'([^']+)'/i)?.[1];
   if (viewBox) {
@@ -478,64 +371,79 @@ function toGroupCoordinates(type: ComponentType, point: Point): Point | null {
   };
 }
 
+/**
+ * Reads where a part's connectors actually sit by laying the SVG out offscreen
+ * and asking the browser. Resolving nested transforms by hand used to place
+ * pins hundreds of units away from their pads on some artwork.
+ */
+function measurePinLayout(type: ComponentType): Point[] | null {
+  const config = SVG_CONFIGS[type];
+  if (typeof document === 'undefined' || !document.body) return null;
+
+  const host = document.createElement('div');
+  host.setAttribute('aria-hidden', 'true');
+  host.style.cssText = 'position:absolute;left:-10000px;top:0;visibility:hidden;';
+  host.innerHTML = config.raw;
+  document.body.appendChild(host);
+
+  try {
+    const svg = host.querySelector('svg');
+    if (!svg) return null;
+
+    const screenToUser = svg.getScreenCTM()?.inverse();
+    if (!screenToUser) return null;
+
+    const box = svg.viewBox?.baseVal;
+    const viewBox =
+      box && box.width > 0 && box.height > 0
+        ? { minX: box.x, minY: box.y, width: box.width, height: box.height }
+        : getViewBox(config.raw);
+    if (!viewBox) return null;
+
+    const scaleX = config.width / viewBox.width;
+    const scaleY = config.height / viewBox.height;
+
+    const connectors = new Map<number, Element>();
+    svg.querySelectorAll('[id^="connector"][id$="pin"]').forEach((element) => {
+      const match = (element.getAttribute('id') ?? '').match(CONNECTOR_ID);
+      if (!match) return;
+      const index = Number(match[1]);
+      if (!connectors.has(index)) connectors.set(index, element);
+    });
+
+    const layout = [...connectors.entries()]
+      .sort((left, right) => left[0] - right[0])
+      .map(([, element]) => {
+        const rect = element.getBoundingClientRect();
+        const point = svg.createSVGPoint();
+        point.x = rect.left + rect.width / 2;
+        point.y = rect.top + rect.height / 2;
+        const user = point.matrixTransform(screenToUser);
+
+        return {
+          x: (user.x - viewBox.minX) * scaleX - config.offsetX,
+          y: (user.y - viewBox.minY) * scaleY - config.offsetY,
+        };
+      });
+
+    return layout.length > 0 ? layout : null;
+  } catch {
+    return null;
+  } finally {
+    host.remove();
+  }
+}
+
 function getPinLayout(type: ComponentType): Point[] | null {
   if (pinLayoutCache.has(type)) {
     return pinLayoutCache.get(type) ?? null;
   }
 
-  if (typeof DOMParser === 'undefined') {
-    pinLayoutCache.set(type, null);
-    return null;
-  }
-
-  try {
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(SVG_CONFIGS[type].raw, 'image/svg+xml');
-    const connectorMap = new Map<number, Element>();
-    Array.from(doc.querySelectorAll('[id^="connector"][id$="pin"]')).forEach((element) => {
-        const id = element.getAttribute('id') ?? '';
-        const match = id.match(CONNECTOR_ID);
-        if (!match) return;
-        const index = Number(match[1]);
-        if (!connectorMap.has(index)) {
-          connectorMap.set(index, element);
-        }
-      });
-
-    const connectors = Array.from(connectorMap.entries())
-      .map(([index, element]) => ({ index, element }))
-      .sort((left, right) => left.index - right.index);
-
-    const layout = connectors
-      .map(({ element }) => {
-        let point = getConnectorCenter(element);
-        let current: Element | null = element;
-
-        while (current && current.tagName.toLowerCase() !== 'svg') {
-          point = applyMatrix(point, parseTransform(current.getAttribute('transform')));
-          current = current.parentElement;
-        }
-
-        return toGroupCoordinates(type, point);
-      })
-      .filter((point): point is Point => point !== null);
-
-    pinLayoutCache.set(type, layout.length > 0 ? layout : null);
-    return pinLayoutCache.get(type) ?? null;
-  } catch {
-    pinLayoutCache.set(type, null);
-    return null;
-  }
+  const layout = measurePinLayout(type);
+  pinLayoutCache.set(type, layout);
+  return layout;
 }
 
-/**
- * Places pins on the connectors found in the part's SVG.
- *
- * Connectors are matched by position in the list, which is wrong for parts whose
- * artwork numbers them the other way round (the LED, for one, carries its cathode
- * on connector0). Those parts pass `connectorOrder`, mapping each pin to the
- * connector index it really belongs to.
- */
 export function applySvgPinLayout(
   type: ComponentType,
   pins: Pin[],

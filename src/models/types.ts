@@ -651,16 +651,21 @@ export function getDefaultPins(type: ComponentType): Pin[] {
         { id: 'out', name: 'OUT', type: 'digital', x: 12, y: 18 },
       ]);
     case 'tcs230':
-      return withSvgLayout([
-        { id: 'gnd', name: 'GND', type: 'ground', x: -28, y: 18 },
-        { id: 'oe', name: 'OE', type: 'digital', x: -20, y: 18 },
-        { id: 's1', name: 'S1', type: 'digital', x: -12, y: 18 },
-        { id: 's0', name: 'S0', type: 'digital', x: -4, y: 18 },
-        { id: 's3', name: 'S3', type: 'digital', x: 4, y: 18 },
-        { id: 's2', name: 'S2', type: 'digital', x: 12, y: 18 },
-        { id: 'out', name: 'OUT', type: 'digital', x: 20, y: 18 },
-        { id: 'vcc', name: 'VCC', type: 'power', x: 28, y: 18 },
-      ]);
+      // The board prints Gnd/OE/S1/S0 down one header and Vcc/Out/S2/S3 down
+      // the other, starting at connector1 rather than connector0.
+      return withSvgLayout(
+        [
+          { id: 'gnd', name: 'GND', type: 'ground', x: -28, y: 18 },
+          { id: 'oe', name: 'OE', type: 'digital', x: -20, y: 18 },
+          { id: 's1', name: 'S1', type: 'digital', x: -12, y: 18 },
+          { id: 's0', name: 'S0', type: 'digital', x: -4, y: 18 },
+          { id: 's3', name: 'S3', type: 'digital', x: 4, y: 18 },
+          { id: 's2', name: 'S2', type: 'digital', x: 12, y: 18 },
+          { id: 'out', name: 'OUT', type: 'digital', x: 20, y: 18 },
+          { id: 'vcc', name: 'VCC', type: 'power', x: 28, y: 18 },
+        ],
+        [1, 2, 3, 4, 5, 6, 7, 8]
+      );
     case 'uv-sensor':
       return withSvgLayout([
         { id: 'vcc', name: '5V', type: 'power', x: -12, y: 18 },
