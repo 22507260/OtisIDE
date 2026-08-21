@@ -7,13 +7,18 @@ const { toVersionInfo } = require('./updateNotes');
 /**
  * GitHub Releases based auto update.
  *
- * Flow: the app checks once on startup, tells the renderer when a newer version
- * exists, and waits for the user to accept before downloading anything. Once the
- * download finishes the user decides when to restart.
+ * Flow: the app checks shortly after startup and every few hours after that,
+ * tells the renderer when a newer version exists, and waits for the user to
+ * accept before downloading anything. Once the download finishes the user
+ * decides when to restart.
  */
+
+/** How often a session that stays open looks for a newer release. */
+const UPDATE_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 
 let mainWindowGetter = null;
 let checkStarted = false;
+let periodicTimer = null;
 let latestInfo = null;
 let state = 'idle';
 
@@ -199,6 +204,15 @@ function startUpdateCheck() {
   setTimeout(() => {
     void checkForUpdates({ silent: true });
   }, 4000);
+
+  // OtisIDE is often left open for days, and a check that only ran at startup
+  // meant those sessions never heard about a release.
+  periodicTimer = setInterval(() => {
+    // Nothing to gain while an update is already waiting on the user.
+    if (state === 'available' || state === 'downloading' || state === 'downloaded') return;
+    void checkForUpdates({ silent: true });
+  }, UPDATE_CHECK_INTERVAL_MS);
+  periodicTimer.unref?.();
 }
 
 configureAutoUpdater();
