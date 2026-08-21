@@ -26,7 +26,7 @@ import {
   getControllerBoardPins,
 } from '../models/arduinoUno';
 import { DEFAULT_BREADBOARD_POSITION } from '../models/breadboard';
-import { sanitizeProjectData } from '../lib/projectFile';
+import { sanitizeProjectData, type ProjectData } from '../lib/projectFile';
 import { readStorage, removeStorage, writeStorage } from '../lib/storage';
 import { v4 as uuidv4 } from 'uuid';
 import { startMockArduinoRuntime, stopMockArduinoRuntime } from '../lib/mockArduinoRuntime';
@@ -217,6 +217,25 @@ const AI_CONVERSATIONS_STORAGE_KEY = 'ai_conversations';
 const AI_CURRENT_CONVERSATION_STORAGE_KEY = 'ai_currentConversationId';
 const APP_LANGUAGE_STORAGE_KEY = 'app_language';
 const AI_PROVIDER_STORAGE_KEY = 'ai_provider';
+const PROJECT_DRAFT_STORAGE_KEY = 'project_draft';
+/** How long the circuit has to sit still before it is written back. */
+const PROJECT_DRAFT_DELAY_MS = 800;
+
+/**
+ * The circuit on screen is kept in storage so that closing the window, a power
+ * cut or a crash does not throw the work away. Anything unreadable is ignored
+ * and the app starts empty, which is what happened before this existed.
+ */
+const loadProjectDraft = (): ProjectData | null => {
+  const stored = readStorage(PROJECT_DRAFT_STORAGE_KEY);
+  if (!stored) return null;
+
+  try {
+    return sanitizeProjectData(JSON.parse(stored), DEFAULT_CODE);
+  } catch {
+    return null;
+  }
+};
 
 const loadLanguage = (): AppLanguage => {
   const stored = readStorage(APP_LANGUAGE_STORAGE_KEY);
@@ -330,6 +349,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
     getDefaultConversationTitle(initialLanguage)
   );
   const initialCurrentAIConversationId = loadCurrentAIConversationId(initialAIConversations);
+  const draft = loadProjectDraft();
   const undoStack: ProjectSnapshot[] = [];
   const redoStack: ProjectSnapshot[] = [];
 
@@ -514,11 +534,11 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
 
   return ({
   // Components
-  components: [],
+  components: draft?.components ?? [],
   selectedComponentId: null,
 
   // Wires
-  wires: [],
+  wires: draft?.wires ?? [],
   selectedWireId: null,
   wireColor: WIRE_COLORS[0].value,
 
@@ -544,16 +564,16 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
   stagePos: { x: 0, y: 0 },
   setZoom: (z) => set({ zoom: Math.max(0.2, Math.min(3, z)) }),
   setStagePos: (pos) => set({ stagePos: pos }),
-  boardType: DEFAULT_CONTROLLER_BOARD_TYPE,
+  boardType: draft?.boardType ?? DEFAULT_CONTROLLER_BOARD_TYPE,
   setBoardType: (boardType) => {
     if (get().boardType === boardType) return;
     pushUndoSnapshot();
     set({ boardType });
     syncRuntimeIfRunning();
   },
-  boardPosition: { ...DEFAULT_CONTROLLER_BOARD_POSITION },
+  boardPosition: draft?.boardPosition ?? { ...DEFAULT_CONTROLLER_BOARD_POSITION },
   setBoardPosition: (boardPosition) => set({ boardPosition }),
-  breadboardPosition: { ...DEFAULT_BREADBOARD_POSITION },
+  breadboardPosition: draft?.breadboardPosition ?? { ...DEFAULT_BREADBOARD_POSITION },
   setBreadboardPosition: (breadboardPosition) => set({ breadboardPosition }),
   captureUndoSnapshot: () => pushUndoSnapshot(),
 
@@ -797,7 +817,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
     })),
 
   // Code
-  code: DEFAULT_CODE,
+  code: draft?.code ?? DEFAULT_CODE,
   setCode: (code) => {
     if (get().code === code) return;
     set({ code });
@@ -987,4 +1007,30 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
     };
   },
   });
+});
+
+let draftTimer: number | null = null;
+
+/** Writes the circuit back once it has stopped changing for a moment. */
+const scheduleProjectDraftSave = () => {
+  if (typeof window === 'undefined') return;
+
+  if (draftTimer !== null) window.clearTimeout(draftTimer);
+  draftTimer = window.setTimeout(() => {
+    draftTimer = null;
+    const project = useCircuitStore.getState().getProjectData();
+    writeStorage(PROJECT_DRAFT_STORAGE_KEY, JSON.stringify(project));
+  }, PROJECT_DRAFT_DELAY_MS);
+};
+
+useCircuitStore.subscribe((state, previous) => {
+  const changed =
+    state.components !== previous.components ||
+    state.wires !== previous.wires ||
+    state.code !== previous.code ||
+    state.boardType !== previous.boardType ||
+    state.boardPosition !== previous.boardPosition ||
+    state.breadboardPosition !== previous.breadboardPosition;
+
+  if (changed) scheduleProjectDraftSave();
 });
