@@ -196,6 +196,9 @@ const NOOP_CALLBACKS: RuntimeCallbacks = {
   setPinStates: () => {},
 };
 
+/** Smallest gap between loop() iterations, so a sketch without delay() cannot spin. */
+const MIN_LOOP_INTERVAL_MS = 4;
+
 let activeStop: (() => void) | null = null;
 const SUPPORTED_RUNTIME_BUILTINS = new Set([
   'F',
@@ -3497,7 +3500,8 @@ export function startMockArduinoRuntime(
   const servoInstances = extractServoInstances(code);
   const lcdRuntime = extractLcdInstances(code, variables);
   const setupStatements = parseRuntimeStatements(extractFunctionBody(code, 'setup'));
-  const loopStatements = parseRuntimeStatements(extractFunctionBody(code, 'loop'));
+  const loopBody = extractFunctionBody(code, 'loop');
+  const loopStatements = parseRuntimeStatements(loopBody);
   const connectivity = buildConnectivity(components, wires, boardPins);
   const measurementConnectivity = buildConnectivity(components, wires, boardPins, {
     bridgeResistors: false,
@@ -3559,13 +3563,16 @@ export function startMockArduinoRuntime(
     isCancelled: () => cancelled,
   };
 
-  const loopDelayFallback = code.includes('delay(') ? 0 : 250;
+  // A loop that paces itself with delay() needs no help. One that does not gets
+  // a slow tick so the sketch still advances without pinning a core; looking at
+  // the whole sketch used to count a delay() in setup() and spin the loop flat out.
+  const loopDelayFallback = loopBody.includes('delay(') ? MIN_LOOP_INTERVAL_MS : 250;
 
   const runLoop = () => {
     if (cancelled || loopStatements.length === 0) return;
     executeRuntimeStatements(loopStatements, executionContext, () => {
       flushSerialBuffer();
-      if (loopDelayFallback > 0) {
+      if (loopDelayFallback > MIN_LOOP_INTERVAL_MS) {
         clockMs.value += loopDelayFallback;
       }
       trackTimeout(runLoop, loopDelayFallback);
