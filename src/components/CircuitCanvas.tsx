@@ -1670,6 +1670,7 @@ const CircuitCanvas: React.FC = () => {
   const boardPinRadius = currentBoard.pinDefs.length > 30 ? 4 : 6;
   const boardPinHoverRadius = currentBoard.pinDefs.length > 30 ? 5.5 : 8;
   const canUndo = useCircuitStore((s) => s.canUndo());
+  const canRedo = useCircuitStore((s) => s.canRedo());
   const multimeterRedProbeImage = useAssetImage(multimeterProbeRedSvg);
   const multimeterBlackProbeImage = useAssetImage(multimeterProbeBlackSvg);
   const getRenderedComponentPosition = useCallback(
@@ -1940,6 +1941,19 @@ const CircuitCanvas: React.FC = () => {
         e.preventDefault();
         if (useCircuitStore.getState().canUndo()) {
           useCircuitStore.getState().undo();
+          clearTransientCanvasState();
+        }
+        return;
+      }
+
+      // Both of the shapes Windows editors use for redo.
+      if (
+        (e.ctrlKey || e.metaKey) &&
+        ((e.shiftKey && e.key.toLowerCase() === 'z') || e.key.toLowerCase() === 'y')
+      ) {
+        e.preventDefault();
+        if (useCircuitStore.getState().canRedo()) {
+          useCircuitStore.getState().redo();
           clearTransientCanvasState();
         }
         return;
@@ -2957,6 +2971,17 @@ const CircuitCanvas: React.FC = () => {
               })}
             >
               <span>{t(language, 'undo')}</span>
+            </button>
+            <button
+              className={`context-menu-item${canRedo ? '' : ' disabled'}`}
+              disabled={!canRedo}
+              onClick={action(() => {
+                if (useCircuitStore.getState().canRedo()) {
+                  useCircuitStore.getState().redo();
+                }
+              })}
+            >
+              <span>{t(language, 'redo')}</span>
             </button>
             <button className="context-menu-item" onClick={action(resetViewport)}>
               <span>Zoom 100%</span>

@@ -115,6 +115,8 @@ interface CircuitStore {
   setCode: (code: string) => void;
   undo: () => void;
   canUndo: () => boolean;
+  redo: () => void;
+  canRedo: () => boolean;
 
   // AI
   aiConversations: AIConversation[];
@@ -329,6 +331,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
   );
   const initialCurrentAIConversationId = loadCurrentAIConversationId(initialAIConversations);
   const undoStack: ProjectSnapshot[] = [];
+  const redoStack: ProjectSnapshot[] = [];
 
   const createSnapshot = (): ProjectSnapshot => {
     const state = get();
@@ -344,11 +347,17 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
     };
   };
 
-  const pushUndoSnapshot = () => {
-    undoStack.push(createSnapshot());
-    if (undoStack.length > MAX_UNDO_HISTORY) {
-      undoStack.shift();
+  const pushHistory = (stack: ProjectSnapshot[]) => {
+    stack.push(createSnapshot());
+    if (stack.length > MAX_UNDO_HISTORY) {
+      stack.shift();
     }
+  };
+
+  // A fresh edit makes whatever was undone unreachable, so the redo trail goes.
+  const pushUndoSnapshot = () => {
+    pushHistory(undoStack);
+    redoStack.length = 0;
   };
 
   const startRuntime = () => {
@@ -797,9 +806,18 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
   undo: () => {
     const snapshot = undoStack.pop();
     if (!snapshot) return;
+    pushHistory(redoStack);
     restoreSnapshot(snapshot);
   },
   canUndo: () => undoStack.length > 0,
+
+  redo: () => {
+    const snapshot = redoStack.pop();
+    if (!snapshot) return;
+    pushHistory(undoStack);
+    restoreSnapshot(snapshot);
+  },
+  canRedo: () => redoStack.length > 0,
 
   // AI
   aiConversations: initialAIConversations,
