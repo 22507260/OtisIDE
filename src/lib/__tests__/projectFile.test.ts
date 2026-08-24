@@ -116,4 +116,45 @@ describe('sanitizeProjectData', () => {
     const [first, second] = project!.components;
     expect(first.id).not.toBe(second.id);
   });
+
+  it('reads the size and the mirror back', () => {
+    const project = sanitizeProjectData(
+      {
+        components: [{ type: 'led', x: 10, y: 20, scale: 1.5, flipX: true }],
+        wires: [],
+      },
+      FALLBACK_CODE
+    );
+
+    expect(project!.components[0].scale).toBe(1.5);
+    expect(project!.components[0].flipX).toBe(true);
+  });
+
+  it('keeps the size within what can be drawn', () => {
+    const project = sanitizeProjectData(
+      {
+        components: [
+          { type: 'led', x: 0, y: 0, scale: 40 },
+          { type: 'resistor', x: 0, y: 0, scale: 'huge' },
+        ],
+        wires: [],
+      },
+      FALLBACK_CODE
+    );
+
+    expect(project!.components[0].scale).toBe(3);
+    expect(project!.components[1].scale).toBe(1);
+  });
+
+  it('defaults a project saved before size and mirror existed', () => {
+    const project = sanitizeProjectData(
+      { components: [{ type: 'led', x: 10, y: 20, rotation: 90 }], wires: [] },
+      FALLBACK_CODE
+    );
+
+    const led = project!.components[0];
+    expect(led.rotation).toBe(90);
+    expect(led.scale).toBe(1);
+    expect(led.flipX).toBe(false);
+  });
 });

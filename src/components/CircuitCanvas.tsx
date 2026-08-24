@@ -42,6 +42,13 @@ import {
   t,
 } from '../lib/i18n';
 import { getHalfBridgeStatus } from '../lib/driverStatus';
+import {
+  getComponentTransform,
+  getMirroredPins,
+  getTransformedPins,
+  transformPoint,
+  type ComponentTransform,
+} from '../lib/componentTransform';
 import multimeterProbeRedSvg from '../assets/components/multimeter-probe-red.svg';
 import multimeterProbeBlackSvg from '../assets/components/multimeter-probe-black.svg';
 
@@ -323,64 +330,18 @@ function snapToGrid(val: number): number {
   return Math.round(val / GRID_SIZE) * GRID_SIZE;
 }
 
-function normalizeRotation(rotation: number): number {
-  return ((rotation % 360) + 360) % 360;
-}
-
-function rotatePoint(x: number, y: number, rotation = 0): { x: number; y: number } {
-  const normalized = normalizeRotation(rotation);
-  const snappedRightAngle = (Math.round(normalized / 90) * 90) % 360;
-
-  if (Math.abs(normalized - snappedRightAngle) < 0.001) {
-    switch (snappedRightAngle) {
-      case 90:
-        return { x: -y, y: x };
-      case 180:
-        return { x: -x, y: -y };
-      case 270:
-        return { x: y, y: -x };
-      default:
-        return { x, y };
-    }
-  }
-
-  const radians = (normalized * Math.PI) / 180;
-  const rotatedX = x * Math.cos(radians) - y * Math.sin(radians);
-  const rotatedY = x * Math.sin(radians) + y * Math.cos(radians);
-
-  return {
-    x: Math.round(rotatedX * 1000) / 1000,
-    y: Math.round(rotatedY * 1000) / 1000,
-  };
-}
-
-function getRotatedPins<T extends { x: number; y: number }>(pins: T[], rotation = 0): T[] {
-  if (pins.length === 0 || normalizeRotation(rotation) === 0) {
-    return pins;
-  }
-
-  return pins.map((pin) => {
-    const rotated = rotatePoint(pin.x, pin.y, rotation);
-    return {
-      ...pin,
-      x: rotated.x,
-      y: rotated.y,
-    };
-  });
-}
-
 function getComponentPinWorldPosition(
-  component: Pick<CircuitComponent, 'x' | 'y' | 'rotation' | 'pins'>,
+  component: Pick<CircuitComponent, 'x' | 'y' | 'rotation' | 'scale' | 'flipX' | 'pins'>,
   pinId: string
 ) {
   const pin = component.pins.find((item) => item.id === pinId);
   if (!pin) return null;
 
-  const rotated = rotatePoint(pin.x, pin.y, component.rotation);
+  const moved = transformPoint(pin.x, pin.y, getComponentTransform(component));
   return {
     pin,
-    x: component.x + rotated.x,
-    y: component.y + rotated.y,
+    x: component.x + moved.x,
+    y: component.y + moved.y,
   };
 }
 
@@ -457,12 +418,12 @@ export function snapToBreadboard(
   type?: string,
   pins?: Array<{ x: number; y: number }>,
   breadboardPosition: { x: number; y: number } = DEFAULT_BREADBOARD_POSITION,
-  rotation = 0
+  transform?: ComponentTransform
 ): { x: number; y: number } {
   const componentType = type && type in SVG_CONFIGS ? (type as ComponentType) : undefined;
   const pinLayout = pins ?? (componentType ? getDefaultPins(componentType) : []);
-  const rotatedPinLayout = getRotatedPins(pinLayout, rotation);
-  const snapped = snapPinsToBreadboard(x, y, rotatedPinLayout, breadboardPosition);
+  const placedPinLayout = getTransformedPins(pinLayout, transform);
+  const snapped = snapPinsToBreadboard(x, y, placedPinLayout, breadboardPosition);
 
   if (snapped) {
     return snapped;
@@ -601,23 +562,25 @@ const ComponentShape: React.FC<{
 
   return (
     <Group>
-      {/* Invisible hit area for drag/click */}
-      <Rect
-        x={-config.offsetX}
-        y={-config.offsetY}
-        width={config.width}
-        height={config.height}
-        fill="rgba(255,255,255,0.001)"
-      />
-      {/* SVG image */}
-      <KonvaImage
-        image={image}
-        x={-config.offsetX}
-        y={-config.offsetY}
-        width={config.width}
-        height={config.height}
-        listening={false}
-      />
+      <Group scaleX={comp.flipX ? -1 : 1}>
+        {/* Invisible hit area for drag/click */}
+        <Rect
+          x={-config.offsetX}
+          y={-config.offsetY}
+          width={config.width}
+          height={config.height}
+          fill="rgba(255,255,255,0.001)"
+        />
+        {/* SVG image */}
+        <KonvaImage
+          image={image}
+          x={-config.offsetX}
+          y={-config.offsetY}
+          width={config.width}
+          height={config.height}
+          listening={false}
+        />
+      </Group>
 
       {/* LED glow overlay */}
       {comp.type === 'led' && (() => {
@@ -1337,6 +1300,9 @@ const ComponentShape: React.FC<{
       {/* Selection outline */}
       {isSelected && (
         <Rect
+          // Mirrored with the artwork, so it still frames the part on the four
+          // whose anchor is not in the middle of their drawing.
+          scaleX={comp.flipX ? -1 : 1}
           x={-config.offsetX - 2}
           y={-config.offsetY - 2}
           width={config.width + 4}
@@ -1736,7 +1702,7 @@ const CircuitCanvas: React.FC = () => {
     ) => snapPinsToBreadboard(
       component.x,
       component.y,
-      getRotatedPins(component.pins, component.rotation),
+      getTransformedPins(component.pins, getComponentTransform(component)),
       position
     ),
     [breadboardPosition]
@@ -1761,7 +1727,7 @@ const CircuitCanvas: React.FC = () => {
     (component: CircuitComponent, slot: ProbeSlot) => {
       const mode = getMultimeterMode(component.properties.mode);
       const tip = getProbeDockedLocalPosition(slot, mode);
-      const rotated = rotatePoint(tip.x, tip.y, component.rotation);
+      const rotated = transformPoint(tip.x, tip.y, getComponentTransform(component));
       const position = getRenderedComponentPosition(component);
 
       return {
@@ -1816,7 +1782,7 @@ const CircuitCanvas: React.FC = () => {
     (component: CircuitComponent, slot: ProbeSlot) => {
       const mode = getMultimeterMode(component.properties.mode);
       const anchor = getProbeAnchorLocalPosition(slot, mode);
-      const rotated = rotatePoint(anchor.x, anchor.y, component.rotation);
+      const rotated = transformPoint(anchor.x, anchor.y, getComponentTransform(component));
       const position = getRenderedComponentPosition(component);
 
       return {
@@ -2298,6 +2264,27 @@ const CircuitCanvas: React.FC = () => {
     }
   }, [toolMode, simulation.running, closeContextMenu, selectComponent, selectWire, setRightTab, updateComponentProperty, removeComponent]);
 
+  /**
+   * Double clicking a part is the way back to the select tool: you can be in the
+   * middle of wiring, spot something to move, and just grab it.
+   */
+  const handleComponentDoubleClick = useCallback((
+    comp: CircuitComponent,
+    event?: Konva.KonvaEventObject<MouseEvent | TouchEvent>
+  ) => {
+    if (event) {
+      event.cancelBubble = true;
+    }
+
+    if (toolMode === 'delete' || toolMode === 'select') return;
+
+    clearTransientCanvasState();
+    setToolMode('select');
+    selectComponent(comp.id);
+    selectWire(null);
+    setRightTab('properties');
+  }, [toolMode, clearTransientCanvasState, setToolMode, selectComponent, selectWire, setRightTab]);
+
   // Pin click (wiring)
   const handlePinClick = useCallback((componentId: string, pinId: string, globalX: number, globalY: number) => {
     if (toolMode !== 'wire') return;
@@ -2486,7 +2473,7 @@ const CircuitCanvas: React.FC = () => {
       comp.type,
       comp.pins,
       breadboardPosition,
-      comp.rotation
+      getComponentTransform(comp)
     );
     const newX = snapped.x;
     const newY = snapped.y;
@@ -2504,7 +2491,7 @@ const CircuitCanvas: React.FC = () => {
       type?: string,
       pins?: Array<{ x: number; y: number }>,
       rotation?: number
-    ) => snapToBreadboard(x, y, type, pins, breadboardPosition, rotation);
+    ) => snapToBreadboard(x, y, type, pins, breadboardPosition, { rotation });
     return () => {
       delete win.snapToBreadboard;
     };
@@ -2805,7 +2792,7 @@ const CircuitCanvas: React.FC = () => {
             const snapped = snapPinsToBreadboard(
               translated.x,
               translated.y,
-              getRotatedPins(component.pins, component.rotation),
+              getTransformedPins(component.pins, getComponentTransform(component)),
               nextPosition
             );
 
@@ -2899,7 +2886,10 @@ const CircuitCanvas: React.FC = () => {
               const snapped = snapPinsToBreadboard(
                 selectedComponent.x,
                 selectedComponent.y,
-                getRotatedPins(selectedComponent.pins, nextRotation),
+                getTransformedPins(selectedComponent.pins, {
+                  ...getComponentTransform(selectedComponent),
+                  rotation: nextRotation,
+                }),
                 breadboardPosition
               );
 
@@ -3336,12 +3326,16 @@ const CircuitCanvas: React.FC = () => {
               x={comp.x}
               y={comp.y}
               rotation={comp.rotation}
+              scaleX={comp.scale ?? 1}
+              scaleY={comp.scale ?? 1}
               draggable={toolMode === 'select' && !middlePanActive}
               onDragStart={(e) => handleDragStart(comp, e)}
               onDragMove={(e) => handleDragMove(comp, e)}
               onDragEnd={(e) => handleDragEnd(comp, e)}
               onClick={(e) => handleComponentClick(comp, e)}
               onTap={(e) => handleComponentClick(comp, e)}
+              onDblClick={(e) => handleComponentDoubleClick(comp, e)}
+              onDblTap={(e) => handleComponentDoubleClick(comp, e)}
               onContextMenu={(e) => {
                 e.evt.preventDefault();
                 e.cancelBubble = true;
@@ -3356,7 +3350,7 @@ const CircuitCanvas: React.FC = () => {
               />
               {/* Clickable pin areas (for wiring) */}
               {toolMode === 'wire' &&
-                getWirePinHandles(comp.pins).map((handle) => {
+                getWirePinHandles(getMirroredPins(comp.pins, comp.flipX)).map((handle) => {
                   const isSelectedPin =
                     wiringStart?.componentId === comp.id &&
                     wiringStart?.pinId === handle.pin.id;
@@ -3427,6 +3421,14 @@ const CircuitCanvas: React.FC = () => {
                             pinWorldPosition.x,
                             pinWorldPosition.y
                           );
+                        }}
+                        onDblClick={(e) => {
+                          // Two clicks on a pin is a wire, not a request to
+                          // leave the wire tool.
+                          e.cancelBubble = true;
+                        }}
+                        onDblTap={(e) => {
+                          e.cancelBubble = true;
                         }}
                         onTap={(e) => {
                           e.cancelBubble = true;

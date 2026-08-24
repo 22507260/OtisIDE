@@ -232,6 +232,8 @@ const UI_STRINGS = {
     wireColorTitle: 'Colour',
     wireReplugHint:
       'Drag either end of the wire onto another pin to replug it. Double-click the wire to add a bend.',
+    size: 'Size',
+    mirror: 'Mirror',
     driverForward: 'FORWARD',
     driverReverse: 'REVERSE',
     driverBrake: 'BRAKE',
@@ -461,6 +463,8 @@ const UI_STRINGS = {
     wireColorTitle: 'Renk',
     wireReplugHint:
       'Kablonun ucunu tutup başka bir pine sürükleyerek yerini değiştirebilirsin. Kabloya çift tıklayarak kıvrım eklersin.',
+    size: 'Boyut',
+    mirror: 'Aynala',
     driverForward: 'İLERİ',
     driverReverse: 'GERİ',
     driverBrake: 'FREN',

@@ -87,6 +87,10 @@ export interface CircuitComponent {
   x: number;
   y: number;
   rotation: number;
+  /** Drawing size relative to the artwork; missing means 1. */
+  scale?: number;
+  /** Mirrored left to right, so a part's legs can swap sides. */
+  flipX?: boolean;
   pins: Pin[];
   properties: Record<string, string | number | boolean>;
 }
@@ -1065,6 +1069,8 @@ export function createComponent(type: ComponentType, x: number, y: number): Circ
     x,
     y,
     rotation: 0,
+    scale: 1,
+    flipX: false,
     pins: getDefaultPins(type),
     properties,
   };

@@ -19,6 +19,7 @@ import {
   BREADBOARD_COMPONENT_ID,
   DEFAULT_BREADBOARD_POSITION,
 } from '../models/breadboard';
+import { clampComponentScale } from './componentTransform';
 import { v4 as uuidv4 } from 'uuid';
 
 export interface ProjectData {
@@ -132,6 +133,10 @@ const sanitizeComponents = (value: unknown): CircuitComponent[] => {
         x: readNumber(item.x, 0),
         y: readNumber(item.y, 0),
         rotation: readNumber(item.rotation, 0),
+        // Both are newer than the file format, so a project saved before them
+        // simply gets the defaults: full size, not mirrored.
+        scale: clampComponentScale(readNumber(item.scale, 1)),
+        flipX: item.flipX === true,
         pins: sanitizePins(item.pins, type),
         properties: sanitizeProperties(item.properties),
       },

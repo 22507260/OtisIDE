@@ -12,6 +12,11 @@ import {
   getPropertyDisplayName,
   t,
 } from '../lib/i18n';
+import {
+  clampComponentScale,
+  MAX_COMPONENT_SCALE,
+  MIN_COMPONENT_SCALE,
+} from '../lib/componentTransform';
 
 const PropertiesPanel: React.FC = () => {
   const selectedComponentId = useCircuitStore((s) => s.selectedComponentId);
@@ -213,7 +218,7 @@ const PropertiesPanel: React.FC = () => {
             className="property-input"
             type="number"
             value={displayComp.rotation}
-            step={90}
+            step={5}
             onFocus={captureUndoSnapshot}
             onChange={(event) =>
               updateComponent(
@@ -221,6 +226,35 @@ const PropertiesPanel: React.FC = () => {
                 { rotation: Number(event.target.value) },
                 { recordHistory: false }
               )
+            }
+          />
+        </div>
+        <div className="property-row">
+          <span className="property-label">{t(language, 'size')}</span>
+          <input
+            className="property-input"
+            type="number"
+            value={displayComp.scale ?? 1}
+            step={0.1}
+            min={MIN_COMPONENT_SCALE}
+            max={MAX_COMPONENT_SCALE}
+            onFocus={captureUndoSnapshot}
+            onChange={(event) =>
+              updateComponent(
+                selectedComp.id,
+                { scale: clampComponentScale(Number(event.target.value)) },
+                { recordHistory: false }
+              )
+            }
+          />
+        </div>
+        <div className="property-row">
+          <span className="property-label">{t(language, 'mirror')}</span>
+          <input
+            type="checkbox"
+            checked={displayComp.flipX === true}
+            onChange={(event) =>
+              updateComponent(selectedComp.id, { flipX: event.target.checked })
             }
           />
         </div>
