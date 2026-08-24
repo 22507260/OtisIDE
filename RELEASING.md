@@ -4,7 +4,8 @@ OtisIDE artık açılışta GitHub Releases'i kontrol eder ve yeni sürüm varsa
 
 ## Kullanıcı ne görüyor?
 
-1. Uygulama açılır, 4 saniye sonra sessizce GitHub'a sorar.
+1. Uygulama açılır, 4 saniye sonra sessizce GitHub'a sorar; pencere açık kaldığı
+   sürece altı saatte bir tekrar bakar.
 2. Yeni sürüm yoksa **hiçbir şey görünmez**. İnternet yoksa veya depo erişilemezse de sessiz kalır.
 3. Yeni sürüm varsa ekranın ortasında pencere çıkar:
    *"OtisIDE'nin yeni sürümü hazır — Yüklü: 1.3.0 · Yeni: 1.3.1"*, release notlarıyla birlikte.
@@ -49,8 +50,22 @@ kurulum dosyasını derler ve **üç dosyayı** release'e yükler:
 Son adımda iş akışı üç dosyanın da yüklendiğini kendisi kontrol eder; eksik varsa kırmızı
 yanar. 111 MB'lik yükleme senin bağlantından gitmediği için yarıda kopma sorunu da kalmaz.
 
-Release açıklamasını GitHub arayüzünden düzenleyebilirsin; o metin kullanıcılara güncelleme
-penceresinde "Yenilikler" olarak görünür.
+**Release açıklamasını iş akışı yazmaz.** electron-builder release'i boş açıklamayla ve
+sadece `1.7.0` adıyla oluşturur; açıklamayı sonradan sen eklemelisin — GitHub arayüzünden
+ya da API ile:
+
+```powershell
+$id = (Invoke-RestMethod -Headers @{Authorization="Bearer $env:GH_TOKEN"} `
+  "https://api.github.com/repos/22507260/OtisIDE/releases/tags/v1.7.0").id
+$body = @{ name = "OtisIDE 1.7.0"; body = (Get-Content notes.md -Raw) } | ConvertTo-Json
+Invoke-RestMethod -Method Patch -Headers @{Authorization="Bearer $env:GH_TOKEN"} `
+  -ContentType "application/json" -Body $body `
+  "https://api.github.com/repos/22507260/OtisIDE/releases/$id"
+```
+
+Bu metin kullanıcılara güncelleme penceresinde "Yenilikler" olarak görünür. Eski bir
+sürümden atlayan kullanıcı aradaki bütün release açıklamalarını birden gördüğü için
+(`fullChangelog`), boş bırakılan bir sürüm o listede boşluk olarak kalır.
 
 ### Yol 2 — Elle yükleme (yedek yöntem)
 
@@ -78,17 +93,34 @@ CI'da bu değişken otomatik sağlanır.
 ### İndirme sitesini de güncellemek
 
 ```powershell
-npm run website:build
+npm run website:prepare
+git add website/index.html
+git commit -m "site: point the download at 1.7.0"
+git push origin main
+git push origin main:master
 ```
 
-exe'yi `website\downloads\` içine kopyalar, sayfadaki sürüm/boyut/SHA-256 değerlerini
-tazeler. Sonra siteyi yeniden deploy et.
+Komut sayfadaki sürümü, indirme bağlantısını, dosya boyutunu ve SHA-256 değerini tazeler.
+Yerelde derlenmiş bir kurulum dosyası varsa onu ölçer; yoksa release'e yüklenmiş dosyayı
+indirmeden ölçer — yani etiketi attıktan ve iş akışı bittikten sonra çalıştır.
+
+**Netlify `master` dalından yayın yapıyor**, bu yüzden iki dala da push etmek gerekiyor;
+yalnızca `main` pushlanırsa site hiçbir hata vermeden eski sürümde kalır.
 
 ## Önemli: 1.2.0 kullanıcıları güncellenmez
 
 Otomatik güncelleme kodu 1.3.0 ile geldi. Daha önce 1.2.0 kuran birinde güncelleme
 kontrolü yapan kod yok, dolayısıyla o kurulumlar kendiliğinden güncellenmez —
 sitedeki kurulum dosyasının 1.3.0 (veya üstü) olması bu yüzden önemli.
+
+## Paketleme: arayüz kütüphaneleri `devDependencies` içinde durur
+
+Vite; React, Konva, Monaco ve OpenAI istemcisini `dist` içine paketliyor. Bu paketler
+`dependencies` altında dururken electron-builder aynı kütüphanelerin ham hâllerini
+kuruluma bir kez daha koyuyordu — tek başına Monaco 74 MB'ydi. `electron/*.js` dosyasının
+gerçekten `require` ettiği iki paket dışında (`serialport`, `electron-updater`) hiçbir şey
+`dependencies` altına alınmamalı. `npm install --save <arayüz-kütüphanesi>` bunu sessizce
+bozar ve kurulum dosyası yeniden şişer.
 
 ## Sürüm numarası kuralı
 
