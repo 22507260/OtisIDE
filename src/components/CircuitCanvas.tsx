@@ -43,6 +43,7 @@ import {
 } from '../lib/i18n';
 import { getHalfBridgeStatus } from '../lib/driverStatus';
 import {
+  getArtworkLeft,
   getComponentTransform,
   getMirroredPins,
   getTransformedPins,
@@ -1300,10 +1301,7 @@ const ComponentShape: React.FC<{
       {/* Selection outline */}
       {isSelected && (
         <Rect
-          // Mirrored with the artwork, so it still frames the part on the four
-          // whose anchor is not in the middle of their drawing.
-          scaleX={comp.flipX ? -1 : 1}
-          x={-config.offsetX - 2}
+          x={getArtworkLeft(config, comp.flipX) - 2}
           y={-config.offsetY - 2}
           width={config.width + 4}
           height={config.height + 4}
@@ -2266,7 +2264,9 @@ const CircuitCanvas: React.FC = () => {
 
   /**
    * Double clicking a part is the way back to the select tool: you can be in the
-   * middle of wiring, spot something to move, and just grab it.
+   * middle of wiring, spot something to move, and just grab it. It works
+   * anywhere on the part, pins included — on a small part like an LED the pins
+   * cover most of the body, and a double click there is a slip, not a wire.
    */
   const handleComponentDoubleClick = useCallback((
     comp: CircuitComponent,
@@ -2276,10 +2276,13 @@ const CircuitCanvas: React.FC = () => {
       event.cancelBubble = true;
     }
 
-    if (toolMode === 'delete' || toolMode === 'select') return;
+    // The first click of the pair already removed the part in delete mode.
+    if (toolMode === 'delete') return;
 
     clearTransientCanvasState();
-    setToolMode('select');
+    if (toolMode !== 'select') {
+      setToolMode('select');
+    }
     selectComponent(comp.id);
     selectWire(null);
     setRightTab('properties');
@@ -3421,14 +3424,6 @@ const CircuitCanvas: React.FC = () => {
                             pinWorldPosition.x,
                             pinWorldPosition.y
                           );
-                        }}
-                        onDblClick={(e) => {
-                          // Two clicks on a pin is a wire, not a request to
-                          // leave the wire tool.
-                          e.cancelBubble = true;
-                        }}
-                        onDblTap={(e) => {
-                          e.cancelBubble = true;
                         }}
                         onTap={(e) => {
                           e.cancelBubble = true;

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   clampComponentScale,
+  getArtworkLeft,
   getComponentTransform,
   getMirroredPins,
   getTransformedPins,
@@ -73,6 +74,21 @@ describe('component transform', () => {
   it('normalises an angle onto a single turn', () => {
     expect(normalizeRotation(-90)).toBe(270);
     expect(normalizeRotation(450)).toBe(90);
+  });
+
+  it('reports where mirrored artwork starts, so a frame can follow it', () => {
+    // Centred anchor: mirroring changes nothing.
+    const led = { width: 24, offsetX: 12 };
+    expect(getArtworkLeft(led, false)).toBe(-12);
+    expect(getArtworkLeft(led, true)).toBe(-12);
+
+    // Anchor near the left edge, as on the RC522: the drawing lands on the
+    // other side of the anchor, and a frame that ignored this would sit a full
+    // width away from the part.
+    const rc522 = { width: 272, offsetX: 20 };
+    expect(getArtworkLeft(rc522, false)).toBe(-20);
+    expect(getArtworkLeft(rc522, true)).toBe(-252);
+    expect(getArtworkLeft(rc522, true) + rc522.width).toBe(rc522.offsetX);
   });
 
   it('fills in what an older component does not carry', () => {

@@ -100,6 +100,20 @@ export function getTransformedPins<T extends { x: number; y: number }>(
   });
 }
 
+/**
+ * Left edge of a part's artwork relative to its anchor. Mirroring flips the
+ * drawing about the anchor, so a part whose anchor is not in the middle — the
+ * RC522 and the keypad, for instance — moves to the other side of it. Anything
+ * framing the artwork has to start from here rather than scaling itself by -1,
+ * because a node's own scale does not act on its position.
+ */
+export function getArtworkLeft(
+  config: { width: number; offsetX: number },
+  flipX?: boolean
+): number {
+  return flipX ? config.offsetX - config.width : -config.offsetX;
+}
+
 /** Only the mirror, for pins that Konva will still rotate and scale itself. */
 export function getMirroredPins<T extends { x: number; y: number }>(
   pins: T[],
