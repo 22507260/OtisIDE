@@ -133,10 +133,29 @@ type DriverChannelDefinition = {
   pwmProperty?: string;
 };
 
+/**
+ * A half bridge drives one output on its own: its enable pin decides whether the
+ * leg conducts at all and its PWM pin sets how hard the high side is switched on.
+ * Two of them facing each other is how the BTS7960 makes an H bridge, which is a
+ * different shape from the enable + IN1/IN2 channel the L293D and L298N use.
+ */
+type DriverHalfBridgeDefinition = {
+  enablePin: string;
+  pwmPin: string;
+  outputPin: string;
+  sensePin?: string;
+  enabledProperty?: string;
+  pwmProperty?: string;
+};
+
 type DriverDefinition = {
   supplyPins: string[];
   groundPins: string[];
   channels: DriverChannelDefinition[];
+  halfBridges?: DriverHalfBridgeDefinition[];
+  /** Property holding the load current, used to drive the current sense pins. */
+  senseCurrentProperty?: string;
+  senseVoltsPerAmp?: number;
 };
 
 const DRIVER_DEFINITIONS: Partial<Record<CircuitComponent['type'], DriverDefinition>> = {
@@ -161,6 +180,34 @@ const DRIVER_DEFINITIONS: Partial<Record<CircuitComponent['type'], DriverDefinit
         output2Pin: 'out4',
         enabledProperty: 'enabledB',
         pwmProperty: 'pwmB',
+      },
+    ],
+  },
+  'bts7960-driver': {
+    supplyPins: ['vcc', 'b_plus'],
+    groundPins: ['gnd', 'b_minus'],
+    channels: [],
+    // The chip mirrors about 1/8500 of the load current out of IS, and the
+    // 1 kOhm resistor on the IBT-2 board turns that into roughly 0.118 V per amp
+    // while that side's high side is conducting.
+    senseCurrentProperty: 'motorCurrentA',
+    senseVoltsPerAmp: 0.118,
+    halfBridges: [
+      {
+        enablePin: 'r_en',
+        pwmPin: 'rpwm',
+        outputPin: 'm_plus',
+        sensePin: 'r_is',
+        enabledProperty: 'enabledR',
+        pwmProperty: 'pwmR',
+      },
+      {
+        enablePin: 'l_en',
+        pwmPin: 'lpwm',
+        outputPin: 'm_minus',
+        sensePin: 'l_is',
+        enabledProperty: 'enabledL',
+        pwmProperty: 'pwmL',
       },
     ],
   },
@@ -474,7 +521,8 @@ function resolveLogicExpression(
 function resolveSerialExpression(
   expr: string,
   variables: VariableTables,
-  scope?: RuntimeScope
+  scope?: RuntimeScope,
+  context?: RuntimeExecutionContext
 ): string {
   const trimmed = expr.trim();
   if (!trimmed) return '';
@@ -489,7 +537,8 @@ function resolveSerialExpression(
       return resolveSerialExpression(
         part.replace(/^String\s*\(/i, '').replace(/\)\s*$/, ''),
         variables,
-        scope
+        scope,
+        context
       );
     }
 
@@ -502,6 +551,23 @@ function resolveSerialExpression(
     const scopedValue = getRuntimeScopeValue(part, variables, scope);
     if (typeof scopedValue === 'string') {
       return scopedValue;
+    }
+
+    // Serial.println(analogRead(A0)) and the like: only the expression evaluator
+    // knows the builtins, and without it the call was printed as its own source
+    // text instead of its result.
+    if (context) {
+      const evaluated = evaluateRuntimeExpression(
+        part,
+        variables,
+        context.scope,
+        context.clockMs,
+        context
+      );
+      if (evaluated !== null && evaluated !== undefined) {
+        const text = toRuntimeString(evaluated);
+        if (text !== '') return text;
+      }
     }
 
     return part;
@@ -1372,7 +1438,9 @@ function callRuntimeBuiltin(
     case 'MAP': {
       const [value, inMin, inMax, outMin, outMax] = numbers;
       if (inMax === inMin) return outMin;
-      return ((value - inMin) * (outMax - outMin)) / (inMax - inMin) + outMin;
+      // Arduino's map() is integer maths, so it drops the fraction rather than
+      // rounding; printing 50.196 where a board shows 50 is a confusing lie.
+      return Math.trunc(((value - inMin) * (outMax - outMin)) / (inMax - inMin) + outMin);
     }
     default:
       return 0;
@@ -1588,7 +1656,7 @@ function appendRuntimeSerialOutput(
   context: RuntimeExecutionContext,
   newline: boolean
 ): void {
-  const text = resolveSerialExpression(expr, context.baseVariables, context.scope);
+  const text = resolveSerialExpression(expr, context.baseVariables, context.scope, context);
   context.appendSerialOutput(text, newline);
 }
 
@@ -1626,7 +1694,7 @@ function resolveLcdPrintText(expr: string, context: RuntimeExecutionContext): st
     return toRuntimeString(evaluated);
   }
 
-  return resolveSerialExpression(trimmed, context.baseVariables, context.scope);
+  return resolveSerialExpression(trimmed, context.baseVariables, context.scope, context);
 }
 
 function applyLcdMethodCall(
@@ -2525,6 +2593,45 @@ function computeDriverStates(
       }
       if (channel.pwmProperty) {
         nextProperties[channel.pwmProperty] = pwmLevel;
+      }
+    }
+
+    const senseCurrent = definition.senseCurrentProperty
+      ? Math.max(0, getNumericProperty(component, definition.senseCurrentProperty, 0))
+      : 0;
+
+    for (const bridge of definition.halfBridges ?? []) {
+      const enableNet = getEndpointNet(connectivity, component.id, bridge.enablePin);
+      const enabled = powered && isNetHigh(netState, enableNet);
+      const pwmNet = getEndpointNet(connectivity, component.id, bridge.pwmPin);
+      const duty = enabled ? clamp(getNetLevel(netState, pwmNet) ?? 0, 0, 255) : 0;
+
+      // A disabled leg is high impedance, so it must not push anything onto its
+      // output: the motor then sees nothing on that side and coasts.
+      if (enabled) {
+        assignNetSignal(
+          netState,
+          getEndpointNet(connectivity, component.id, bridge.outputPin),
+          duty,
+          (supplyVoltage * duty) / 255
+        );
+      }
+
+      if (bridge.sensePin) {
+        const senseVolts = (senseCurrent * (definition.senseVoltsPerAmp ?? 0) * duty) / 255;
+        assignNetSignal(
+          netState,
+          getEndpointNet(connectivity, component.id, bridge.sensePin),
+          supplyVoltage > 0 ? clamp(Math.round((senseVolts / supplyVoltage) * 255), 0, 255) : 0,
+          senseVolts
+        );
+      }
+
+      if (bridge.enabledProperty) {
+        nextProperties[bridge.enabledProperty] = enabled;
+      }
+      if (bridge.pwmProperty) {
+        nextProperties[bridge.pwmProperty] = duty;
       }
     }
 

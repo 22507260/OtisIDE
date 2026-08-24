@@ -886,6 +886,7 @@ Kurallar:
 - Servo devrelerinde servo, 5V/VCC, GND ve tek bir PWM/dijital sinyal pini kullan; kodda acikca Servo.attach(...) ve Servo.write(...) veya Servo.writeMicroseconds(...) yaz.
 - Kullanici baska bir baslangic acisi istemediyse servo icin varsayilan baslangic acisini 90 derece kabul et; gereksiz yere Servo.write(0) ile baslatma.
 - DC motor devrelerinde simule edilmesi kolay topolojileri tercih et: dogrudan dc-motor + PWM/dijital pin veya l298n-driver + dc-motor. Gereksiz transistorlu topolojilerden kacin.
+- Yon degistirme ya da yuksek akim istenirse bts7960-driver + dc-motor kullan: R_EN ve L_EN dijital pinlerle HIGH yapilir, hiz RPWM ve LPWM pinlerine analogWrite ile verilir; ileri giderken LPWM 0, geri giderken RPWM 0 olmali. Motor M+ ve M- klemenslerine, besleme B+ ve B- klemenslerine baglanir.
 
 Ornek bilesen blogu:
 \`\`\`circuit
@@ -936,6 +937,7 @@ Rules:
 - For servo circuits, prefer a direct servo + 5V/VCC + GND + one PWM/digital signal pin topology, and write explicit Servo.attach(...) plus Servo.write(...) or Servo.writeMicroseconds(...) code.
 - Unless the user asks for a different startup angle, treat 90 degrees as the default servo starting position and avoid initializing with Servo.write(0) unnecessarily.
 - For DC motor circuits, prefer simulation-friendly topologies: direct dc-motor + PWM/digital control or l298n-driver + dc-motor. Avoid unnecessary transistor-only topologies.
+- When direction control or high current is asked for, use bts7960-driver + dc-motor: drive R_EN and L_EN HIGH from digital pins and set the speed with analogWrite on RPWM and LPWM, keeping LPWM at 0 for forward and RPWM at 0 for reverse. The motor goes on M+ and M-, the supply on B+ and B-.
 
 Example component block:
 \`\`\`circuit

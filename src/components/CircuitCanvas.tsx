@@ -41,6 +41,7 @@ import {
   getOscilloscopeStatusLabel,
   t,
 } from '../lib/i18n';
+import { getHalfBridgeStatus } from '../lib/driverStatus';
 import multimeterProbeRedSvg from '../assets/components/multimeter-probe-red.svg';
 import multimeterProbeBlackSvg from '../assets/components/multimeter-probe-black.svg';
 
@@ -592,6 +593,7 @@ const ComponentShape: React.FC<{
     comp.type === 'lcd-16x2' ? (readBooleanProperty(comp.properties.backlight) ?? true) : false;
   const servoAngle =
     comp.type === 'servo' ? getNumericValue(comp.properties.angle, 90) : 90;
+  const halfBridgeStatus = getHalfBridgeStatus(language, comp.properties);
 
   if (!config || !image) {
     return <Circle radius={10} fill="#888" />;
@@ -1119,6 +1121,19 @@ const ComponentShape: React.FC<{
           align="center"
           fontSize={7}
           fill="#f7e38b"
+          listening={false}
+        />
+      )}
+
+      {comp.type === 'bts7960-driver' && (
+        <Text
+          text={halfBridgeStatus.text}
+          x={-45}
+          y={17}
+          width={90}
+          align="center"
+          fontSize={8}
+          fill={halfBridgeStatus.active ? '#f7e38b' : '#8a909c'}
           listening={false}
         />
       )}

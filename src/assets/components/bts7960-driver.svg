@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="140" height="116" viewBox="0 0 140 116">
+  <rect x="4" y="6" width="132" height="94" rx="5" fill="#9c2b26" stroke="#5d1512" stroke-width="2"/>
+  <rect x="10" y="12" width="120" height="82" rx="3" fill="none" stroke="#e0968f" stroke-width="0.6" opacity="0.5"/>
+
+  <g fill="#2f6fb8" stroke="#17416f" stroke-width="1">
+    <rect x="24.5" y="10" width="22" height="26" rx="2"/>
+    <rect x="47.5" y="10" width="22" height="26" rx="2"/>
+    <rect x="70.5" y="10" width="22" height="26" rx="2"/>
+    <rect x="93.5" y="10" width="22" height="26" rx="2"/>
+  </g>
+  <g fill="#c9d3dc" stroke="#6d7b88" stroke-width="0.8">
+    <circle cx="35.5" cy="20" r="5.6"/>
+    <circle cx="58.5" cy="20" r="5.6"/>
+    <circle cx="81.5" cy="20" r="5.6"/>
+    <circle cx="104.5" cy="20" r="5.6"/>
+  </g>
+  <g fill="#7b8794" stroke="#4c565f" stroke-width="0.7">
+    <circle id="connector8pin" cx="35.5" cy="20" r="3.2"/>
+    <circle id="connector9pin" cx="58.5" cy="20" r="3.2"/>
+    <circle id="connector10pin" cx="81.5" cy="20" r="3.2"/>
+    <circle id="connector11pin" cx="104.5" cy="20" r="3.2"/>
+  </g>
+  <g font-family="Arial, sans-serif" font-size="7" font-weight="bold" fill="#ffffff" text-anchor="middle">
+    <text x="35.5" y="33">B+</text>
+    <text x="58.5" y="33">B-</text>
+    <text x="81.5" y="33">M+</text>
+    <text x="104.5" y="33">M-</text>
+  </g>
+
+  <rect x="18" y="42" width="48" height="26" rx="2" fill="#1d2229" stroke="#0d1014" stroke-width="1"/>
+  <rect x="74" y="42" width="48" height="26" rx="2" fill="#1d2229" stroke="#0d1014" stroke-width="1"/>
+  <g fill="#b9c4cf" font-family="Arial, sans-serif" font-size="6.4" text-anchor="middle">
+    <text x="42" y="58">BTS7960B</text>
+    <text x="98" y="58">BTS7960B</text>
+  </g>
+  <g fill="#d7dde3" opacity="0.55">
+    <rect x="18" y="68" width="48" height="3" rx="1"/>
+    <rect x="74" y="68" width="48" height="3" rx="1"/>
+  </g>
+
+  <text x="12" y="88" font-family="Arial, sans-serif" font-size="5.4" fill="#f2c9c4" text-anchor="start" opacity="0.7">IBT-2</text>
+
+  <g font-family="Arial, sans-serif" font-size="3.9" fill="#ffe9e6" text-anchor="middle">
+    <text x="29.75" y="92" textLength="10.2" lengthAdjust="spacingAndGlyphs">RPWM</text>
+    <text x="41.25" y="92" textLength="10.2" lengthAdjust="spacingAndGlyphs">LPWM</text>
+    <text x="52.75" y="92" textLength="10.2" lengthAdjust="spacingAndGlyphs">R_EN</text>
+    <text x="64.25" y="92" textLength="10.2" lengthAdjust="spacingAndGlyphs">L_EN</text>
+    <text x="75.75" y="92" textLength="10.2" lengthAdjust="spacingAndGlyphs">R_IS</text>
+    <text x="87.25" y="92" textLength="10.2" lengthAdjust="spacingAndGlyphs">L_IS</text>
+    <text x="98.75" y="92" textLength="10.2" lengthAdjust="spacingAndGlyphs">VCC</text>
+    <text x="110.25" y="92" textLength="10.2" lengthAdjust="spacingAndGlyphs">GND</text>
+  </g>
+
+  <rect x="24" y="97" width="92" height="16" rx="2" fill="#14171c" stroke="#05070a" stroke-width="0.8"/>
+  <g fill="#d5b460" stroke="#6b5327" stroke-width="0.7">
+    <circle id="connector0pin" cx="29.75" cy="105" r="3.2"/>
+    <circle id="connector1pin" cx="41.25" cy="105" r="3.2"/>
+    <circle id="connector2pin" cx="52.75" cy="105" r="3.2"/>
+    <circle id="connector3pin" cx="64.25" cy="105" r="3.2"/>
+    <circle id="connector4pin" cx="75.75" cy="105" r="3.2"/>
+    <circle id="connector5pin" cx="87.25" cy="105" r="3.2"/>
+    <circle id="connector6pin" cx="98.75" cy="105" r="3.2"/>
+    <circle id="connector7pin" cx="110.25" cy="105" r="3.2"/>
+  </g>
+</svg>

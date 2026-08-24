@@ -66,6 +66,7 @@ export type ComponentType =
   | 'ina219'
   | 'sx1276-lora'
   | 'a4988-driver'
+  | 'bts7960-driver'
   | 'multimeter'
   | 'oscilloscope'
   | 'motor-driver';
@@ -406,6 +407,24 @@ export function getDefaultPins(type: ComponentType): Pin[] {
         { id: 'in3', name: 'IN3', type: 'digital', x: 0, y: -20 },
         { id: 'in4', name: 'IN4', type: 'digital', x: 8, y: -20 },
         { id: 'jumper5ven_b', name: '5VEN B', type: 'passive', x: 16, y: -20 },
+      ]);
+    case 'bts7960-driver':
+      // IBT-2 board: the eight pin logic header runs along the bottom edge and
+      // the four screw terminals along the top, in the order the silkscreen
+      // prints them. Pin ids match the labels so a sketch reads the same way.
+      return withSvgLayout([
+        { id: 'rpwm', name: 'RPWM', type: 'pwm', x: -40.25, y: 48 },
+        { id: 'lpwm', name: 'LPWM', type: 'pwm', x: -28.75, y: 48 },
+        { id: 'r_en', name: 'R_EN', type: 'digital', x: -17.25, y: 48 },
+        { id: 'l_en', name: 'L_EN', type: 'digital', x: -5.75, y: 48 },
+        { id: 'r_is', name: 'R_IS', type: 'analog', x: 5.75, y: 48 },
+        { id: 'l_is', name: 'L_IS', type: 'analog', x: 17.25, y: 48 },
+        { id: 'vcc', name: 'VCC', type: 'power', x: 28.75, y: 48 },
+        { id: 'gnd', name: 'GND', type: 'ground', x: 40.25, y: 48 },
+        { id: 'b_plus', name: 'B+', type: 'power', x: -34.5, y: -38 },
+        { id: 'b_minus', name: 'B-', type: 'ground', x: -11.5, y: -38 },
+        { id: 'm_plus', name: 'M+', type: 'passive', x: 11.5, y: -38 },
+        { id: 'm_minus', name: 'M-', type: 'passive', x: 34.5, y: -38 },
       ]);
     case 'vl53l0x':
       return withSvgLayout([
@@ -895,6 +914,10 @@ export function getDefaultProperties(type: ComponentType): Record<string, string
       return { angle: 0, stepsPerRevolution: 2048 };
     case 'l298n-driver':
       return { pwmA: 0, pwmB: 0, enabledA: false, enabledB: false };
+    case 'bts7960-driver':
+      // The first four mirror what the simulation is doing; motorCurrentA is the
+      // load the user says the motor draws, and it drives the R_IS / L_IS pins.
+      return { pwmR: 0, pwmL: 0, enabledR: false, enabledL: false, motorCurrentA: 0 };
     case 'vl53l0x':
       return { distance: 120, timingBudget: 33 };
     case 'reed-switch-module':
@@ -1125,6 +1148,7 @@ export const COMPONENT_CATALOG: ComponentInfo[] = [
   { type: 'transistor-pnp', name: 'PNP Transistor', category: 'Other', icon: 'PNP' },
   { type: 'sx1276-lora', name: 'SX1276 LoRa Module', category: 'Other', icon: 'LORA' },
   { type: 'a4988-driver', name: 'A4988 Stepper Driver', category: 'Other', icon: 'A4988' },
+  { type: 'bts7960-driver', name: 'BTS7960 Motor Driver', category: 'Other', icon: 'BTS' },
   { type: 'multimeter', name: 'Digital Multimeter', category: 'Other', icon: 'DMM' },
   { type: 'oscilloscope', name: 'Oscilloscope', category: 'Other', icon: 'OSC' },
   { type: 'motor-driver', name: 'Motor Driver', category: 'Other', icon: 'DRV' },

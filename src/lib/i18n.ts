@@ -232,6 +232,10 @@ const UI_STRINGS = {
     wireColorTitle: 'Colour',
     wireReplugHint:
       'Drag either end of the wire onto another pin to replug it. Double-click the wire to add a bend.',
+    driverForward: 'FORWARD',
+    driverReverse: 'REVERSE',
+    driverBrake: 'BRAKE',
+    driverCoast: 'COAST',
   },
   tr: {
     appTitle: 'OtisIDE',
@@ -457,6 +461,10 @@ const UI_STRINGS = {
     wireColorTitle: 'Renk',
     wireReplugHint:
       'Kablonun ucunu tutup başka bir pine sürükleyerek yerini değiştirebilirsin. Kabloya çift tıklayarak kıvrım eklersin.',
+    driverForward: 'İLERİ',
+    driverReverse: 'GERİ',
+    driverBrake: 'FREN',
+    driverCoast: 'SERBEST',
   },
 } as const;
 
@@ -507,6 +515,7 @@ const COMPONENT_NAME_TR: Partial<Record<ComponentType, string>> = {
   'keypad-4x4': 'Keypad 4x4',
   'stepper-28byj48': '28BYJ-48 Step Motor',
   'l298n-driver': 'L298N Sürücü',
+  'bts7960-driver': 'BTS7960 Motor Sürücü',
   'breadboard-power-supply': 'Breadboard PSU',
   'logic-level-converter': 'Seviye Dönüştürücü',
   'uln2003-driver': 'ULN2003 Sürücü',
@@ -592,6 +601,11 @@ const PROPERTY_NAME_EN: Record<string, string> = {
   pwmB: 'PWM B',
   enabledA: 'Enabled A',
   enabledB: 'Enabled B',
+  pwmR: 'PWM Right',
+  pwmL: 'PWM Left',
+  enabledR: 'Right Enabled',
+  enabledL: 'Left Enabled',
+  motorCurrentA: 'Motor Current (A)',
   timingBudget: 'Timing Budget (ms)',
   triggered: 'Triggered',
   analogLevel: 'Analog Level',
@@ -692,6 +706,11 @@ const PROPERTY_NAME_TR: Partial<Record<string, string>> = {
   stepsPerRevolution: 'Tur Başına Adım',
   enabledA: 'A Aktif',
   enabledB: 'B Aktif',
+  pwmR: 'PWM Sağ',
+  pwmL: 'PWM Sol',
+  enabledR: 'Sağ Aktif',
+  enabledL: 'Sol Aktif',
+  motorCurrentA: 'Motor Akımı (A)',
   timingBudget: 'Zaman Bütçesi (ms)',
   triggered: 'Tetiklendi',
   analogLevel: 'Analog Seviye',
