@@ -20,6 +20,31 @@ beforeEach(() => {
   useCircuitStore.setState({ components: [], wires: [] });
 });
 
+describe('selection', () => {
+  it('selecting a component already clears any selected wire', () => {
+    const led = addLed();
+    useCircuitStore.setState({ selectedWireId: 'w1' });
+
+    store().selectComponent(led.id);
+
+    expect(store().selectedComponentId).toBe(led.id);
+    expect(store().selectedWireId).toBeNull();
+  });
+
+  /**
+   * Clearing one selection clears the other, so calling both in a row throws
+   * away the selection that was just made. Every canvas click did that once.
+   */
+  it('clearing the wire selection also clears the component', () => {
+    const led = addLed();
+    store().selectComponent(led.id);
+
+    store().selectWire(null);
+
+    expect(store().selectedComponentId).toBeNull();
+  });
+});
+
 describe('undo and redo', () => {
   it('takes back the last edit and puts it forward again', () => {
     const led = addLed();

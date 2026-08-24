@@ -2181,7 +2181,6 @@ const CircuitCanvas: React.FC = () => {
     (componentId: string) => {
       closeContextMenu();
       selectComponent(componentId);
-      selectWire(null);
       setRightTab('properties');
     },
     [closeContextMenu, selectComponent, selectWire, setRightTab]
@@ -2245,7 +2244,6 @@ const CircuitCanvas: React.FC = () => {
     closeContextMenu();
     if (toolMode !== 'delete') {
       selectComponent(comp.id);
-      selectWire(null);
       setRightTab('properties');
     }
 
@@ -2284,9 +2282,8 @@ const CircuitCanvas: React.FC = () => {
       setToolMode('select');
     }
     selectComponent(comp.id);
-    selectWire(null);
     setRightTab('properties');
-  }, [toolMode, clearTransientCanvasState, setToolMode, selectComponent, selectWire, setRightTab]);
+  }, [toolMode, clearTransientCanvasState, setToolMode, selectComponent, setRightTab]);
 
   // Pin click (wiring)
   const handlePinClick = useCallback((componentId: string, pinId: string, globalX: number, globalY: number) => {
@@ -2636,9 +2633,8 @@ const CircuitCanvas: React.FC = () => {
       node: e.target as Konva.Group,
     };
     selectComponent(comp.id);
-    selectWire(null);
     setRightTab('properties');
-  }, [closeContextMenu, selectComponent, selectWire, setRightTab]);
+  }, [closeContextMenu, selectComponent, setRightTab]);
 
   const handleDragMove = useCallback((comp: CircuitComponent, e: Konva.KonvaEventObject<DragEvent>) => {
     if (comp.type !== 'multimeter') return;
@@ -2872,14 +2868,12 @@ const CircuitCanvas: React.FC = () => {
           <>
             <button className="context-menu-item" onClick={action(() => {
               selectComponent(selectedComponent.id);
-              selectWire(null);
               setRightTab('properties');
             })}>
               <span>{t(language, 'select')}</span>
             </button>
             <button className="context-menu-item" onClick={action(() => {
               selectComponent(selectedComponent.id);
-              selectWire(null);
               setToolMode('wire');
             })}>
               <span>{t(language, 'startWire')}</span>
