@@ -1974,6 +1974,19 @@ const CircuitCanvas: React.FC = () => {
         return;
       }
 
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
+        e.preventDefault();
+        useCircuitStore.getState().copySelection();
+        return;
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') {
+        e.preventDefault();
+        useCircuitStore.getState().pasteClipboard();
+        clearTransientCanvasState();
+        return;
+      }
+
       // Both of the shapes Windows editors use for redo.
       if (
         (e.ctrlKey || e.metaKey) &&

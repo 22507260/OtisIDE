@@ -82,6 +82,11 @@ interface CircuitStore {
   /** Ctrl+click: adds the part to the selection, or drops it if it was in it. */
   toggleComponentSelection: (id: string) => void;
   selectComponents: (ids: string[]) => void;
+  /** Puts the selected parts, and the wires between them, on the clipboard. */
+  copySelection: () => number;
+  /** Drops a copy on the canvas, offset so it does not hide the original. */
+  pasteClipboard: () => number;
+  canPaste: () => boolean;
   updateComponentProperty: (
     id: string,
     key: string,
@@ -184,6 +189,8 @@ void loop() {
 `;
 
 const MAX_UNDO_HISTORY = 100;
+/** How far a pasted copy lands from the part it came from. */
+const PASTE_OFFSET = 24;
 
 function getBoardLogicHighVoltage(boardType: ControllerBoardType): number {
   switch (boardType) {
@@ -359,6 +366,10 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
   );
   const initialCurrentAIConversationId = loadCurrentAIConversationId(initialAIConversations);
   const draft = loadProjectDraft();
+  /** Copied parts live here rather than in the state: nothing renders them. */
+  let clipboard: { components: CircuitComponent[]; wires: Wire[] } | null = null;
+  /** Each paste steps further from the original so copies do not stack up. */
+  let pastesSinceCopy = 0;
   const undoStack: ProjectSnapshot[] = [];
   const redoStack: ProjectSnapshot[] = [];
 
@@ -649,6 +660,73 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
         rightTab: 'properties',
       };
     }),
+
+  copySelection: () => {
+    const state = get();
+    const ids = new Set(state.selectedComponentIds);
+    if (ids.size === 0) return 0;
+
+    const components = state.components.filter((component) => ids.has(component.id));
+    // Only wires with both ends in the selection travel with it; a wire to
+    // something left behind has nothing to attach to on the copy.
+    const wires = state.wires.filter(
+      (item) => ids.has(item.startComponentId) && ids.has(item.endComponentId)
+    );
+
+    clipboard = {
+      components: cloneComponents(components),
+      wires: cloneWires(wires),
+    };
+    pastesSinceCopy = 0;
+
+    return components.length;
+  },
+
+  canPaste: () => clipboard !== null && clipboard.components.length > 0,
+
+  pasteClipboard: () => {
+    if (!clipboard || clipboard.components.length === 0) return 0;
+
+    pushUndoSnapshot();
+    pastesSinceCopy += 1;
+    const offset = PASTE_OFFSET * pastesSinceCopy;
+
+    const idByOriginal = new Map<string, string>();
+    const components = clipboard.components.map((component) => {
+      const id = uuidv4();
+      idByOriginal.set(component.id, id);
+      return {
+        ...component,
+        id,
+        x: component.x + offset,
+        y: component.y + offset,
+        pins: component.pins.map((pin) => ({ ...pin })),
+        properties: { ...component.properties },
+      };
+    });
+
+    const wires = clipboard.wires.map((item) => ({
+      ...item,
+      id: uuidv4(),
+      startComponentId: idByOriginal.get(item.startComponentId) ?? item.startComponentId,
+      endComponentId: idByOriginal.get(item.endComponentId) ?? item.endComponentId,
+      points: item.points.map((value, index) => value + (index % 2 === 0 ? offset : offset)),
+    }));
+
+    const pastedIds = components.map((component) => component.id);
+    set((s) => ({
+      components: [...s.components, ...components],
+      wires: [...s.wires, ...wires],
+      selectedComponentIds: pastedIds,
+      selectedComponentId: pastedIds[pastedIds.length - 1],
+      selectedWireId: null,
+      toolMode: 'select',
+      rightTab: 'properties',
+    }));
+    syncRuntimeIfRunning();
+
+    return components.length;
+  },
 
   selectComponents: (ids) =>
     set((s) => {
