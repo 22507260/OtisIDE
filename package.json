@@ -89,6 +89,7 @@
       ],
       "icon": "build/icon.png",
       "category": "Development",
+      "maintainer": "OtisIDE <22507260+otiside@users.noreply.github.com>",
       "synopsis": "Arduino devre tasarimi ve simulasyonu",
       "description": "OtisIDE, breadboard uzerinde devre kurmayi, Arduino kodu yazmayi ve simule etmeyi tek pencerede toplar.",
       "desktop": {
