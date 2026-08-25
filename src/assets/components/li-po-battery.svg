@@ -4,8 +4,7 @@
   <rect x="12" y="52" width="76" height="12" rx="3" fill="#000000" opacity="0.18"/>
 
   <g font-family="Arial, sans-serif" fill="#dfe9ff" text-anchor="middle">
-    <text x="50" y="34" font-size="11" font-weight="bold">LiPo 3S</text>
-    <text x="50" y="45" font-size="7.5" opacity="0.85">11.1V 2200mAh 30C</text>
+    <text x="50" y="42" font-size="11" font-weight="bold">LiPo</text>
   </g>
 
   <path d="M92 24 C 102 24, 104 26, 108 26" stroke="#c0392b" stroke-width="3.4" fill="none" stroke-linecap="round"/>

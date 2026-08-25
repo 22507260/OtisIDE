@@ -1259,6 +1259,35 @@ body::after {
   font-size: 11px;
 }
 
+.circuit-warnings {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 11;
+  max-width: min(480px, 90%);
+  padding: 8px 14px;
+  border: 1px solid rgba(249, 115, 22, 0.4);
+  border-radius: 10px;
+  background: rgba(43, 20, 8, 0.88);
+  color: #ffd7bf;
+  font-size: 12px;
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.3);
+}
+
+.circuit-warnings-title {
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.circuit-warnings-item {
+  opacity: 0.92;
+}
+
+.circuit-warnings-item + .circuit-warnings-item {
+  margin-top: 2px;
+}
+
 .canvas-container.mode-select {
   cursor: default;
 }

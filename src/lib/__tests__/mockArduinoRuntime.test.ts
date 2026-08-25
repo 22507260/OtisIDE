@@ -28,6 +28,21 @@ const led = (): CircuitComponent => ({
   properties: { color: 'red', forwardVoltage: 2 },
 });
 
+const rgbLed = (commonType: 'cathode' | 'anode' = 'cathode'): CircuitComponent => ({
+  id: 'rgb-1',
+  type: 'rgb-led',
+  x: 200,
+  y: 200,
+  rotation: 0,
+  pins: [
+    { id: 'red', name: 'Red', type: 'passive', x: -15, y: -15 },
+    { id: 'common', name: 'Common', type: 'passive', x: -5, y: -15 },
+    { id: 'green', name: 'Green', type: 'passive', x: 5, y: -15 },
+    { id: 'blue', name: 'Blue', type: 'passive', x: 15, y: -15 },
+  ],
+  properties: { red: 0, green: 0, blue: 0, commonType },
+});
+
 const wire = (
   id: string,
   startComponentId: string,
@@ -327,5 +342,70 @@ describe('BTS7960 half bridge driver', () => {
     const idleReadings = idle.serial.map(Number).filter((value) => Number.isFinite(value));
     expect(idleReadings.length).toBeGreaterThan(0);
     expect(Math.max(...idleReadings)).toBe(0);
+  });
+});
+
+describe('RGB LED', () => {
+  const REDONLY_SKETCH = `
+    void setup() {
+      pinMode(9, OUTPUT);
+      digitalWrite(9, HIGH);
+    }
+    void loop() { delay(50); }
+  `;
+
+  it('lights only the red channel when only its pin is driven, common cathode', async () => {
+    const recording = await run(
+      REDONLY_SKETCH,
+      [rgbLed('cathode')],
+      [
+        wire('w1', ARDUINO_COMPONENT_ID, 'D9', 'rgb-1', 'red'),
+        wire('w2', 'rgb-1', 'common', ARDUINO_COMPONENT_ID, 'GND'),
+      ],
+      600
+    );
+
+    const states = statesOf(recording, 'rgb-1');
+    expect(states.length).toBeGreaterThan(0);
+    const last = states[states.length - 1];
+    expect(Number(last.red)).toBeGreaterThan(200);
+    expect(Number(last.green)).toBe(0);
+    expect(Number(last.blue)).toBe(0);
+  });
+
+  it('lights the red channel when it is pulled low against a high common, common anode', async () => {
+    const recording = await run(
+      `void setup() { pinMode(9, OUTPUT); digitalWrite(9, LOW); } void loop() { delay(50); }`,
+      [rgbLed('anode')],
+      [
+        wire('w1', ARDUINO_COMPONENT_ID, 'D9', 'rgb-1', 'red'),
+        wire('w2', 'rgb-1', 'common', ARDUINO_COMPONENT_ID, '5V'),
+      ],
+      600
+    );
+
+    const states = statesOf(recording, 'rgb-1');
+    expect(states.length).toBeGreaterThan(0);
+    const last = states[states.length - 1];
+    expect(Number(last.red)).toBeGreaterThan(200);
+    expect(Number(last.green)).toBe(0);
+    expect(Number(last.blue)).toBe(0);
+  });
+
+  it('stays dark when nothing drives it', async () => {
+    const recording = await run(
+      `void setup() {} void loop() { delay(50); }`,
+      [rgbLed('cathode')],
+      [wire('w2', 'rgb-1', 'common', ARDUINO_COMPONENT_ID, 'GND')],
+      400
+    );
+
+    const states = statesOf(recording, 'rgb-1');
+    if (states.length > 0) {
+      const last = states[states.length - 1];
+      expect(Number(last.red)).toBe(0);
+      expect(Number(last.green)).toBe(0);
+      expect(Number(last.blue)).toBe(0);
+    }
   });
 });

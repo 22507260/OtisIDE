@@ -126,6 +126,12 @@ import liIonBatterySvg from '../assets/components/li-ion-battery.svg';
 import liIonBatterySvgRaw from '../assets/components/li-ion-battery.svg?raw';
 import liPoBatterySvg from '../assets/components/li-po-battery.svg';
 import liPoBatterySvgRaw from '../assets/components/li-po-battery.svg?raw';
+import battery9vSvg from '../assets/components/9v-battery.svg';
+import battery9vSvgRaw from '../assets/components/9v-battery.svg?raw';
+import batteryAaSvg from '../assets/components/aa-battery.svg';
+import batteryAaSvgRaw from '../assets/components/aa-battery.svg?raw';
+import coinCell3vSvg from '../assets/components/coin-cell-3v.svg';
+import coinCell3vSvgRaw from '../assets/components/coin-cell-3v.svg?raw';
 import transistorNpnSvg from '../assets/components/transistor-npn.svg';
 import transistorNpnSvgRaw from '../assets/components/transistor-npn.svg?raw';
 import transistorPnpSvg from '../assets/components/transistor-pnp.svg';
@@ -324,6 +330,9 @@ export const SVG_CONFIGS: Record<ComponentType, SvgConfig> = {
   'bts7960-driver': { url: bts7960DriverSvg, raw: bts7960DriverSvgRaw, width: 140, height: 116, offsetX: 70, offsetY: 58 },
   'li-ion-battery': { url: liIonBatterySvg, raw: liIonBatterySvgRaw, width: 128, height: 58, offsetX: 64, offsetY: 29 },
   'li-po-battery': { url: liPoBatterySvg,  raw: liPoBatterySvgRaw,  width: 120, height: 76, offsetX: 60, offsetY: 38 },
+  '9v-battery':   { url: battery9vSvg,     raw: battery9vSvgRaw,     width: 100, height: 70, offsetX: 50,  offsetY: 35 },
+  'aa-battery':   { url: batteryAaSvg,     raw: batteryAaSvgRaw,     width: 130, height: 40, offsetX: 65,  offsetY: 20 },
+  'coin-cell-3v': { url: coinCell3vSvg,    raw: coinCell3vSvgRaw,    width: 90,  height: 84, offsetX: 45,  offsetY: 42 },
   'transistor-npn': { url: transistorNpnSvg, raw: transistorNpnSvgRaw, width: 22, height: 32, offsetX: 11, offsetY: 8 },
   'transistor-pnp': { url: transistorPnpSvg, raw: transistorPnpSvgRaw, width: 22, height: 32, offsetX: 11, offsetY: 8 },
   relay:          { url: relaySvg,         raw: relaySvgRaw,         width: 52,  height: 42, offsetX: 26,  offsetY: 14 },

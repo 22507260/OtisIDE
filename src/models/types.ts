@@ -69,6 +69,9 @@ export type ComponentType =
   | 'bts7960-driver'
   | 'li-ion-battery'
   | 'li-po-battery'
+  | '9v-battery'
+  | 'aa-battery'
+  | 'coin-cell-3v'
   | 'multimeter'
   | 'oscilloscope'
   | 'motor-driver';
@@ -448,6 +451,21 @@ export function getDefaultPins(type: ComponentType): Pin[] {
       return withSvgLayout([
         { id: 'positive', name: '+', type: 'power', x: 50, y: -12 },
         { id: 'negative', name: '-', type: 'ground', x: 50, y: 12 },
+      ]);
+    case '9v-battery':
+      return withSvgLayout([
+        { id: 'positive', name: '+', type: 'power', x: 40, y: -15 },
+        { id: 'negative', name: '-', type: 'ground', x: 40, y: 15 },
+      ]);
+    case 'aa-battery':
+      return withSvgLayout([
+        { id: 'positive', name: '+', type: 'power', x: 57, y: 0 },
+        { id: 'negative', name: '-', type: 'ground', x: -57, y: 0 },
+      ]);
+    case 'coin-cell-3v':
+      return withSvgLayout([
+        { id: 'positive', name: '+', type: 'power', x: 36, y: 0 },
+        { id: 'negative', name: '-', type: 'ground', x: -36, y: 0 },
       ]);
     case 'vl53l0x':
       return withSvgLayout([
@@ -942,6 +960,12 @@ export function getDefaultProperties(type: ComponentType): Record<string, string
       return { cells: 1, chargePercent: 100, capacityMah: 2600 };
     case 'li-po-battery':
       return { cells: 3, chargePercent: 100, capacityMah: 2200 };
+    case '9v-battery':
+      return { chargePercent: 100, capacityMah: 550 };
+    case 'aa-battery':
+      return { chargePercent: 100, capacityMah: 2000 };
+    case 'coin-cell-3v':
+      return { chargePercent: 100, capacityMah: 220 };
     case 'bts7960-driver':
       // The first four mirror what the simulation is doing; motorCurrentA is the
       // load the user says the motor draws, and it drives the R_IS / L_IS pins.
@@ -1181,6 +1205,9 @@ export const COMPONENT_CATALOG: ComponentInfo[] = [
   { type: 'bts7960-driver', name: 'BTS7960 Motor Driver', category: 'Other', icon: 'BTS' },
   { type: 'li-ion-battery', name: 'Li-ion Battery', category: 'Other', icon: 'LI' },
   { type: 'li-po-battery', name: 'Li-Po Battery', category: 'Other', icon: 'LIPO' },
+  { type: '9v-battery', name: '9V Battery', category: 'Other', icon: '9V' },
+  { type: 'aa-battery', name: 'AA Battery (1.5V)', category: 'Other', icon: 'AA' },
+  { type: 'coin-cell-3v', name: 'Coin Cell (3V)', category: 'Other', icon: 'CR' },
   { type: 'multimeter', name: 'Digital Multimeter', category: 'Other', icon: 'DMM' },
   { type: 'oscilloscope', name: 'Oscilloscope', category: 'Other', icon: 'OSC' },
   { type: 'motor-driver', name: 'Motor Driver', category: 'Other', icon: 'DRV' },

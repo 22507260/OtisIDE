@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="100" height="70" viewBox="0 0 100 70">
+  <rect x="8" y="8" width="66" height="54" rx="5" fill="#2b2b2f" stroke="#141416" stroke-width="2"/>
+  <rect x="8" y="8" width="66" height="16" rx="5" fill="#b87333" opacity="0.85"/>
+  <rect x="12" y="12" width="58" height="4" rx="2" fill="#ffffff" opacity="0.15"/>
+
+  <g font-family="Arial, sans-serif" fill="#f5efe4" text-anchor="middle">
+    <text x="41" y="46" font-size="16" font-weight="bold">9V</text>
+  </g>
+
+  <path d="M74 20 C 82 20, 84 22, 88 22" stroke="#c0392b" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <path d="M74 46 C 82 46, 84 50, 88 50" stroke="#1c1c1c" stroke-width="3" fill="none" stroke-linecap="round"/>
+
+  <rect x="84" y="16" width="12" height="12" rx="3" fill="#c0392b" stroke="#7b241c" stroke-width="1"/>
+  <rect x="84" y="44" width="12" height="12" rx="3" fill="#333c47" stroke="#1c1c1c" stroke-width="1"/>
+
+  <g font-family="Arial, sans-serif" font-size="9" font-weight="bold" fill="#ffffff" text-anchor="middle">
+    <text x="90" y="14">+</text>
+    <text x="90" y="64">−</text>
+  </g>
+
+  <g fill="#d5b460" stroke="#6b5327" stroke-width="0.8">
+    <circle id="connector0pin" cx="90" cy="20" r="3"/>
+    <circle id="connector1pin" cx="90" cy="50" r="3"/>
+  </g>
+</svg>

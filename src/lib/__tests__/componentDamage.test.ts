@@ -222,4 +222,35 @@ describe('over current and over voltage damage', () => {
     );
     expect(stateOf(flat, 'led-1')?.damaged).toBeUndefined();
   });
+
+  it('burns an LED wired straight across a fresh 9V battery', async () => {
+    const battery = part('bat-1', '9v-battery', { chargePercent: 100 });
+    const led = part('led-1', 'led');
+
+    const recording = await run(
+      [battery, led],
+      [
+        wire('w1', 'bat-1', 'positive', 'led-1', 'anode'),
+        wire('w2', 'led-1', 'cathode', 'bat-1', 'negative'),
+      ]
+    );
+
+    expect(stateOf(recording, 'led-1')?.damaged).toBe(true);
+  });
+
+  it('a 1.5V AA cell and a 3V coin cell are both too weak to hurt an LED', async () => {
+    const wires = [
+      wire('w1', 'bat-1', 'positive', 'led-1', 'anode'),
+      wire('w2', 'led-1', 'cathode', 'bat-1', 'negative'),
+    ];
+
+    const aa = await run([part('bat-1', 'aa-battery', { chargePercent: 100 }), part('led-1', 'led')], wires);
+    expect(stateOf(aa, 'led-1')?.damaged).toBeUndefined();
+
+    const coin = await run(
+      [part('bat-1', 'coin-cell-3v', { chargePercent: 100 }), part('led-1', 'led')],
+      wires
+    );
+    expect(stateOf(coin, 'led-1')?.damaged).toBeUndefined();
+  });
 });

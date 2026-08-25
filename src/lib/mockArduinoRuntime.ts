@@ -395,16 +395,41 @@ const NOOP_CALLBACKS: RuntimeCallbacks = {
 };
 
 /**
+ * Terminal voltage as a function of remaining charge: `base` is what the pack
+ * reads flat, `base + span` is what it reads fresh off the shelf.
+ */
+const FIXED_BATTERY_VOLTAGE: Partial<Record<CircuitComponent['type'], { base: number; span: number }>> = {
+  // A carbon-zinc/alkaline PP3 sags from 9 V to about 6 V before it's "dead".
+  '9v-battery': { base: 6, span: 3 },
+  // A single alkaline AA/AAA cell: 1.5 V fresh, ~0.9 V at end of life.
+  'aa-battery': { base: 0.9, span: 0.6 },
+  // CR2032 coin cell: 3 V fresh, sags to ~2 V.
+  'coin-cell-3v': { base: 2, span: 1 },
+};
+
+/**
  * Terminal voltage of a lithium pack: a cell sits near 3.3 V empty and 4.2 V
  * full, so a 3S pack reads about 12.6 V charged and 9.9 V flat.
  */
 function getBatteryVoltage(component: CircuitComponent): number {
-  const cells = clamp(Math.round(getNumericProperty(component, 'cells', 1)), 1, 6);
   const charge = clamp(getNumericProperty(component, 'chargePercent', 100), 0, 100) / 100;
+
+  const fixed = FIXED_BATTERY_VOLTAGE[component.type];
+  if (fixed) {
+    return fixed.base + fixed.span * charge;
+  }
+
+  const cells = clamp(Math.round(getNumericProperty(component, 'cells', 1)), 1, 6);
   return cells * (3.3 + 0.9 * charge);
 }
 
-const BATTERY_TYPES = new Set<CircuitComponent['type']>(['li-ion-battery', 'li-po-battery']);
+const BATTERY_TYPES = new Set<CircuitComponent['type']>([
+  'li-ion-battery',
+  'li-po-battery',
+  '9v-battery',
+  'aa-battery',
+  'coin-cell-3v',
+]);
 
 /** Smallest gap between loop() iterations, so a sketch without delay() cannot spin. */
 const MIN_LOOP_INTERVAL_MS = 4;
@@ -2845,6 +2870,31 @@ function computeLedStates(
     const brightness = delta / 255;
 
     callbacks.setLedState(led.id, brightness > 0.05, brightness);
+  }
+
+  // RGB LEDs report their three channel levels through their own properties
+  // instead of the single on/brightness pair a plain LED uses.
+  for (const rgbLed of connectivity.components.filter((component) => component.type === 'rgb-led')) {
+    if (damaged.has(rgbLed.id)) {
+      callbacks.setComponentState(rgbLed.id, { red: 0, green: 0, blue: 0 });
+      continue;
+    }
+
+    const commonAnode = String(rgbLed.properties.commonType ?? 'cathode') === 'anode';
+    const commonLevel = getNetLevel(netState, getEndpointNet(connectivity, rgbLed.id, 'common'));
+
+    const channelBrightness = (pinId: string): number => {
+      const level = getNetLevel(netState, getEndpointNet(connectivity, rgbLed.id, pinId));
+      if (level === null || commonLevel === null) return 0;
+      const delta = commonAnode ? commonLevel - level : level - commonLevel;
+      return clamp(Math.round(delta), 0, 255);
+    };
+
+    callbacks.setComponentState(rgbLed.id, {
+      red: channelBrightness('red'),
+      green: channelBrightness('green'),
+      blue: channelBrightness('blue'),
+    });
   }
 }
 

@@ -507,6 +507,63 @@ function getWirePinHandles(pins: Pin[]): WirePinHandle[] {
   });
 }
 
+const BATTERY_LABEL_LAYOUT: Partial<Record<ComponentType, { y: number; fontSize: number; color: string }>> = {
+  'li-ion-battery': { y: 14, fontSize: 7, color: '#eafff4' },
+  'li-po-battery': { y: 15, fontSize: 7, color: '#dfe9ff' },
+  '9v-battery': { y: 21, fontSize: 6, color: '#f5efe4' },
+  'aa-battery': { y: 9, fontSize: 5.5, color: '#eaf1ff' },
+  'coin-cell-3v': { y: 24, fontSize: 7, color: '#2c333a' },
+};
+
+/** Bottom edge of a part's artwork in local coordinates, so the name label can clear it. */
+function componentArtworkBottom(type: ComponentType): number {
+  const config = SVG_CONFIGS[type];
+  return config ? config.height - config.offsetY : 0;
+}
+
+/**
+ * Problems worth interrupting the user for: parts that just burned out, and a
+ * sketch with no setup()/loop() to run at all. Both are cheap to notice from
+ * state the simulation already publishes, so this needs no extra plumbing.
+ */
+function computeCircuitWarnings(
+  language: 'en' | 'tr',
+  running: boolean,
+  code: string,
+  components: CircuitComponent[],
+  componentStates: SimulationState['componentStates']
+): string[] {
+  if (!running) return [];
+  const warnings: string[] = [];
+
+  const damagedNames = components
+    .filter((comp) => componentStates[comp.id]?.damaged === true)
+    .map((comp) => {
+      const info = COMPONENT_CATALOG.find((item) => item.type === comp.type);
+      return getComponentDisplayName(language, comp.type, info?.name ?? comp.type);
+    });
+  if (damagedNames.length > 0) {
+    warnings.push(
+      t(language, 'circuitWarningDamaged', {
+        count: damagedNames.length,
+        names: damagedNames.join(', '),
+      })
+    );
+  }
+
+  if (!/void\s+setup\s*\(/.test(code) || !/void\s+loop\s*\(/.test(code)) {
+    warnings.push(t(language, 'circuitWarningNoCode'));
+  }
+
+  return warnings;
+}
+
+function clampByte(value: unknown): number {
+  const num = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(num)) return 0;
+  return Math.min(255, Math.max(0, Math.round(num)));
+}
+
 function getCanvasComponentLabel(language: 'en' | 'tr', type: ComponentType): string {
   if (type === 'oscilloscope') return 'SCOPE';
   if (type === 'multimeter') return 'DMM';
@@ -608,6 +665,23 @@ const ComponentShape: React.FC<{
         ) : null;
       })()}
 
+      {/* RGB LED glow overlay — one brightness per channel instead of a single color */}
+      {comp.type === 'rgb-led' && (() => {
+        const r = clampByte(comp.properties.red);
+        const g = clampByte(comp.properties.green);
+        const b = clampByte(comp.properties.blue);
+        const isOn = simulation.running && (r > 12 || g > 12 || b > 12);
+        if (!isOn) return null;
+        const c = `rgb(${r}, ${g}, ${b})`;
+        const bri = Math.max(r, g, b) / 255;
+        return (
+          <>
+            <Circle radius={28} fill={c} opacity={0.12 * bri} listening={false} />
+            <Circle radius={18} fill={c} opacity={0.22 * bri} listening={false} />
+          </>
+        );
+      })()}
+
       {/* Resistor color bands and value */}
       {comp.type === 'resistor' && (() => {
         const bandColors = getResistorBandColors(comp.properties.resistance);
@@ -655,6 +729,26 @@ const ComponentShape: React.FC<{
       {/* Capacitor value */}
       {comp.type === 'capacitor' && (
         <Text text={`${comp.properties.capacitance}µF`} x={-18} y={-28} width={36} align="center" fontSize={8} fill="#aaa" listening={false} />
+      )}
+
+      {/* Battery capacity — drawn live so it tracks the properties panel instead of
+          being baked into the artwork. Position/size are tuned per body shape. */}
+      {BATTERY_LABEL_LAYOUT[comp.type] && (
+        <Text
+          text={
+            comp.type === 'li-ion-battery' || comp.type === 'li-po-battery'
+              ? `${comp.properties.cells}S · ${comp.properties.capacityMah}mAh`
+              : `${comp.properties.capacityMah}mAh`
+          }
+          x={-40}
+          y={BATTERY_LABEL_LAYOUT[comp.type]!.y}
+          width={80}
+          align="center"
+          fontSize={BATTERY_LABEL_LAYOUT[comp.type]!.fontSize}
+          fontStyle="bold"
+          fill={BATTERY_LABEL_LAYOUT[comp.type]!.color}
+          listening={false}
+        />
       )}
 
       {/* Servo angle */}
@@ -1623,11 +1717,6 @@ const CircuitCanvas: React.FC = () => {
   const stageRef = useRef<Konva.Stage>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const activeDragRef = useRef<{ componentId: string; node: Konva.Group | null } | null>(null);
-  /** Where the other selected parts started, so they can follow the dragged one. */
-  const groupDragRef = useRef<{
-    origin: { x: number; y: number };
-    others: Array<{ id: string; x: number; y: number }>;
-  } | null>(null);
   const draggedComponentPositionsRef = useRef<Record<string, { x: number; y: number }>>({});
   const breadboardDragRef = useRef<{
     startPosition: { x: number; y: number };
@@ -1663,10 +1752,15 @@ const CircuitCanvas: React.FC = () => {
   const stagePos = useCircuitStore((s) => s.stagePos);
   const wireColor = useCircuitStore((s) => s.wireColor);
   const simulation = useCircuitStore((s) => s.simulation);
+  const code = useCircuitStore((s) => s.code);
   const boardType = useCircuitStore((s) => s.boardType);
   const boardPosition = useCircuitStore((s) => s.boardPosition);
   const breadboardPosition = useCircuitStore((s) => s.breadboardPosition);
   const language = useCircuitStore((s) => s.language);
+  const circuitWarnings = useMemo(
+    () => computeCircuitWarnings(language, simulation.running, code, components, simulation.componentStates),
+    [language, simulation.running, code, components, simulation.componentStates]
+  );
 
   const setZoom = useCircuitStore((s) => s.setZoom);
   const setStagePos = useCircuitStore((s) => s.setStagePos);
@@ -2732,14 +2826,8 @@ const CircuitCanvas: React.FC = () => {
       selectComponent(comp.id);
     }
 
-    groupDragRef.current = {
-      origin: { x: comp.x, y: comp.y },
-      others: components
-        .filter((item) => item.id !== comp.id && selectedComponentIds.includes(item.id))
-        .map((item) => ({ id: item.id, x: item.x, y: item.y })),
-    };
     setRightTab('properties');
-  }, [closeContextMenu, components, selectComponent, selectedComponentIds, setRightTab]);
+  }, [closeContextMenu, selectComponent, selectedComponentIds, setRightTab]);
 
   const handleDragMove = useCallback((comp: CircuitComponent, e: Konva.KonvaEventObject<DragEvent>) => {
     if (comp.type !== 'multimeter') return;
@@ -2770,19 +2858,6 @@ const CircuitCanvas: React.FC = () => {
       };
     }
     activeDragRef.current = null;
-
-    // Everything else that was selected moves by the same amount.
-    const group = groupDragRef.current;
-    groupDragRef.current = null;
-    if (group && group.others.length > 0) {
-      const dx = e.target.x() - group.origin.x;
-      const dy = e.target.y() - group.origin.y;
-      if (dx !== 0 || dy !== 0) {
-        for (const other of group.others) {
-          updateComponent(other.id, { x: other.x + dx, y: other.y + dy });
-        }
-      }
-    }
 
     finalizeComponentDrag(comp, e.target as Konva.Group);
     if (comp.type === 'multimeter') {
@@ -3554,17 +3629,19 @@ const CircuitCanvas: React.FC = () => {
                   );
                 })}
 
-              {/* Component name label */}
-              <Text
-                text={getCanvasComponentLabel(language, comp.type)}
-                x={-32}
-                y={25}
-                width={64}
-                align="center"
-                fontSize={7}
-                fill="#666"
-                listening={false}
-              />
+              {/* Component name label — only while selected, so it doesn't clutter a full canvas */}
+              {(selectedComponentIds.includes(comp.id) || selectedComponentId === comp.id) && (
+                <Text
+                  text={getCanvasComponentLabel(language, comp.type)}
+                  x={-32}
+                  y={Math.max(25, componentArtworkBottom(comp.type) + 3)}
+                  width={64}
+                  align="center"
+                  fontSize={7}
+                  fill="#666"
+                  listening={false}
+                />
+              )}
             </Group>
           ))}
 
@@ -3721,6 +3798,18 @@ const CircuitCanvas: React.FC = () => {
       <div className="zoom-info">
         {Math.round(zoom * 100)}% | {t(language, 'componentsLabel')}: {components.length} | {t(language, 'wiresLabel')}: {wires.length}
       </div>
+
+      {/* Circuit warnings — burned parts, a sketch with nothing to run, etc. */}
+      {circuitWarnings.length > 0 && (
+        <div className="circuit-warnings">
+          <div className="circuit-warnings-title">⚠ {t(language, 'circuitWarningsTitle')}</div>
+          {circuitWarnings.map((warning, index) => (
+            <div key={index} className="circuit-warnings-item">
+              {warning}
+            </div>
+          ))}
+        </div>
+      )}
 
       {contextMenu && (
         <div

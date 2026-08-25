@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="90" height="84" viewBox="0 0 90 84">
+  <circle cx="45" cy="42" r="28" fill="#c9d3dc" stroke="#6d7b88" stroke-width="2"/>
+  <circle cx="45" cy="42" r="23" fill="#ffffff" opacity="0.14"/>
+  <circle cx="45" cy="42" r="23" fill="none" stroke="#8a97a3" stroke-width="1" stroke-dasharray="2 3"/>
+
+  <g font-family="Arial, sans-serif" fill="#2c333a" text-anchor="middle">
+    <text x="45" y="34" font-size="14" font-weight="bold">+</text>
+    <text x="45" y="47" font-size="9" font-weight="bold">CR2032</text>
+    <text x="45" y="57" font-size="8" opacity="0.8">3V</text>
+  </g>
+
+  <rect x="7" y="35" width="10" height="14" rx="2" fill="#b9c4cf" stroke="#6d7b88" stroke-width="1"/>
+  <rect x="73" y="35" width="10" height="14" rx="2" fill="#b9c4cf" stroke="#6d7b88" stroke-width="1"/>
+
+  <g fill="#d5b460" stroke="#6b5327" stroke-width="0.8">
+    <circle id="connector0pin" cx="81" cy="42" r="3.2"/>
+    <circle id="connector1pin" cx="9" cy="42" r="3.2"/>
+  </g>
+</svg>

@@ -8,8 +8,7 @@
   <circle cx="112.5" cy="29" r="4.6" fill="#c9d3dc" stroke="#6d7b88" stroke-width="0.8"/>
 
   <g font-family="Arial, sans-serif" fill="#eafff4" text-anchor="middle">
-    <text x="66" y="31" font-size="10" font-weight="bold">Li-ion 18650</text>
-    <text x="66" y="41" font-size="7" opacity="0.85">3.7V 2600mAh</text>
+    <text x="66" y="33" font-size="10" font-weight="bold">Li-ion 18650</text>
   </g>
 
   <g font-family="Arial, sans-serif" font-size="9" font-weight="bold" fill="#ffffff">
