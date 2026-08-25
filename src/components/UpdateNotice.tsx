@@ -34,7 +34,8 @@ const UpdateNotice: React.FC = () => {
   const isOfferState =
     state === 'available' || state === 'downloading' || state === 'downloaded';
   const isManualResult =
-    manualCheck && (state === 'checking' || state === 'up-to-date' || state === 'error');
+    manualCheck &&
+    (state === 'checking' || state === 'up-to-date' || state === 'error' || state === 'unsupported');
 
   if (!isOfferState && !isManualResult) return null;
   if (isOfferState && dismissedVersion === (version || 'unknown')) return null;
@@ -49,9 +50,11 @@ const UpdateNotice: React.FC = () => {
         ? t(language, 'updateUpToDateTitle')
         : state === 'error'
           ? t(language, 'updateFailedTitle')
-          : state === 'checking'
-            ? t(language, 'updateCheckingTitle')
-            : t(language, 'updateAvailableTitle');
+          : state === 'unsupported'
+            ? t(language, 'updateUnsupportedTitle')
+            : state === 'checking'
+              ? t(language, 'updateCheckingTitle')
+              : t(language, 'updateAvailableTitle');
 
   return (
     <div className="update-overlay" role="dialog" aria-modal="true">
@@ -103,6 +106,10 @@ const UpdateNotice: React.FC = () => {
           </p>
         )}
 
+        {state === 'unsupported' && (
+          <p className="update-ready-text">{t(language, 'updateUnsupportedText')}</p>
+        )}
+
         <div className="update-actions">
           {state === 'available' && (
             <>
@@ -140,7 +147,7 @@ const UpdateNotice: React.FC = () => {
             </>
           )}
 
-          {(state === 'up-to-date' || state === 'error') && (
+          {(state === 'up-to-date' || state === 'error' || state === 'unsupported') && (
             <button className="toolbar-btn" type="button" onClick={dismiss}>
               {t(language, 'close')}
             </button>
