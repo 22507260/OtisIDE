@@ -35,6 +35,7 @@ const PropertiesPanel: React.FC = () => {
   const removeComponent = useCircuitStore((s) => s.removeComponent);
   const captureUndoSnapshot = useCircuitStore((s) => s.captureUndoSnapshot);
   const language = useCircuitStore((s) => s.language);
+  const selectedComponentIds = useCircuitStore((s) => s.selectedComponentIds);
 
   const selectedComp = components.find((component) => component.id === selectedComponentId);
   const selectedWire = wires.find((wire) => wire.id === selectedWireId);
@@ -170,6 +171,17 @@ const PropertiesPanel: React.FC = () => {
 
   return (
     <div className="properties-content">
+      {selectedComponentIds.length > 1 && (
+        <div className="property-group">
+          <div className="property-group-title">
+            {t(language, 'multiSelection').replace('{{count}}', String(selectedComponentIds.length))}
+          </div>
+          <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+            {t(language, 'multiSelectionHint')}
+          </p>
+        </div>
+      )}
+
       <div className="property-group">
         <div className="property-group-title">
           {info?.icon} {displayName}

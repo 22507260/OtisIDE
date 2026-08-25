@@ -20,6 +20,60 @@ beforeEach(() => {
   useCircuitStore.setState({ components: [], wires: [] });
 });
 
+describe('multi selection', () => {
+  it('adds and drops parts as Ctrl is held', () => {
+    const first = addLed();
+    const second = addLed();
+
+    store().selectComponent(first.id);
+    expect(store().selectedComponentIds).toEqual([first.id]);
+
+    store().toggleComponentSelection(second.id);
+    expect(store().selectedComponentIds).toEqual([first.id, second.id]);
+    // The last one picked is the one the properties panel shows.
+    expect(store().selectedComponentId).toBe(second.id);
+
+    store().toggleComponentSelection(second.id);
+    expect(store().selectedComponentIds).toEqual([first.id]);
+    expect(store().selectedComponentId).toBe(first.id);
+
+    store().toggleComponentSelection(first.id);
+    expect(store().selectedComponentIds).toEqual([]);
+    expect(store().selectedComponentId).toBeNull();
+  });
+
+  it('ignores a part that is not on the canvas', () => {
+    const led = addLed();
+    store().selectComponent(led.id);
+
+    store().toggleComponentSelection('does-not-exist');
+
+    expect(store().selectedComponentIds).toEqual([led.id]);
+  });
+
+  it('drops a removed part from the selection', () => {
+    const first = addLed();
+    const second = addLed();
+    store().selectComponent(first.id);
+    store().toggleComponentSelection(second.id);
+
+    store().removeComponent(first.id);
+
+    expect(store().selectedComponentIds).toEqual([second.id]);
+  });
+
+  it('starts over when one part is selected on its own', () => {
+    const first = addLed();
+    const second = addLed();
+    store().selectComponent(first.id);
+    store().toggleComponentSelection(second.id);
+
+    store().selectComponent(second.id);
+
+    expect(store().selectedComponentIds).toEqual([second.id]);
+  });
+});
+
 describe('selection', () => {
   it('selecting a component already clears any selected wire', () => {
     const led = addLed();

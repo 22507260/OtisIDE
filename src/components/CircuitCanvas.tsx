@@ -1622,6 +1622,11 @@ const CircuitCanvas: React.FC = () => {
   const stageRef = useRef<Konva.Stage>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const activeDragRef = useRef<{ componentId: string; node: Konva.Group | null } | null>(null);
+  /** Where the other selected parts started, so they can follow the dragged one. */
+  const groupDragRef = useRef<{
+    origin: { x: number; y: number };
+    others: Array<{ id: string; x: number; y: number }>;
+  } | null>(null);
   const draggedComponentPositionsRef = useRef<Record<string, { x: number; y: number }>>({});
   const breadboardDragRef = useRef<{
     startPosition: { x: number; y: number };
@@ -1672,6 +1677,8 @@ const CircuitCanvas: React.FC = () => {
   const captureUndoSnapshot = useCircuitStore((s) => s.captureUndoSnapshot);
   const addComponent = useCircuitStore((s) => s.addComponent);
   const selectComponent = useCircuitStore((s) => s.selectComponent);
+  const selectedComponentIds = useCircuitStore((s) => s.selectedComponentIds);
+  const toggleComponentSelection = useCircuitStore((s) => s.toggleComponentSelection);
   const updateComponent = useCircuitStore((s) => s.updateComponent);
   const removeComponent = useCircuitStore((s) => s.removeComponent);
   const addWire = useCircuitStore((s) => s.addWire);
@@ -1996,7 +2003,12 @@ const CircuitCanvas: React.FC = () => {
             setWiringPath((current) => current.slice(0, -2));
             break;
           }
-          if (selId) useCircuitStore.getState().removeComponent(selId);
+          for (const id of useCircuitStore.getState().selectedComponentIds) {
+            useCircuitStore.getState().removeComponent(id);
+          }
+          if (selId && useCircuitStore.getState().selectedComponentIds.length === 0) {
+            useCircuitStore.getState().removeComponent(selId);
+          }
           if (selWireId) useCircuitStore.getState().removeWire(selWireId);
           break;
         case 'escape':
@@ -2284,8 +2296,19 @@ const CircuitCanvas: React.FC = () => {
     }
 
     closeContextMenu();
+    const addToSelection = Boolean(
+      event && 'ctrlKey' in event.evt && (event.evt.ctrlKey || event.evt.metaKey)
+    );
+
     if (toolMode !== 'delete') {
-      selectComponent(comp.id);
+      // A plain click narrows the selection to the one part, the way every
+      // editor behaves. Dragging a group still works: Konva starts the drag
+      // before the click, and swallows the click once something has moved.
+      if (addToSelection) {
+        toggleComponentSelection(comp.id);
+      } else {
+        selectComponent(comp.id);
+      }
       setRightTab('properties');
     }
 
@@ -2300,7 +2323,17 @@ const CircuitCanvas: React.FC = () => {
     } else if (toolMode === 'delete') {
       removeComponent(comp.id);
     }
-  }, [toolMode, simulation.running, closeContextMenu, selectComponent, selectWire, setRightTab, updateComponentProperty, removeComponent]);
+  }, [
+    toolMode,
+    simulation.running,
+    closeContextMenu,
+    selectComponent,
+    selectedComponentIds,
+    toggleComponentSelection,
+    setRightTab,
+    updateComponentProperty,
+    removeComponent,
+  ]);
 
   /**
    * Double clicking a part is the way back to the select tool: you can be in the
@@ -2609,7 +2642,7 @@ const CircuitCanvas: React.FC = () => {
       window.removeEventListener('mouseup', handlePointerRelease);
       window.removeEventListener('touchend', handlePointerRelease);
     };
-  }, [finalizeComponentDrag]);
+  }, [finalizeComponentDrag, updateComponent]);
 
   useEffect(() => {
     const handleMiddleRelease = () => stopMiddlePan();
@@ -2674,9 +2707,19 @@ const CircuitCanvas: React.FC = () => {
       componentId: comp.id,
       node: e.target as Konva.Group,
     };
-    selectComponent(comp.id);
+
+    if (!selectedComponentIds.includes(comp.id)) {
+      selectComponent(comp.id);
+    }
+
+    groupDragRef.current = {
+      origin: { x: comp.x, y: comp.y },
+      others: components
+        .filter((item) => item.id !== comp.id && selectedComponentIds.includes(item.id))
+        .map((item) => ({ id: item.id, x: item.x, y: item.y })),
+    };
     setRightTab('properties');
-  }, [closeContextMenu, selectComponent, setRightTab]);
+  }, [closeContextMenu, components, selectComponent, selectedComponentIds, setRightTab]);
 
   const handleDragMove = useCallback((comp: CircuitComponent, e: Konva.KonvaEventObject<DragEvent>) => {
     if (comp.type !== 'multimeter') return;
@@ -2707,6 +2750,20 @@ const CircuitCanvas: React.FC = () => {
       };
     }
     activeDragRef.current = null;
+
+    // Everything else that was selected moves by the same amount.
+    const group = groupDragRef.current;
+    groupDragRef.current = null;
+    if (group && group.others.length > 0) {
+      const dx = e.target.x() - group.origin.x;
+      const dy = e.target.y() - group.origin.y;
+      if (dx !== 0 || dy !== 0) {
+        for (const other of group.others) {
+          updateComponent(other.id, { x: other.x + dx, y: other.y + dy });
+        }
+      }
+    }
+
     finalizeComponentDrag(comp, e.target as Konva.Group);
     if (comp.type === 'multimeter') {
       delete draggedComponentPositionsRef.current[comp.id];
@@ -3383,7 +3440,7 @@ const CircuitCanvas: React.FC = () => {
             >
               <ComponentShape
                 comp={comp}
-                isSelected={selectedComponentId === comp.id}
+                isSelected={selectedComponentIds.includes(comp.id) || selectedComponentId === comp.id}
                 simulation={simulation}
                 language={language}
               />

@@ -35,6 +35,8 @@ interface CircuitStore {
   // Components
   components: CircuitComponent[];
   selectedComponentId: string | null;
+  /** Every selected part, with the primary one last. Holding Ctrl adds to it. */
+  selectedComponentIds: string[];
 
   // Wires
   wires: Wire[];
@@ -77,6 +79,9 @@ interface CircuitStore {
     options?: { recordHistory?: boolean }
   ) => void;
   selectComponent: (id: string | null) => void;
+  /** Ctrl+click: adds the part to the selection, or drops it if it was in it. */
+  toggleComponentSelection: (id: string) => void;
+  selectComponents: (ids: string[]) => void;
   updateComponentProperty: (
     id: string,
     key: string,
@@ -158,6 +163,8 @@ type ProjectSnapshot = {
   boardPosition: { x: number; y: number };
   breadboardPosition: { x: number; y: number };
   selectedComponentId: string | null;
+  /** Every selected part, with the primary one last. Holding Ctrl adds to it. */
+  selectedComponentIds: string[];
   selectedWireId: string | null;
 };
 
@@ -365,6 +372,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
       boardPosition: { ...state.boardPosition },
       breadboardPosition: { ...state.breadboardPosition },
       selectedComponentId: state.selectedComponentId,
+      selectedComponentIds: [...state.selectedComponentIds],
       selectedWireId: state.selectedWireId,
     };
   };
@@ -485,6 +493,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
       boardPosition: { ...snapshot.boardPosition },
       breadboardPosition: { ...snapshot.breadboardPosition },
       selectedComponentId: snapshot.selectedComponentId,
+      selectedComponentIds: [...(snapshot.selectedComponentIds ?? [])],
       selectedWireId: snapshot.selectedWireId,
       simulation: wasRunning
         ? {
@@ -538,6 +547,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
   // Components
   components: draft?.components ?? [],
   selectedComponentId: null,
+  selectedComponentIds: [],
 
   // Wires
   wires: draft?.wires ?? [],
@@ -586,6 +596,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
     set((s) => ({
       components: [...s.components, comp],
       selectedComponentId: comp.id,
+      selectedComponentIds: [comp.id],
       toolMode: 'select',
     }));
     syncRuntimeIfRunning();
@@ -600,6 +611,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
         (w) => w.startComponentId !== id && w.endComponentId !== id
       ),
       selectedComponentId: s.selectedComponentId === id ? null : s.selectedComponentId,
+      selectedComponentIds: s.selectedComponentIds.filter((selected) => selected !== id),
     }));
     syncRuntimeIfRunning();
   },
@@ -616,7 +628,37 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
   },
 
   selectComponent: (id) =>
-    set({ selectedComponentId: id, selectedWireId: null, rightTab: id ? 'properties' : 'properties' }),
+    set({
+      selectedComponentId: id,
+      selectedComponentIds: id ? [id] : [],
+      selectedWireId: null,
+      rightTab: 'properties',
+    }),
+
+  toggleComponentSelection: (id) =>
+    set((s) => {
+      if (!s.components.some((component) => component.id === id)) return {};
+
+      const without = s.selectedComponentIds.filter((selected) => selected !== id);
+      const next = without.length === s.selectedComponentIds.length ? [...without, id] : without;
+
+      return {
+        selectedComponentIds: next,
+        selectedComponentId: next.length > 0 ? next[next.length - 1] : null,
+        selectedWireId: null,
+        rightTab: 'properties',
+      };
+    }),
+
+  selectComponents: (ids) =>
+    set((s) => {
+      const known = ids.filter((id) => s.components.some((component) => component.id === id));
+      return {
+        selectedComponentIds: known,
+        selectedComponentId: known.length > 0 ? known[known.length - 1] : null,
+        selectedWireId: null,
+      };
+    }),
 
   updateComponentProperty: (id, key, value, options) => {
     if (!get().components.some((component) => component.id === id)) return;
@@ -720,7 +762,12 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
   },
 
   selectWire: (id) =>
-    set({ selectedWireId: id, selectedComponentId: null, rightTab: 'properties' }),
+    set({
+      selectedWireId: id,
+      selectedComponentId: null,
+      selectedComponentIds: [],
+      rightTab: 'properties',
+    }),
 
   setWireColor: (color) => set({ wireColor: color }),
 
@@ -946,6 +993,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
       components: [],
       wires: [],
       selectedComponentId: null,
+      selectedComponentIds: [],
       selectedWireId: null,
       code: DEFAULT_CODE,
       boardType: DEFAULT_CONTROLLER_BOARD_TYPE,
@@ -976,6 +1024,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
       boardPosition: project.boardPosition,
       breadboardPosition: project.breadboardPosition,
       selectedComponentId: null,
+      selectedComponentIds: [],
       selectedWireId: null,
       simulation: {
         running: false,
