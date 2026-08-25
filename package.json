@@ -72,6 +72,32 @@
       ],
       "icon": "build/icon.ico"
     },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png",
+      "category": "Development",
+      "synopsis": "Arduino devre tasarimi ve simulasyonu",
+      "description": "OtisIDE, breadboard uzerinde devre kurmayi, Arduino kodu yazmayi ve simule etmeyi tek pencerede toplar.",
+      "desktop": {
+        "entry": {
+          "Name": "OtisIDE",
+          "Categories": "Development;Electronics;IDE;"
+        }
+      }
+    },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,

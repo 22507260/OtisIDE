@@ -61,3 +61,36 @@ jobs:
           for file in "OtisIDE-$version-x64.exe" "latest.yml" "OtisIDE-$version-x64.exe.blockmap"; do
             echo "$assets" | grep -qx "$file" || { echo "Missing asset: $file"; exit 1; }
           done
+
+  # Runs after the Windows job so both are not racing to create the release.
+  linux:
+    needs: windows
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build and publish the Linux packages
+        run: npm run release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Confirm the AppImage and the deb are both there
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          assets="$(gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name')"
+          echo "$assets"
+          echo "$assets" | grep -qx "OtisIDE-$version-x86_64.AppImage" || { echo "Missing the AppImage"; exit 1; }
+          echo "$assets" | grep -q "\.deb$" || { echo "Missing the deb"; exit 1; }

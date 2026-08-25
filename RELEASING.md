@@ -47,6 +47,11 @@ kurulum dosyasını derler ve **üç dosyayı** release'e yükler:
 | `latest.yml` | **Güncelleme kontrolü bunu okur — olmazsa güncelleme çalışmaz** |
 | `OtisIDE-1.6.2-x64.exe.blockmap` | Fark indirmesi (sadece değişen kısmı indirir, hızlandırır) |
 
+Windows işi bittikten sonra ikinci bir iş Ubuntu üzerinde Linux paketlerini derleyip
+aynı release'e ekler: `OtisIDE-<sürüm>-x86_64.AppImage` ve `.deb`. Sıralı çalışırlar,
+çünkü ikisi aynı anda release oluşturmaya kalkarsa çakışıyor. Otomatik güncelleme
+Linux tarafında yalnızca AppImage için çalışır; deb kuranlar yeni sürümü elle indirir.
+
 Son adımda iş akışı üç dosyanın da yüklendiğini kendisi kontrol eder; eksik varsa kırmızı
 yanar. 111 MB'lik yükleme senin bağlantından gitmediği için yarıda kopma sorunu da kalmaz.
 

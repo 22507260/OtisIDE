@@ -18,7 +18,9 @@ const root = path.join(__dirname, '..');
 const pkg = require(path.join(root, 'package.json'));
 const version = pkg.version;
 const installerName = `OtisIDE-${version}-x64.exe`;
+const appImageName = `OtisIDE-${version}-x86_64.AppImage`;
 const assetUrl = `https://github.com/22507260/OtisIDE/releases/download/v${version}/${installerName}`;
+const appImageUrl = `https://github.com/22507260/OtisIDE/releases/download/v${version}/${appImageName}`;
 
 const releasePath = path.join(root, 'release', installerName);
 const downloadsDir = path.join(root, 'website', 'downloads');
@@ -79,10 +81,24 @@ function measureLocalBuild() {
   };
 }
 
+/**
+ * The Linux build comes from the release rather than this machine, and it only
+ * appears once that job has finished, so a missing one is not an error.
+ */
+async function measureLinuxAsset() {
+  try {
+    return await measurePublishedAsset(appImageUrl);
+  } catch (error) {
+    console.log(`linux asset not measured: ${error.message}`);
+    return null;
+  }
+}
+
 async function main() {
   const measurement = fs.existsSync(releasePath)
     ? measureLocalBuild()
     : { ...(await measurePublishedAsset(assetUrl)), source: assetUrl };
+  const linux = await measureLinuxAsset();
 
   const sizeLabel = `${Math.round(measurement.size / (1024 * 1024))} MB`;
 
@@ -93,11 +109,23 @@ async function main() {
     .replace(/(<b>)\d+\.\d+\.\d+(<\/b>)/g, `$1${version}$2`)
     .replace(/Sürüm \d+\.\d+\.\d+/g, `Sürüm ${version}`)
     .replace(/(<span data-file-size>)[^<]*(<\/span>)/g, `$1${sizeLabel}$2`)
+    .replace(/OtisIDE-\d+\.\d+\.\d+-x86_64\.AppImage/g, appImageName)
     .replace(/(<code data-sha256>)[^<]*(<\/code>)/g, `$1${measurement.sha256}$2`);
+
+  if (linux) {
+    page = page.replace(
+      /(<code data-linux-sha256>)[^<]*(<\/code>)/g,
+      `$1${linux.sha256}$2`
+    );
+  }
+
   fs.writeFileSync(pagePath, page, 'utf8');
 
   console.log(`measured: ${measurement.source} (${sizeLabel})`);
   console.log(`sha256: ${measurement.sha256}`);
+  if (linux) {
+    console.log(`linux sha256: ${linux.sha256} (${Math.round(linux.size / (1024 * 1024))} MB)`);
+  }
   console.log('website/index.html updated');
 }
 
