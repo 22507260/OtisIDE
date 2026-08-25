@@ -524,7 +524,7 @@ const BottomPanel: React.FC = () => {
                   beforeMount={configureEditorTheme}
                   defaultLanguage="cpp"
                   loading={
-                    <div className="code-editor-loading">Loading editor...</div>
+                    <div className="code-editor-loading">{t(language, 'editorLoading')}</div>
                   }
                   onChange={(value) => setCode(value ?? '')}
                   options={{

@@ -70,6 +70,8 @@ type RuntimeExecutionContext = {
   trackTimeout: (fn: () => void, ms: number) => void;
   flushSerialBuffer: () => void;
   appendSerialOutput: (text: string, newline: boolean) => void;
+  /** Parts destroyed during this run, kept so they stay dead until it ends. */
+  damagedComponents: Map<string, DamageRecord>;
   isCancelled: () => boolean;
 };
 
@@ -233,6 +235,155 @@ const DRIVER_DEFINITIONS: Partial<Record<CircuitComponent['type'], DriverDefinit
   },
 };
 
+type DamageLimits = {
+  /** Amps through the part before it lets the smoke out. */
+  maxCurrent?: number;
+  /** Volts across the part itself. */
+  maxVoltage?: number;
+  /** Watts the body can dissipate; the usual quarter watt resistor. */
+  maxPower?: number;
+};
+
+/**
+ * What each part survives. Only the ones with a resistance in the circuit model
+ * can be measured this way, so only they are listed; everything else is judged
+ * on its supply pin instead.
+ */
+const DAMAGE_LIMITS: Partial<Record<CircuitComponent['type'], DamageLimits>> = {
+  // Current alone decides for LEDs. A pin driving one without a resistor is
+  // sloppy but survivable at 5 V, exactly as on a real board; a battery pushes
+  // far more through the same part and kills it.
+  led: { maxCurrent: 0.03 },
+  'rgb-led': { maxCurrent: 0.03 },
+  diode: { maxCurrent: 1 },
+  resistor: { maxPower: 0.25 },
+  buzzer: { maxCurrent: 0.04 },
+  'dc-motor': { maxCurrent: 1 },
+  servo: { maxCurrent: 1, maxVoltage: 6.5 },
+  relay: { maxCurrent: 0.1, maxVoltage: 6 },
+};
+
+/** Names a part answers to when it is looking for its supply. */
+const SUPPLY_PIN_IDS = ['vcc', 'vin', '5v', 'vdd', 'v_in', 'logic5v'];
+
+/** Modules that run on 3.3 V and do not forgive 5 V. */
+const LOW_VOLTAGE_PARTS = new Set<CircuitComponent['type']>([
+  'esp8266-module',
+  'vl53l0x',
+  'bme280',
+  'sx1276-lora',
+  'rfm69hcw',
+  'ov7670-camera',
+  'microsd-module',
+]);
+
+const DEFAULT_SUPPLY_LIMIT = 5.5;
+const LOW_SUPPLY_LIMIT = 3.6;
+
+export type DamageReason = 'overcurrent' | 'overvoltage' | 'overpower';
+
+export type DamageRecord = {
+  reason: DamageReason;
+  detail: string;
+};
+
+const formatCurrent = (amps: number) =>
+  amps >= 1 ? `${amps.toFixed(2)} A` : `${Math.round(amps * 1000)} mA`;
+
+const formatVoltage = (volts: number) => `${volts.toFixed(1)} V`;
+
+const formatPower = (watts: number) => `${watts.toFixed(2)} W`;
+
+/**
+ * Decides which parts have just been destroyed by what the solver measured, and
+ * remembers them for the rest of the run. A part is never un-damaged while the
+ * simulation is running; stopping it builds a fresh circuit.
+ */
+function computeComponentDamage(
+  connectivity: Connectivity,
+  netVoltages: Map<number, number>,
+  resistiveEdges: ResistiveEdge[],
+  damaged: Map<string, DamageRecord>,
+  callbacks: RuntimeCallbacks
+): void {
+  const report = (component: CircuitComponent, record: DamageRecord) => {
+    if (damaged.has(component.id)) return;
+    damaged.set(component.id, record);
+    callbacks.addSerialOutput(`[!] ${component.type}: ${record.detail}`);
+  };
+
+  for (const edge of resistiveEdges) {
+    const limits = DAMAGE_LIMITS[edge.componentType];
+    if (!limits) continue;
+
+    const component = connectivity.components.find((item) => item.id === edge.componentId);
+    if (!component || damaged.has(component.id)) continue;
+
+    const fromVoltage = netVoltages.get(edge.fromNet);
+    const toVoltage = netVoltages.get(edge.toNet);
+    if (fromVoltage === undefined || toVoltage === undefined) continue;
+
+    const volts = Math.abs(fromVoltage - toVoltage);
+    const amps = volts / Math.max(edge.resistance, 0.0001);
+    const watts = volts * amps;
+
+    if (limits.maxCurrent !== undefined && amps > limits.maxCurrent) {
+      report(component, {
+        reason: 'overcurrent',
+        detail: `${formatCurrent(amps)} > ${formatCurrent(limits.maxCurrent)}`,
+      });
+      continue;
+    }
+
+    if (limits.maxPower !== undefined && watts > limits.maxPower) {
+      report(component, {
+        reason: 'overpower',
+        detail: `${formatPower(watts)} > ${formatPower(limits.maxPower)}`,
+      });
+      continue;
+    }
+
+    if (limits.maxVoltage !== undefined && volts > limits.maxVoltage) {
+      report(component, {
+        reason: 'overvoltage',
+        detail: `${formatVoltage(volts)} > ${formatVoltage(limits.maxVoltage)}`,
+      });
+    }
+  }
+
+  // Everything else is judged by what arrives on its supply pin.
+  for (const component of connectivity.components) {
+    if (damaged.has(component.id)) continue;
+    if (DAMAGE_LIMITS[component.type] || BATTERY_TYPES.has(component.type)) continue;
+
+    const limit = LOW_VOLTAGE_PARTS.has(component.type)
+      ? LOW_SUPPLY_LIMIT
+      : DEFAULT_SUPPLY_LIMIT;
+
+    for (const pin of component.pins) {
+      if (!SUPPLY_PIN_IDS.includes(pin.id.toLowerCase())) continue;
+
+      const net = getEndpointNet(connectivity, component.id, pin.id);
+      const voltage = net === undefined ? undefined : netVoltages.get(net);
+      if (voltage === undefined || voltage <= limit) continue;
+
+      report(component, {
+        reason: 'overvoltage',
+        detail: `${formatVoltage(voltage)} > ${formatVoltage(limit)}`,
+      });
+      break;
+    }
+  }
+
+  for (const [componentId, record] of damaged.entries()) {
+    callbacks.setComponentState(componentId, {
+      damaged: true,
+      damageReason: record.reason,
+      damageDetail: record.detail,
+    });
+  }
+}
+
 const NOOP_CALLBACKS: RuntimeCallbacks = {
   addSerialOutput: () => {},
   pushOscilloscopeSample: () => {},
@@ -242,6 +393,18 @@ const NOOP_CALLBACKS: RuntimeCallbacks = {
   clearComponentStates: () => {},
   setPinStates: () => {},
 };
+
+/**
+ * Terminal voltage of a lithium pack: a cell sits near 3.3 V empty and 4.2 V
+ * full, so a 3S pack reads about 12.6 V charged and 9.9 V flat.
+ */
+function getBatteryVoltage(component: CircuitComponent): number {
+  const cells = clamp(Math.round(getNumericProperty(component, 'cells', 1)), 1, 6);
+  const charge = clamp(getNumericProperty(component, 'chargePercent', 100), 0, 100) / 100;
+  return cells * (3.3 + 0.9 * charge);
+}
+
+const BATTERY_TYPES = new Set<CircuitComponent['type']>(['li-ion-battery', 'li-po-battery']);
 
 /** Smallest gap between loop() iterations, so a sketch without delay() cannot spin. */
 const MIN_LOOP_INTERVAL_MS = 4;
@@ -1670,7 +1833,8 @@ function updateRuntimeSimulationState(context: RuntimeExecutionContext): void {
     context.boardPins,
     context.logicHighVoltage,
     context.callbacks,
-    context.clockMs.value
+    context.clockMs.value,
+    context.damagedComponents
   );
 }
 
@@ -2421,6 +2585,25 @@ function applyInputComponentSignals(
   netState: NetState,
   logicHighVoltage: number
 ): void {
+  // A battery is the one part that brings its own voltage to the circuit, so it
+  // is seeded here alongside the board's own rails.
+  for (const component of connectivity.components) {
+    if (!BATTERY_TYPES.has(component.type)) continue;
+
+    const voltage = getBatteryVoltage(component);
+    const positiveNet = getEndpointNet(connectivity, component.id, 'positive');
+    const negativeNet = getEndpointNet(connectivity, component.id, 'negative');
+
+    if (negativeNet !== undefined) {
+      netState.groundNets.add(negativeNet);
+      assignNetSignal(netState, negativeNet, 0, 0);
+    }
+    if (positiveNet !== undefined) {
+      netState.powerNets.add(positiveNet);
+      assignNetSignal(netState, positiveNet, 255, voltage);
+    }
+  }
+
   for (const component of connectivity.components) {
     if (component.type !== 'joystick') {
       continue;
@@ -2540,11 +2723,13 @@ function isNetLow(netState: NetState, net: number | undefined): boolean {
 function computeDriverStates(
   connectivity: Connectivity,
   netState: NetState,
-  callbacks: RuntimeCallbacks
+  callbacks: RuntimeCallbacks,
+  damaged?: Map<string, DamageRecord>
 ): void {
   for (const component of connectivity.components) {
     const definition = DRIVER_DEFINITIONS[component.type];
     if (!definition) continue;
+    if (damaged?.has(component.id)) continue;
 
     const supplyVoltage = definition.supplyPins.reduce((highestVoltage, pinId) => {
       const voltage = getNetVoltage(netState, getEndpointNet(connectivity, component.id, pinId));
@@ -2644,9 +2829,15 @@ function computeDriverStates(
 function computeLedStates(
   connectivity: Connectivity,
   netState: NetState,
-  callbacks: RuntimeCallbacks
+  callbacks: RuntimeCallbacks,
+  damaged: Map<string, DamageRecord>
 ): void {
   for (const led of connectivity.components.filter((component) => component.type === 'led')) {
+    if (damaged.has(led.id)) {
+      callbacks.setLedState(led.id, false, 0);
+      continue;
+    }
+
     const anodeLevel = getNetLevel(netState, getEndpointNet(connectivity, led.id, 'anode'));
     const cathodeLevel = getNetLevel(netState, getEndpointNet(connectivity, led.id, 'cathode'));
     const delta =
@@ -2779,9 +2970,15 @@ function computeLcdStates(
 function computeDcMotorStates(
   connectivity: Connectivity,
   netState: NetState,
-  callbacks: RuntimeCallbacks
+  callbacks: RuntimeCallbacks,
+  damaged: Map<string, DamageRecord>
 ): void {
   for (const motor of connectivity.components.filter((component) => component.type === 'dc-motor')) {
+    if (damaged.has(motor.id)) {
+      callbacks.setComponentState(motor.id, { rpm: 0 });
+      continue;
+    }
+
     const pin1Level = getNetLevel(netState, getEndpointNet(connectivity, motor.id, 'pin1'));
     const pin2Level = getNetLevel(netState, getEndpointNet(connectivity, motor.id, 'pin2'));
     const delta = pin1Level === null || pin2Level === null ? 0 : pin1Level - pin2Level;
@@ -3560,18 +3757,19 @@ function updateActuatorStates(
   boardPins: Pin[],
   logicHighVoltage: number,
   callbacks: RuntimeCallbacks,
-  clockMs: number
+  clockMs: number,
+  damaged: Map<string, DamageRecord>
 ): void {
   callbacks.clearLedStates();
   callbacks.clearComponentStates();
   callbacks.setPinStates(Object.fromEntries(pinValues));
 
   const netState = buildBaseNetState(connectivity, pinValues, boardPins, logicHighVoltage);
-  computeDriverStates(connectivity, netState, callbacks);
-  computeLedStates(connectivity, netState, callbacks);
+  computeDriverStates(connectivity, netState, callbacks, damaged);
+  computeLedStates(connectivity, netState, callbacks, damaged);
   computeServoStates(connectivity, servoRuntime, netState, callbacks);
   computeLcdStates(connectivity, lcdRuntime, netState, callbacks);
-  computeDcMotorStates(connectivity, netState, callbacks);
+  computeDcMotorStates(connectivity, netState, callbacks, damaged);
 
   const measurementNetState = buildBaseNetState(
     measurementConnectivity,
@@ -3579,11 +3777,12 @@ function updateActuatorStates(
     boardPins,
     logicHighVoltage
   );
-  computeDriverStates(measurementConnectivity, measurementNetState, NOOP_CALLBACKS);
+  computeDriverStates(measurementConnectivity, measurementNetState, NOOP_CALLBACKS, damaged);
   const { voltages, resistiveEdges } = solveMeasurementVoltages(
     measurementConnectivity,
     measurementNetState
   );
+  computeComponentDamage(measurementConnectivity, voltages, resistiveEdges, damaged, callbacks);
   computeProbeDrivenMultimeterStates(measurementConnectivity, voltages, resistiveEdges, callbacks);
   computeOscilloscopeStates(measurementConnectivity, voltages, callbacks, clockMs);
 }
@@ -3615,6 +3814,7 @@ export function startMockArduinoRuntime(
     bridgePotentiometers: false,
   });
   const pinValues = new Map<string, number>();
+  const damagedComponents = new Map<string, DamageRecord>();
   const servoRuntime = new Map<string, ServoRuntimeState>();
   const scope = createRuntimeScope(variables);
   const clockMs = { value: 0 };
@@ -3667,6 +3867,7 @@ export function startMockArduinoRuntime(
     trackTimeout,
     flushSerialBuffer,
     appendSerialOutput,
+    damagedComponents,
     isCancelled: () => cancelled,
   };
 
@@ -3695,7 +3896,8 @@ export function startMockArduinoRuntime(
     boardPins,
     logicHighVoltage,
     callbacks,
-    clockMs.value
+    clockMs.value,
+    damagedComponents
   );
   executeRuntimeStatements(setupStatements, executionContext, () => {
     flushSerialBuffer();

@@ -234,6 +234,16 @@ const UI_STRINGS = {
       'Drag either end of the wire onto another pin to replug it. Double-click the wire to add a bend.',
     size: 'Size',
     mirror: 'Mirror',
+    on: 'ON',
+    off: 'OFF',
+    live: 'Live',
+    resetZoom: 'Zoom 100%',
+    editorLoading: 'Loading editor...',
+    burned: 'BURNED',
+    damageStatus: 'Condition',
+    damageOvercurrent: 'Burned out — too much current',
+    damageOvervoltage: 'Burned out — too much voltage',
+    damageOverpower: 'Burned out — too much power',
     driverForward: 'FORWARD',
     driverReverse: 'REVERSE',
     driverBrake: 'BRAKE',
@@ -465,6 +475,16 @@ const UI_STRINGS = {
       'Kablonun ucunu tutup başka bir pine sürükleyerek yerini değiştirebilirsin. Kabloya çift tıklayarak kıvrım eklersin.',
     size: 'Boyut',
     mirror: 'Aynala',
+    on: 'AÇIK',
+    off: 'KAPALI',
+    live: 'Canlı',
+    resetZoom: 'Yakınlaştırma %100',
+    editorLoading: 'Editör yükleniyor...',
+    burned: 'YANDI',
+    damageStatus: 'Durum',
+    damageOvercurrent: 'Yandı — aşırı akım',
+    damageOvervoltage: 'Yandı — aşırı gerilim',
+    damageOverpower: 'Yandı — aşırı güç',
     driverForward: 'İLERİ',
     driverReverse: 'GERİ',
     driverBrake: 'FREN',
@@ -474,13 +494,16 @@ const UI_STRINGS = {
 
 export type TranslationKey = keyof typeof UI_STRINGS.en;
 
-const COMPONENT_NAME_TR: Partial<Record<ComponentType, string>> = {
+/** Exported so a test can prove every catalog part has a Turkish name. */
+export const COMPONENT_NAME_TR: Partial<Record<ComponentType, string>> = {
+  led: 'LED',
   resistor: 'Direnç',
   capacitor: 'Kondansatör',
   diode: 'Diyot',
   button: 'Buton',
   switch: 'Anahtar',
   potentiometer: 'Potansiyometre',
+  joystick: 'Joystick',
   buzzer: 'Buzzer',
   servo: 'Servo Motor',
   'dc-motor': 'DC Motor',
@@ -520,6 +543,8 @@ const COMPONENT_NAME_TR: Partial<Record<ComponentType, string>> = {
   'stepper-28byj48': '28BYJ-48 Step Motor',
   'l298n-driver': 'L298N Sürücü',
   'bts7960-driver': 'BTS7960 Motor Sürücü',
+  'li-ion-battery': 'Li-ion Pil',
+  'li-po-battery': 'Li-Po Pil',
   'breadboard-power-supply': 'Breadboard PSU',
   'logic-level-converter': 'Seviye Dönüştürücü',
   'uln2003-driver': 'ULN2003 Sürücü',
@@ -610,6 +635,10 @@ const PROPERTY_NAME_EN: Record<string, string> = {
   enabledR: 'Right Enabled',
   enabledL: 'Left Enabled',
   motorCurrentA: 'Motor Current (A)',
+  cells: 'Cells',
+  chargePercent: 'Charge (%)',
+  capacityMah: 'Capacity (mAh)',
+  voltage: 'Voltage (V)',
   timingBudget: 'Timing Budget (ms)',
   triggered: 'Triggered',
   analogLevel: 'Analog Level',
@@ -715,6 +744,10 @@ const PROPERTY_NAME_TR: Partial<Record<string, string>> = {
   enabledR: 'Sağ Aktif',
   enabledL: 'Sol Aktif',
   motorCurrentA: 'Motor Akımı (A)',
+  cells: 'Hücre Sayısı',
+  chargePercent: 'Şarj (%)',
+  capacityMah: 'Kapasite (mAh)',
+  voltage: 'Gerilim (V)',
   timingBudget: 'Zaman Bütçesi (ms)',
   triggered: 'Tetiklendi',
   analogLevel: 'Analog Seviye',
@@ -809,6 +842,36 @@ export function getComponentDisplayName(
   }
 
   return fallback;
+}
+
+const PIN_TYPE_NAME_TR: Record<string, string> = {
+  digital: 'dijital',
+  analog: 'analog',
+  power: 'güç',
+  ground: 'toprak',
+  pwm: 'PWM',
+  passive: 'pasif',
+};
+
+const DAMAGE_KEYS = {
+  overcurrent: 'damageOvercurrent',
+  overvoltage: 'damageOvervoltage',
+  overpower: 'damageOverpower',
+} as const;
+
+/** Why a part burned out, in words. */
+export function getDamageLabel(language: AppLanguage, reason: string): string {
+  const key = DAMAGE_KEYS[reason as keyof typeof DAMAGE_KEYS];
+  return key ? t(language, key) : t(language, 'burned');
+}
+
+/** What a pin does, for the list at the bottom of the properties panel. */
+export function getPinTypeLabel(language: AppLanguage, pinType: string): string {
+  if (language === 'tr') {
+    return PIN_TYPE_NAME_TR[pinType] ?? pinType;
+  }
+
+  return pinType;
 }
 
 export function getCategoryDisplayName(

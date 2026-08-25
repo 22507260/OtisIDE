@@ -3,6 +3,7 @@ import { Stage, Layer, Group, Rect, Line, Circle, Shape, Text, Image as KonvaIma
 import { useCircuitStore } from '../store/circuitStore';
 import {
   CircuitComponent,
+  COMPONENT_CATALOG,
   ComponentType,
   Pin,
   SimulationState,
@@ -35,6 +36,8 @@ import {
   SVG_CONFIGS,
 } from '../hooks/useComponentImages';
 import {
+  getComponentDisplayName,
+  getDamageLabel,
   getMultimeterModeLabel,
   getMultimeterStatusLabel,
   getLocalizedOscilloscopeDisplayText,
@@ -503,14 +506,16 @@ function getWirePinHandles(pins: Pin[]): WirePinHandle[] {
   });
 }
 
-function getCanvasComponentLabel(type: ComponentType): string {
+function getCanvasComponentLabel(language: 'en' | 'tr', type: ComponentType): string {
   if (type === 'oscilloscope') return 'SCOPE';
   if (type === 'multimeter') return 'DMM';
   if (type === 'bme280') return 'BME280';
   if (type === 'ina219') return 'INA219';
   if (type === 'sx1276-lora') return 'LORA';
   if (type === 'a4988-driver') return 'A4988';
-  return type.toUpperCase();
+
+  const info = COMPONENT_CATALOG.find((item) => item.type === type);
+  return getComponentDisplayName(language, type, info?.name ?? type).toUpperCase();
 }
 
 // ===== SVG-Based Component Shape =====
@@ -1078,7 +1083,7 @@ const ComponentShape: React.FC<{
 
       {comp.type === 'l298n-driver' && (
         <Text
-          text={`A:${comp.properties.enabledA ? 'ON' : 'OFF'} B:${comp.properties.enabledB ? 'ON' : 'OFF'}`}
+          text={`A:${t(language, comp.properties.enabledA ? 'on' : 'off')} B:${t(language, comp.properties.enabledB ? 'on' : 'off')}`}
           x={-30}
           y={-24}
           width={60}
@@ -1292,10 +1297,47 @@ const ComponentShape: React.FC<{
       {/* Relay state */}
       {comp.type === 'relay' && (
         <Text
-          text={comp.properties.activated ? 'ON' : 'OFF'}
+          text={t(language, comp.properties.activated ? 'on' : 'off')}
           x={-10} y={6} width={20} align="center" fontSize={7}
           fill={comp.properties.activated ? '#4ecca3' : '#e74c3c'} fontStyle="bold" listening={false}
         />
+      )}
+
+      {/* A part that let the smoke out: charred, smoking and clearly dead. */}
+      {comp.properties.damaged === true && (
+        <>
+          <Rect
+            x={getArtworkLeft(config, comp.flipX)}
+            y={-config.offsetY}
+            width={config.width}
+            height={config.height}
+            fill="#000000"
+            opacity={0.55}
+            cornerRadius={3}
+            listening={false}
+          />
+          <Circle x={-9} y={-config.offsetY - 6} radius={6} fill="#7b8794" opacity={0.35} listening={false} />
+          <Circle x={2} y={-config.offsetY - 14} radius={8} fill="#98a2ad" opacity={0.28} listening={false} />
+          <Circle x={12} y={-config.offsetY - 24} radius={10} fill="#b6bfc9" opacity={0.2} listening={false} />
+          <Line
+            points={[-10, 0, -3, -4, 0, -12, 3, -4, 11, 0, 3, 4, 0, 12, -3, 4]}
+            closed
+            fill="#f6a623"
+            opacity={0.9}
+            listening={false}
+          />
+          <Text
+            text={t(language, 'burned')}
+            x={-40}
+            y={config.height - config.offsetY - 4}
+            width={80}
+            align="center"
+            fontSize={9}
+            fontStyle="bold"
+            fill="#ff6b6b"
+            listening={false}
+          />
+        </>
       )}
 
       {/* Selection outline */}
@@ -2986,7 +3028,7 @@ const CircuitCanvas: React.FC = () => {
               <span>{t(language, 'redo')}</span>
             </button>
             <button className="context-menu-item" onClick={action(resetViewport)}>
-              <span>Zoom 100%</span>
+              <span>{t(language, 'resetZoom')}</span>
             </button>
             <button className="context-menu-item" onClick={action(() => setRightTab('ai'))}>
               <span>{t(language, 'openAIPanel')}</span>
@@ -3436,10 +3478,10 @@ const CircuitCanvas: React.FC = () => {
 
               {/* Component name label */}
               <Text
-                text={getCanvasComponentLabel(comp.type)}
-                x={-20}
+                text={getCanvasComponentLabel(language, comp.type)}
+                x={-32}
                 y={25}
-                width={40}
+                width={64}
                 align="center"
                 fontSize={7}
                 fill="#666"

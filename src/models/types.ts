@@ -67,6 +67,8 @@ export type ComponentType =
   | 'sx1276-lora'
   | 'a4988-driver'
   | 'bts7960-driver'
+  | 'li-ion-battery'
+  | 'li-po-battery'
   | 'multimeter'
   | 'oscilloscope'
   | 'motor-driver';
@@ -429,6 +431,16 @@ export function getDefaultPins(type: ComponentType): Pin[] {
         { id: 'b_minus', name: 'B-', type: 'ground', x: -11.5, y: -38 },
         { id: 'm_plus', name: 'M+', type: 'passive', x: 11.5, y: -38 },
         { id: 'm_minus', name: 'M-', type: 'passive', x: 34.5, y: -38 },
+      ]);
+    case 'li-ion-battery':
+      return withSvgLayout([
+        { id: 'positive', name: '+', type: 'power', x: 48.5, y: 0 },
+        { id: 'negative', name: '-', type: 'ground', x: -45.5, y: 0 },
+      ]);
+    case 'li-po-battery':
+      return withSvgLayout([
+        { id: 'positive', name: '+', type: 'power', x: 50, y: -12 },
+        { id: 'negative', name: '-', type: 'ground', x: 50, y: 12 },
       ]);
     case 'vl53l0x':
       return withSvgLayout([
@@ -918,6 +930,11 @@ export function getDefaultProperties(type: ComponentType): Record<string, string
       return { angle: 0, stepsPerRevolution: 2048 };
     case 'l298n-driver':
       return { pwmA: 0, pwmB: 0, enabledA: false, enabledB: false };
+    case 'li-ion-battery':
+      // A single 18650 by default; the terminal voltage follows the charge.
+      return { cells: 1, chargePercent: 100, capacityMah: 2600 };
+    case 'li-po-battery':
+      return { cells: 3, chargePercent: 100, capacityMah: 2200 };
     case 'bts7960-driver':
       // The first four mirror what the simulation is doing; motorCurrentA is the
       // load the user says the motor draws, and it drives the R_IS / L_IS pins.
@@ -1155,6 +1172,8 @@ export const COMPONENT_CATALOG: ComponentInfo[] = [
   { type: 'sx1276-lora', name: 'SX1276 LoRa Module', category: 'Other', icon: 'LORA' },
   { type: 'a4988-driver', name: 'A4988 Stepper Driver', category: 'Other', icon: 'A4988' },
   { type: 'bts7960-driver', name: 'BTS7960 Motor Driver', category: 'Other', icon: 'BTS' },
+  { type: 'li-ion-battery', name: 'Li-ion Battery', category: 'Other', icon: 'LI' },
+  { type: 'li-po-battery', name: 'Li-Po Battery', category: 'Other', icon: 'LIPO' },
   { type: 'multimeter', name: 'Digital Multimeter', category: 'Other', icon: 'DMM' },
   { type: 'oscilloscope', name: 'Oscilloscope', category: 'Other', icon: 'OSC' },
   { type: 'motor-driver', name: 'Motor Driver', category: 'Other', icon: 'DRV' },

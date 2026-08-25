@@ -9,6 +9,8 @@ import {
   getMultimeterModeLabel,
   getMultimeterStatusLabel,
   getOscilloscopeStatusLabel,
+  getDamageLabel,
+  getPinTypeLabel,
   getPropertyDisplayName,
   t,
 } from '../lib/i18n';
@@ -152,6 +154,8 @@ const PropertiesPanel: React.FC = () => {
     'redProbeTargetPinId',
   ]);
   const oscilloscopeReadOnlyKeys = new Set(['reading', 'displayText', 'status']);
+  // Shown as one red line of its own rather than three raw rows.
+  const damageKeys = new Set(['damaged', 'damageReason', 'damageDetail']);
   const liveProperties = simulation.componentStates[selectedComp.id] ?? null;
   const displayComp =
     simulation.running && liveProperties
@@ -260,12 +264,27 @@ const PropertiesPanel: React.FC = () => {
         </div>
       </div>
 
+      {displayComp.properties.damaged === true && (
+        <div className="property-group">
+          <div className="property-row">
+            <span className="property-label">{t(language, 'damageStatus')}</span>
+            <span style={{ fontSize: 11, color: '#ff6b6b', textAlign: 'right' }}>
+              {getDamageLabel(language, String(displayComp.properties.damageReason ?? ''))}
+              {displayComp.properties.damageDetail
+                ? ` (${displayComp.properties.damageDetail})`
+                : ''}
+            </span>
+          </div>
+        </div>
+      )}
+
       <div className="property-group">
         <div className="property-group-title">
           {t(language, 'values')}
-          {simulation.running && liveProperties ? ' (Live)' : ''}
+          {simulation.running && liveProperties ? ` (${t(language, 'live')})` : ''}
         </div>
         {Object.entries(displayComp.properties)
+          .filter(([key]) => !damageKeys.has(key))
           .filter(([key]) =>
             displayComp.type === 'multimeter' ? !multimeterHiddenKeys.has(key) : true
           )
@@ -292,7 +311,7 @@ const PropertiesPanel: React.FC = () => {
                 {key === 'status'
                   ? getMultimeterStatusLabel(language, String(value))
                   : typeof value === 'boolean'
-                    ? (value ? 'ON' : 'OFF')
+                    ? t(language, value ? 'on' : 'off')
                     : String(value)}
               </span>
             ) : displayComp.type === 'oscilloscope' && oscilloscopeReadOnlyKeys.has(key) ? (
@@ -383,7 +402,7 @@ const PropertiesPanel: React.FC = () => {
               {pin.name}
             </span>
             <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
-              {pin.type}
+              {getPinTypeLabel(language, pin.type)}
             </span>
           </div>
         ))}

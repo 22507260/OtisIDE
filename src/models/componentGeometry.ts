@@ -122,6 +122,10 @@ import a4988DriverSvg from '../assets/components/a4988-driver.svg';
 import a4988DriverSvgRaw from '../assets/components/a4988-driver.svg?raw';
 import bts7960DriverSvg from '../assets/components/bts7960-driver.svg';
 import bts7960DriverSvgRaw from '../assets/components/bts7960-driver.svg?raw';
+import liIonBatterySvg from '../assets/components/li-ion-battery.svg';
+import liIonBatterySvgRaw from '../assets/components/li-ion-battery.svg?raw';
+import liPoBatterySvg from '../assets/components/li-po-battery.svg';
+import liPoBatterySvgRaw from '../assets/components/li-po-battery.svg?raw';
 import transistorNpnSvg from '../assets/components/transistor-npn.svg';
 import transistorNpnSvgRaw from '../assets/components/transistor-npn.svg?raw';
 import transistorPnpSvg from '../assets/components/transistor-pnp.svg';
@@ -318,6 +322,8 @@ export const SVG_CONFIGS: Record<ComponentType, SvgConfig> = {
   'sx1276-lora':  { url: sx1276LoraSvg,    raw: sx1276LoraSvgRaw,    width: 104, height: 62, offsetX: 48,  offsetY: 29 },
   'a4988-driver': { url: a4988DriverSvg,   raw: a4988DriverSvgRaw,   width: 78,  height: 102, offsetX: 39,  offsetY: 30 },
   'bts7960-driver': { url: bts7960DriverSvg, raw: bts7960DriverSvgRaw, width: 140, height: 116, offsetX: 70, offsetY: 58 },
+  'li-ion-battery': { url: liIonBatterySvg, raw: liIonBatterySvgRaw, width: 128, height: 58, offsetX: 64, offsetY: 29 },
+  'li-po-battery': { url: liPoBatterySvg,  raw: liPoBatterySvgRaw,  width: 120, height: 76, offsetX: 60, offsetY: 38 },
   'transistor-npn': { url: transistorNpnSvg, raw: transistorNpnSvgRaw, width: 22, height: 32, offsetX: 11, offsetY: 8 },
   'transistor-pnp': { url: transistorPnpSvg, raw: transistorPnpSvgRaw, width: 22, height: 32, offsetX: 11, offsetY: 8 },
   relay:          { url: relaySvg,         raw: relaySvgRaw,         width: 52,  height: 42, offsetX: 26,  offsetY: 14 },

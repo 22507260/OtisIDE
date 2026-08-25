@@ -237,9 +237,11 @@ const loadProjectDraft = (): ProjectData | null => {
   }
 };
 
+// Turkish is what the program is written for, so that is what it opens in;
+// anyone who picked English keeps English.
 const loadLanguage = (): AppLanguage => {
   const stored = readStorage(APP_LANGUAGE_STORAGE_KEY);
-  return stored === 'tr' ? 'tr' : 'en';
+  return stored === 'en' ? 'en' : 'tr';
 };
 
 const loadAIProvider = (): AIProvider => {
