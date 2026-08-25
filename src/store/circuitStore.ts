@@ -13,6 +13,10 @@ import {
   createComponent,
   ComponentType,
   WIRE_COLORS,
+  WIRE_MIN_WIDTH,
+  WIRE_MAX_WIDTH,
+  WIRE_DEFAULT_WIDTH,
+  WIRE_WIDTH_STEP,
 } from '../models/types';
 import {
   type AppLanguage,
@@ -107,6 +111,9 @@ interface CircuitStore {
     position: { x: number; y: number }
   ) => void;
   setWireColorById: (id: string, color: string) => void;
+  setWireWidthById: (id: string, width: number) => void;
+  thickenWire: (id: string) => void;
+  thinWire: (id: string) => void;
   selectWire: (id: string | null) => void;
   setWireColor: (color: string) => void;
 
@@ -827,6 +834,29 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
     set((s) => ({
       wires: s.wires.map((item) => (item.id === id ? { ...item, color } : item)),
     }));
+  },
+
+  setWireWidthById: (id, width) => {
+    const wire = get().wires.find((item) => item.id === id);
+    const clamped = Math.min(WIRE_MAX_WIDTH, Math.max(WIRE_MIN_WIDTH, width));
+    if (!wire || wire.width === clamped) return;
+
+    pushUndoSnapshot();
+    set((s) => ({
+      wires: s.wires.map((item) => (item.id === id ? { ...item, width: clamped } : item)),
+    }));
+  },
+
+  thickenWire: (id) => {
+    const wire = get().wires.find((item) => item.id === id);
+    if (!wire) return;
+    get().setWireWidthById(id, (wire.width ?? WIRE_DEFAULT_WIDTH) + WIRE_WIDTH_STEP);
+  },
+
+  thinWire: (id) => {
+    const wire = get().wires.find((item) => item.id === id);
+    if (!wire) return;
+    get().setWireWidthById(id, (wire.width ?? WIRE_DEFAULT_WIDTH) - WIRE_WIDTH_STEP);
   },
 
   removeWire: (id) => {

@@ -1,6 +1,12 @@
 import React from 'react';
 import { useCircuitStore } from '../store/circuitStore';
-import { COMPONENT_CATALOG, WIRE_COLORS } from '../models/types';
+import {
+  COMPONENT_CATALOG,
+  WIRE_COLORS,
+  WIRE_DEFAULT_WIDTH,
+  WIRE_MIN_WIDTH,
+  WIRE_MAX_WIDTH,
+} from '../models/types';
 import { ARDUINO_COMPONENT_ID, getControllerBoardDefinition } from '../models/arduinoUno';
 import { BREADBOARD_COMPONENT_ID, getBreadboardHoleGlobal } from '../models/breadboard';
 import {
@@ -27,6 +33,8 @@ const PropertiesPanel: React.FC = () => {
   const boardType = useCircuitStore((s) => s.boardType);
   const breadboardPosition = useCircuitStore((s) => s.breadboardPosition);
   const setWireColorById = useCircuitStore((s) => s.setWireColorById);
+  const thickenWire = useCircuitStore((s) => s.thickenWire);
+  const thinWire = useCircuitStore((s) => s.thinWire);
   const removeWire = useCircuitStore((s) => s.removeWire);
   const components = useCircuitStore((s) => s.components);
   const simulation = useCircuitStore((s) => s.simulation);
@@ -92,6 +100,33 @@ const PropertiesPanel: React.FC = () => {
                 type="button"
               />
             ))}
+          </div>
+        </div>
+
+        <div className="property-group">
+          <div className="property-group-title">{t(language, 'wireWidthTitle')}</div>
+          <div className="property-row">
+            <button
+              className="toolbar-btn"
+              type="button"
+              title={t(language, 'thinWire')}
+              disabled={(selectedWire.width ?? WIRE_DEFAULT_WIDTH) <= WIRE_MIN_WIDTH}
+              onClick={() => thinWire(selectedWire.id)}
+            >
+              −
+            </button>
+            <span style={{ fontSize: 11, color: 'var(--text-secondary)', minWidth: 32, textAlign: 'center' }}>
+              {(selectedWire.width ?? WIRE_DEFAULT_WIDTH).toFixed(1)}
+            </span>
+            <button
+              className="toolbar-btn"
+              type="button"
+              title={t(language, 'thickenWire')}
+              disabled={(selectedWire.width ?? WIRE_DEFAULT_WIDTH) >= WIRE_MAX_WIDTH}
+              onClick={() => thickenWire(selectedWire.id)}
+            >
+              +
+            </button>
           </div>
         </div>
 

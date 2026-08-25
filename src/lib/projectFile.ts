@@ -6,6 +6,8 @@ import {
   PinType,
   Wire,
   WIRE_COLORS,
+  WIRE_MIN_WIDTH,
+  WIRE_MAX_WIDTH,
   getDefaultPins,
 } from '../models/types';
 import {
@@ -174,6 +176,11 @@ const sanitizeWires = (value: unknown, components: CircuitComponent[]): Wire[] =
       ? item.points.filter((point): point is number => Number.isFinite(point))
       : [];
 
+    const width =
+      typeof item.width === 'number' && Number.isFinite(item.width)
+        ? Math.min(WIRE_MAX_WIDTH, Math.max(WIRE_MIN_WIDTH, item.width))
+        : undefined;
+
     return [
       {
         id: typeof item.id === 'string' && item.id ? item.id : uuidv4(),
@@ -183,6 +190,7 @@ const sanitizeWires = (value: unknown, components: CircuitComponent[]): Wire[] =
         endPinId,
         color: typeof item.color === 'string' ? item.color : WIRE_COLORS[0].value,
         points: points.length >= 4 ? points : [0, 0, 0, 0],
+        ...(width !== undefined ? { width } : {}),
       },
     ];
   });

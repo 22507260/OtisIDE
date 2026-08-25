@@ -105,7 +105,14 @@ export interface Wire {
   endPinId: string;
   color: string;
   points: number[];
+  /** Stroke width of the cable, in canvas units. Defaults to WIRE_DEFAULT_WIDTH. */
+  width?: number;
 }
+
+export const WIRE_MIN_WIDTH = 1.6;
+export const WIRE_MAX_WIDTH = 7.2;
+export const WIRE_DEFAULT_WIDTH = 3.2;
+export const WIRE_WIDTH_STEP = 0.8;
 
 export interface OscilloscopeSample {
   timeMs: number;

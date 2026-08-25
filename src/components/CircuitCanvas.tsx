@@ -8,6 +8,7 @@ import {
   Pin,
   SimulationState,
   getDefaultPins,
+  WIRE_DEFAULT_WIDTH,
 } from '../models/types';
 import {
   ARDUINO_COMPONENT_ID,
@@ -2005,10 +2006,16 @@ const CircuitCanvas: React.FC = () => {
       const selWireId = useCircuitStore.getState().selectedWireId;
 
       switch (e.key.toLowerCase()) {
-        case 'v': setToolMode('select'); break;
+        case 's': setToolMode('select'); break;
         case 'w': setToolMode('wire'); break;
-        case 'h': setToolMode('pan'); break;
+        case 'p': setToolMode('pan'); break;
         case 'd': setToolMode('delete'); break;
+        case '[':
+          if (selWireId) useCircuitStore.getState().thinWire(selWireId);
+          break;
+        case ']':
+          if (selWireId) useCircuitStore.getState().thickenWire(selWireId);
+          break;
         case 'delete':
         case 'backspace':
           if (wiringStateRef.current.active && wiringStateRef.current.bendCount > 0) {
@@ -3266,6 +3273,7 @@ const CircuitCanvas: React.FC = () => {
           {/* Wires - 3D style */}
           {wires.map((wire) => {
             const isWireSelected = selectedWireId === wire.id;
+            const wireWidth = wire.width ?? WIRE_DEFAULT_WIDTH;
             const bendIndices: number[] = [];
             for (let i = 2; i + 2 < wire.points.length; i += 2) {
               bendIndices.push(i);
@@ -3273,9 +3281,9 @@ const CircuitCanvas: React.FC = () => {
             return (
               <Group key={wire.id}>
                 {/* Shadow */}
-                <Line points={wire.points.map((v, i) => i % 2 === 1 ? v + 1.5 : v)} stroke="#000" strokeWidth={4} opacity={0.2} lineCap="round" lineJoin="miter" listening={false} />
+                <Line points={wire.points.map((v, i) => i % 2 === 1 ? v + 1.5 : v)} stroke="#000" strokeWidth={wireWidth + 0.8} opacity={0.2} lineCap="round" lineJoin="miter" listening={false} />
                 {/* Main cable */}
-                <Line points={wire.points} stroke={wire.color} strokeWidth={3.2} lineCap="round" lineJoin="miter" hitStrokeWidth={12}
+                <Line points={wire.points} stroke={wire.color} strokeWidth={wireWidth} lineCap="round" lineJoin="miter" hitStrokeWidth={Math.max(12, wireWidth + 8)}
                   onClick={() => {
                     if (toolMode === 'delete') { removeWire(wire.id); }
                     else {
@@ -3294,10 +3302,10 @@ const CircuitCanvas: React.FC = () => {
                   }}
                 />
                 {/* Highlight stripe */}
-                <Line points={wire.points.map((v, i) => i % 2 === 1 ? v - 0.6 : v)} stroke="#fff" strokeWidth={0.8} opacity={0.25} lineCap="round" lineJoin="miter" listening={false} />
+                <Line points={wire.points.map((v, i) => i % 2 === 1 ? v - 0.6 : v)} stroke="#fff" strokeWidth={wireWidth * 0.25} opacity={0.25} lineCap="round" lineJoin="miter" listening={false} />
                 {/* Selection indicator */}
                 {isWireSelected && (
-                  <Line points={wire.points} stroke="#fff" strokeWidth={5} dash={[4, 4]} opacity={0.5} lineCap="round" lineJoin="miter" listening={false} />
+                  <Line points={wire.points} stroke="#fff" strokeWidth={wireWidth + 1.8} dash={[4, 4]} opacity={0.5} lineCap="round" lineJoin="miter" listening={false} />
                 )}
                 {/* Bend handles: drag to reshape, double-click to remove */}
                 {isWireSelected && toolMode === 'select' &&
