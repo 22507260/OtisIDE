@@ -25,6 +25,12 @@ type RuntimeCallbacks = {
   clearComponentStates: () => void;
   /** Current digital/PWM value per pin id, 0-255. Drives the onboard LED. */
   setPinStates: (states: Record<string, number>) => void;
+  /**
+   * A statement blew up while running — the interpreter caught it instead of
+   * letting it crash the app. Optional so existing callback objects (tests,
+   * mainly) don't all need updating for a failure mode they don't exercise.
+   */
+  reportRuntimeError?: (message: string) => void;
 };
 
 type Command =
@@ -2402,7 +2408,20 @@ function executeRuntimeStatements(
 
     const current = statements[index];
     index += 1;
-    executeRuntimeStatement(current, context, next);
+
+    // A statement can misbehave (bad index, a call the sketch shouldn't be
+    // making, etc.) at any point — including inside a delay() callback that
+    // fires ticks after this function returned, well outside any try/catch
+    // an outer caller could set up. Catching it here, at the one place every
+    // statement funnels through, stops the sketch cleanly instead of taking
+    // the whole renderer down with it.
+    try {
+      executeRuntimeStatement(current, context, next);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      context.callbacks.addSerialOutput(`[!] ${message}`);
+      context.callbacks.reportRuntimeError?.(message);
+    }
   };
 
   next();

@@ -1,6 +1,7 @@
 ﻿import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import { Stage, Layer, Group, Rect, Line, Circle, Shape, Text, Image as KonvaImage } from 'react-konva';
 import { useCircuitStore } from '../store/circuitStore';
+import { useHardwareStore } from '../store/hardwareStore';
 import {
   CircuitComponent,
   COMPONENT_CATALOG,
@@ -67,11 +68,6 @@ const WIRE_BEND_HANDLE_RADIUS = 4.5;
 const WIRE_PLUG_HANDLE_RADIUS = 6;
 const SNAP_RADIUS_SQ = (HOLE_SP * 2.5) ** 2;
 const WIRE_PIN_RADIUS = 6;
-const WIRE_PIN_FANOUT_RADIUS = 8;
-const WIRE_PIN_FANOUT_OFFSET = 24;
-const WIRE_PIN_FANOUT_SPACING = 22;
-const DENSE_PIN_THRESHOLD = 20;
-const MAX_FANOUT_PINS = 6;
 const BREADBOARD_WIRE_SNAP_RADIUS_SQ = (HOLE_SP * 1.8) ** 2;
 const PROBE_SNAP_RADIUS_SQ = (HOLE_SP * 1.8) ** 2;
 const PROBE_DOCK_SNAP_RADIUS_SQ = 24 ** 2;
@@ -85,8 +81,6 @@ type WirePinHandle = {
   pin: Pin;
   targetX: number;
   targetY: number;
-  expanded: boolean;
-  label: string;
 };
 
 type ResistorBandOverlay = {
@@ -437,74 +431,14 @@ export function snapToBreadboard(
   return { x: snapToGrid(x), y: snapToGrid(y) };
 }
 
-function getPinHandleLabel(pin: Pin): string {
-  const compactId = pin.id.replace(/[^a-z0-9+-]/gi, '').toUpperCase();
-  if (compactId.length <= 4) return compactId;
-  return compactId.slice(0, 4);
-}
-
+// Every wire always starts and ends exactly on the pin's own tip — no fanned-out
+// stand-in target away from the leg, even when several pins sit close together.
 function getWirePinHandles(pins: Pin[]): WirePinHandle[] {
-  if (pins.length === 0) return [];
-
-  let minDistance = Infinity;
-  for (let i = 0; i < pins.length; i++) {
-    for (let j = i + 1; j < pins.length; j++) {
-      const dx = pins[i].x - pins[j].x;
-      const dy = pins[i].y - pins[j].y;
-      minDistance = Math.min(minDistance, Math.sqrt(dx * dx + dy * dy));
-    }
-  }
-
-  const shouldFanOut =
-    pins.length > 1 &&
-    pins.length <= MAX_FANOUT_PINS &&
-    minDistance < DENSE_PIN_THRESHOLD;
-
-  if (!shouldFanOut) {
-    return pins.map((pin) => ({
-      pin,
-      targetX: pin.x,
-      targetY: pin.y,
-      expanded: false,
-      label: getPinHandleLabel(pin),
-    }));
-  }
-
-  const minX = Math.min(...pins.map((pin) => pin.x));
-  const maxX = Math.max(...pins.map((pin) => pin.x));
-  const minY = Math.min(...pins.map((pin) => pin.y));
-  const maxY = Math.max(...pins.map((pin) => pin.y));
-  const horizontalSpread = maxX - minX;
-  const verticalSpread = maxY - minY;
-  const sortByHorizontal = horizontalSpread >= verticalSpread;
-  const sortedPins = [...pins].sort((a, b) =>
-    sortByHorizontal
-      ? a.x - b.x || a.y - b.y
-      : a.y - b.y || a.x - b.x
-  );
-  const startOffset = ((sortedPins.length - 1) * WIRE_PIN_FANOUT_SPACING) / 2;
-  const centerX = (minX + maxX) / 2;
-  const centerY = (minY + maxY) / 2;
-  const handleTargets = new Map<string, { x: number; y: number }>();
-
-  sortedPins.forEach((pin, index) => {
-    const offset = index * WIRE_PIN_FANOUT_SPACING - startOffset;
-    const target = sortByHorizontal
-      ? { x: centerX + offset, y: minY - WIRE_PIN_FANOUT_OFFSET }
-      : { x: maxX + WIRE_PIN_FANOUT_OFFSET, y: centerY + offset };
-    handleTargets.set(pin.id, target);
-  });
-
-  return pins.map((pin) => {
-    const target = handleTargets.get(pin.id) ?? { x: pin.x, y: pin.y };
-    return {
-      pin,
-      targetX: target.x,
-      targetY: target.y,
-      expanded: true,
-      label: getPinHandleLabel(pin),
-    };
-  });
+  return pins.map((pin) => ({
+    pin,
+    targetX: pin.x,
+    targetY: pin.y,
+  }));
 }
 
 const BATTERY_LABEL_LAYOUT: Partial<Record<ComponentType, { y: number; fontSize: number; color: string }>> = {
@@ -526,33 +460,65 @@ function componentArtworkBottom(type: ComponentType): number {
  * sketch with no setup()/loop() to run at all. Both are cheap to notice from
  * state the simulation already publishes, so this needs no extra plumbing.
  */
+type CircuitWarning = {
+  id: string;
+  text: string;
+  /** Present only for a warning that points at one specific part. */
+  componentId?: string;
+  /** Present only for a warning whose detail lives in a bottom-panel tab. */
+  jumpToTab?: 'serial' | 'device';
+};
+
 function computeCircuitWarnings(
   language: 'en' | 'tr',
   running: boolean,
   code: string,
   components: CircuitComponent[],
-  componentStates: SimulationState['componentStates']
-): string[] {
-  if (!running) return [];
-  const warnings: string[] = [];
+  componentStates: SimulationState['componentStates'],
+  runtimeError: string | null,
+  hardwareError: string | null
+): CircuitWarning[] {
+  const warnings: CircuitWarning[] = [];
 
-  const damagedNames = components
-    .filter((comp) => componentStates[comp.id]?.damaged === true)
-    .map((comp) => {
+  if (running) {
+    // Each burned part gets its own line — and its own click target — instead
+    // of one flattened "N parts burned" sentence nobody can act on.
+    for (const comp of components) {
+      const state = componentStates[comp.id];
+      if (state?.damaged !== true) continue;
+
       const info = COMPONENT_CATALOG.find((item) => item.type === comp.type);
-      return getComponentDisplayName(language, comp.type, info?.name ?? comp.type);
-    });
-  if (damagedNames.length > 0) {
-    warnings.push(
-      t(language, 'circuitWarningDamaged', {
-        count: damagedNames.length,
-        names: damagedNames.join(', '),
-      })
-    );
+      const name = getComponentDisplayName(language, comp.type, info?.name ?? comp.type);
+      const reason = getDamageLabel(language, String(state.damageReason ?? ''));
+      warnings.push({
+        id: `damaged-${comp.id}`,
+        text: `${name} — ${reason}`,
+        componentId: comp.id,
+      });
+    }
+
+    if (!/void\s+setup\s*\(/.test(code) || !/void\s+loop\s*\(/.test(code)) {
+      warnings.push({ id: 'no-code', text: t(language, 'circuitWarningNoCode') });
+    }
+
+    if (runtimeError) {
+      warnings.push({
+        id: 'runtime-error',
+        text: t(language, 'circuitWarningRuntimeError', { error: runtimeError }),
+        jumpToTab: 'serial',
+      });
+    }
   }
 
-  if (!/void\s+setup\s*\(/.test(code) || !/void\s+loop\s*\(/.test(code)) {
-    warnings.push(t(language, 'circuitWarningNoCode'));
+  if (hardwareError) {
+    // Compiler output can run to many lines; the banner shows just the first
+    // and the rest waits in the device console it links to.
+    const firstLine = hardwareError.split('\n')[0].trim();
+    warnings.push({
+      id: 'hardware-error',
+      text: firstLine.length > 160 ? `${firstLine.slice(0, 160)}…` : firstLine,
+      jumpToTab: 'device',
+    });
   }
 
   return warnings;
@@ -1717,6 +1683,15 @@ const CircuitCanvas: React.FC = () => {
   const stageRef = useRef<Konva.Stage>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const activeDragRef = useRef<{ componentId: string; node: Konva.Group | null } | null>(null);
+  /**
+   * Only set while dragging with the *entire* circuit selected — that's the
+   * one case where towing the rest along is what the user wants, so the board
+   * can be repositioned as a block instead of one part at a time.
+   */
+  const groupDragRef = useRef<{
+    origin: { x: number; y: number };
+    others: Array<{ id: string; x: number; y: number }>;
+  } | null>(null);
   const draggedComponentPositionsRef = useRef<Record<string, { x: number; y: number }>>({});
   const breadboardDragRef = useRef<{
     startPosition: { x: number; y: number };
@@ -1757,10 +1732,34 @@ const CircuitCanvas: React.FC = () => {
   const boardPosition = useCircuitStore((s) => s.boardPosition);
   const breadboardPosition = useCircuitStore((s) => s.breadboardPosition);
   const language = useCircuitStore((s) => s.language);
+  const setBottomTab = useCircuitStore((s) => s.setBottomTab);
+  const bottomPanelCollapsed = useCircuitStore((s) => s.bottomPanelCollapsed);
+  const toggleBottomPanel = useCircuitStore((s) => s.toggleBottomPanel);
+  const hardwareError = useHardwareStore((s) => s.lastError);
   const circuitWarnings = useMemo(
-    () => computeCircuitWarnings(language, simulation.running, code, components, simulation.componentStates),
-    [language, simulation.running, code, components, simulation.componentStates]
+    () =>
+      computeCircuitWarnings(
+        language,
+        simulation.running,
+        code,
+        components,
+        simulation.componentStates,
+        simulation.runtimeError,
+        hardwareError
+      ),
+    [
+      language,
+      simulation.running,
+      code,
+      components,
+      simulation.componentStates,
+      simulation.runtimeError,
+      hardwareError,
+    ]
   );
+  const warningsKey = circuitWarnings.map((warning) => warning.id).join('|');
+  const [dismissedWarningsKey, setDismissedWarningsKey] = useState<string | null>(null);
+  const visibleWarnings = warningsKey === dismissedWarningsKey ? [] : circuitWarnings;
 
   const setZoom = useCircuitStore((s) => s.setZoom);
   const setStagePos = useCircuitStore((s) => s.setStagePos);
@@ -2082,6 +2081,13 @@ const CircuitCanvas: React.FC = () => {
         return;
       }
 
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
+        e.preventDefault();
+        const state = useCircuitStore.getState();
+        state.selectComponents(state.components.map((component) => component.id));
+        return;
+      }
+
       // Both of the shapes Windows editors use for redo.
       if (
         (e.ctrlKey || e.metaKey) &&
@@ -2092,6 +2098,18 @@ const CircuitCanvas: React.FC = () => {
           useCircuitStore.getState().redo();
           clearTransientCanvasState();
         }
+        return;
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent('trigger-save'));
+        return;
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'o') {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent('trigger-open'));
         return;
       }
 
@@ -2655,7 +2673,11 @@ const CircuitCanvas: React.FC = () => {
     [resolveProbeSnapTargetAtPosition, resolveWireEndpointPosition, updateWireEndpoint, updateWirePoints]
   );
 
-  const finalizeComponentDrag = useCallback((comp: CircuitComponent, node: Konva.Group) => {
+  const finalizeComponentDrag = useCallback((
+    comp: CircuitComponent,
+    node: Konva.Group,
+    options?: { recordHistory?: boolean }
+  ) => {
     const snapped = snapToBreadboard(
       node.x(),
       node.y(),
@@ -2668,7 +2690,7 @@ const CircuitCanvas: React.FC = () => {
     const newY = snapped.y;
     node.x(newX);
     node.y(newY);
-    updateComponent(comp.id, { x: newX, y: newY });
+    updateComponent(comp.id, { x: newX, y: newY }, options);
   }, [breadboardPosition, updateComponent]);
 
   useEffect(() => {
@@ -2826,8 +2848,19 @@ const CircuitCanvas: React.FC = () => {
       selectComponent(comp.id);
     }
 
+    const wholeCircuitSelected =
+      components.length > 1 && selectedComponentIds.length === components.length;
+    groupDragRef.current = wholeCircuitSelected
+      ? {
+          origin: { x: comp.x, y: comp.y },
+          others: components
+            .filter((item) => item.id !== comp.id)
+            .map((item) => ({ id: item.id, x: item.x, y: item.y })),
+        }
+      : null;
+
     setRightTab('properties');
-  }, [closeContextMenu, selectComponent, selectedComponentIds, setRightTab]);
+  }, [closeContextMenu, components, selectComponent, selectedComponentIds, setRightTab]);
 
   const handleDragMove = useCallback((comp: CircuitComponent, e: Konva.KonvaEventObject<DragEvent>) => {
     if (comp.type !== 'multimeter') return;
@@ -2859,12 +2892,27 @@ const CircuitCanvas: React.FC = () => {
     }
     activeDragRef.current = null;
 
-    finalizeComponentDrag(comp, e.target as Konva.Group);
+    const group = groupDragRef.current;
+    groupDragRef.current = null;
+    const dx = group ? e.target.x() - group.origin.x : 0;
+    const dy = group ? e.target.y() - group.origin.y : 0;
+    const isGroupMove = Boolean(group) && group!.others.length > 0 && (dx !== 0 || dy !== 0);
+
+    if (isGroupMove) {
+      // One snapshot for the whole block, taken before anything moves — otherwise
+      // each part's own updateComponent call would need its own undo step.
+      captureUndoSnapshot();
+      for (const other of group!.others) {
+        updateComponent(other.id, { x: other.x + dx, y: other.y + dy }, { recordHistory: false });
+      }
+    }
+
+    finalizeComponentDrag(comp, e.target as Konva.Group, isGroupMove ? { recordHistory: false } : undefined);
     if (comp.type === 'multimeter') {
       delete draggedComponentPositionsRef.current[comp.id];
       setDragPreviewVersion((version) => version + 1);
     }
-  }, [finalizeComponentDrag]);
+  }, [captureUndoSnapshot, finalizeComponentDrag, updateComponent]);
 
   const handleBoardDragStart = useCallback(() => {
     captureUndoSnapshot();
@@ -3553,49 +3601,10 @@ const CircuitCanvas: React.FC = () => {
 
                   return (
                     <Group key={handle.pin.id}>
-                      {handle.expanded && (
-                        <>
-                          <Line
-                            points={[
-                              handle.pin.x,
-                              handle.pin.y,
-                              handle.targetX,
-                              handle.targetY,
-                            ]}
-                            stroke="#4ecca3"
-                            strokeWidth={1.5}
-                            dash={[3, 3]}
-                            opacity={0.65}
-                            listening={false}
-                          />
-                          <Circle
-                            x={handle.pin.x}
-                            y={handle.pin.y}
-                            radius={3}
-                            fill="#4ecca3"
-                            opacity={0.9}
-                            listening={false}
-                          />
-                          <Text
-                            text={handle.label}
-                            x={handle.targetX - 12}
-                            y={handle.targetY - 18}
-                            width={24}
-                            align="center"
-                            fontSize={7}
-                            fill="#d5f5ea"
-                            listening={false}
-                          />
-                        </>
-                      )}
                       <Circle
                         x={handle.targetX}
                         y={handle.targetY}
-                        radius={
-                          handle.expanded
-                            ? WIRE_PIN_FANOUT_RADIUS
-                            : WIRE_PIN_RADIUS
-                        }
+                        radius={WIRE_PIN_RADIUS}
                         fill={
                           isSelectedPin
                             ? 'rgba(255, 255, 255, 0.28)'
@@ -3799,15 +3808,67 @@ const CircuitCanvas: React.FC = () => {
         {Math.round(zoom * 100)}% | {t(language, 'componentsLabel')}: {components.length} | {t(language, 'wiresLabel')}: {wires.length}
       </div>
 
-      {/* Circuit warnings — burned parts, a sketch with nothing to run, etc. */}
-      {circuitWarnings.length > 0 && (
+      {/* Circuit warnings — burned parts, a sketch with nothing to run, a failed verify, etc. */}
+      {visibleWarnings.length > 0 && (
         <div className="circuit-warnings">
-          <div className="circuit-warnings-title">⚠ {t(language, 'circuitWarningsTitle')}</div>
-          {circuitWarnings.map((warning, index) => (
-            <div key={index} className="circuit-warnings-item">
-              {warning}
+          <div className="circuit-warnings-header">
+            <div className="circuit-warnings-title">
+              <svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true">
+                <path
+                  d="M12 3.5 22 20.5H2z"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinejoin="round"
+                />
+                <rect x="11.1" y="9.5" width="1.8" height="5.5" rx="0.9" fill="currentColor" />
+                <circle cx="12" cy="17.3" r="1" fill="currentColor" />
+              </svg>
+              {t(language, 'circuitWarningsTitle')}
             </div>
-          ))}
+            <button
+              type="button"
+              className="circuit-warnings-dismiss"
+              aria-label={t(language, 'close')}
+              onClick={() => setDismissedWarningsKey(warningsKey)}
+            >
+              ×
+            </button>
+          </div>
+          {visibleWarnings.map((warning) => {
+            const clickable = Boolean(warning.componentId || warning.jumpToTab);
+            const onActivate = () => {
+              if (warning.componentId) {
+                selectComponent(warning.componentId);
+                setRightTab('properties');
+              } else if (warning.jumpToTab) {
+                setBottomTab(warning.jumpToTab);
+                if (bottomPanelCollapsed) toggleBottomPanel();
+              }
+            };
+
+            return (
+              <div
+                key={warning.id}
+                className={`circuit-warnings-item${clickable ? ' is-clickable' : ''}`}
+                role={clickable ? 'button' : undefined}
+                tabIndex={clickable ? 0 : undefined}
+                onClick={clickable ? onActivate : undefined}
+                onKeyDown={
+                  clickable
+                    ? (event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          onActivate();
+                        }
+                      }
+                    : undefined
+                }
+              >
+                {warning.text}
+              </div>
+            );
+          })}
         </div>
       )}
 

@@ -409,3 +409,52 @@ describe('RGB LED', () => {
     }
   });
 });
+
+describe('runtime error resilience', () => {
+  it('reports a statement that throws instead of letting it escape the runtime', async () => {
+    let addSerialOutputCalls = 0;
+    let reportedError: string | null = null;
+    let escaped = false;
+
+    const code = `
+      void setup() {
+        Serial.begin(9600);
+        Serial.println("hi");
+      }
+      void loop() { delay(50); }
+    `;
+
+    try {
+      await new Promise<void>((resolve) => {
+        startMockArduinoRuntime(code, [], [], BOARD_PINS, 5, {
+          // Fails once, on the statement that first touches the serial
+          // output — exactly the kind of mid-statement blow-up the runtime's
+          // own try/catch exists to contain. Failing only once (not on every
+          // call) also lets the runtime's own error-reporting line, a couple
+          // of frames down, succeed normally.
+          addSerialOutput: () => {
+            addSerialOutputCalls += 1;
+            if (addSerialOutputCalls === 1) {
+              throw new Error('boom');
+            }
+          },
+          pushOscilloscopeSample: () => {},
+          setLedState: () => {},
+          clearLedStates: () => {},
+          setComponentState: () => {},
+          clearComponentStates: () => {},
+          setPinStates: () => {},
+          reportRuntimeError: (message) => {
+            reportedError = message;
+          },
+        });
+        setTimeout(resolve, 300);
+      });
+    } catch {
+      escaped = true;
+    }
+
+    expect(escaped).toBe(false);
+    expect(reportedError).toBe('boom');
+  });
+});

@@ -133,6 +133,8 @@ export interface SimulationState {
   componentStates: Record<string, Record<string, string | number | boolean>>;
   serialOutput: string[];
   oscilloscopeTraces: Record<string, OscilloscopeSample[]>;
+  /** Set when a sketch statement threw instead of running cleanly. */
+  runtimeError: string | null;
 }
 
 export interface AIMessage {

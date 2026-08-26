@@ -410,87 +410,106 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
 
   const startRuntime = () => {
     const state = get();
-    startMockArduinoRuntime(
-      state.code,
-      state.components,
-      state.wires,
-      getControllerBoardPins(state.boardType),
-      getBoardLogicHighVoltage(state.boardType),
-      {
-      addSerialOutput: (text) =>
-        set((s) => ({
-          simulation: {
-            ...s.simulation,
-            serialOutput: [...s.simulation.serialOutput, text].slice(-200),
-          },
-        })),
-      pushOscilloscopeSample: (componentId, sample) =>
-        set((s) => {
-          const currentTrace = s.simulation.oscilloscopeTraces[componentId] ?? [];
-          const lastSample = currentTrace[currentTrace.length - 1];
-          const nextTrace =
-            lastSample &&
-            lastSample.timeMs === sample.timeMs &&
-            Math.abs(lastSample.voltage - sample.voltage) < 0.0001
-              ? currentTrace
-              : [...currentTrace, sample].slice(-600);
+    // Setting a circuit up (parsing the sketch, building the connectivity
+    // graph) all happens synchronously before a single statement runs, so a
+    // bad sketch can throw here too — outside the reach of the interpreter's
+    // own per-statement try/catch. Guard it the same way: log it, don't crash.
+    try {
+      startMockArduinoRuntime(
+        state.code,
+        state.components,
+        state.wires,
+        getControllerBoardPins(state.boardType),
+        getBoardLogicHighVoltage(state.boardType),
+        {
+          addSerialOutput: (text) =>
+            set((s) => ({
+              simulation: {
+                ...s.simulation,
+                serialOutput: [...s.simulation.serialOutput, text].slice(-200),
+              },
+            })),
+          pushOscilloscopeSample: (componentId, sample) =>
+            set((s) => {
+              const currentTrace = s.simulation.oscilloscopeTraces[componentId] ?? [];
+              const lastSample = currentTrace[currentTrace.length - 1];
+              const nextTrace =
+                lastSample &&
+                lastSample.timeMs === sample.timeMs &&
+                Math.abs(lastSample.voltage - sample.voltage) < 0.0001
+                  ? currentTrace
+                  : [...currentTrace, sample].slice(-600);
 
-          return {
-            simulation: {
-              ...s.simulation,
-              oscilloscopeTraces: {
-                ...s.simulation.oscilloscopeTraces,
-                [componentId]: nextTrace,
+              return {
+                simulation: {
+                  ...s.simulation,
+                  oscilloscopeTraces: {
+                    ...s.simulation.oscilloscopeTraces,
+                    [componentId]: nextTrace,
+                  },
+                },
+              };
+            }),
+          setLedState: (componentId, on, brightness) =>
+            set((s) => ({
+              simulation: {
+                ...s.simulation,
+                ledStates: {
+                  ...s.simulation.ledStates,
+                  [componentId]: { on, brightness },
+                },
               },
-            },
-          };
-        }),
-      setLedState: (componentId, on, brightness) =>
-        set((s) => ({
-          simulation: {
-            ...s.simulation,
-            ledStates: {
-              ...s.simulation.ledStates,
-              [componentId]: { on, brightness },
-            },
-          },
-        })),
-      clearLedStates: () =>
-        set((s) => ({
-          simulation: {
-            ...s.simulation,
-            ledStates: {},
-          },
-        })),
-      setPinStates: (pinStates) =>
-        set((s) => ({
-          simulation: {
-            ...s.simulation,
-            pinStates,
-          },
-        })),
-      setComponentState: (componentId, properties) =>
-        set((s) => ({
-          simulation: {
-            ...s.simulation,
-            componentStates: {
-              ...s.simulation.componentStates,
-              [componentId]: {
-                ...(s.simulation.componentStates[componentId] ?? {}),
-                ...properties,
+            })),
+          clearLedStates: () =>
+            set((s) => ({
+              simulation: {
+                ...s.simulation,
+                ledStates: {},
               },
-            },
-          },
-        })),
-      clearComponentStates: () =>
-        set((s) => ({
-          simulation: {
-            ...s.simulation,
-            componentStates: {},
-          },
-        })),
-      }
-    );
+            })),
+          setPinStates: (pinStates) =>
+            set((s) => ({
+              simulation: {
+                ...s.simulation,
+                pinStates,
+              },
+            })),
+          setComponentState: (componentId, properties) =>
+            set((s) => ({
+              simulation: {
+                ...s.simulation,
+                componentStates: {
+                  ...s.simulation.componentStates,
+                  [componentId]: {
+                    ...(s.simulation.componentStates[componentId] ?? {}),
+                    ...properties,
+                  },
+                },
+              },
+            })),
+          clearComponentStates: () =>
+            set((s) => ({
+              simulation: {
+                ...s.simulation,
+                componentStates: {},
+              },
+            })),
+          reportRuntimeError: (message) =>
+            set((s) => ({
+              simulation: { ...s.simulation, runtimeError: message },
+            })),
+        }
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      set((s) => ({
+        simulation: {
+          ...s.simulation,
+          serialOutput: [...s.simulation.serialOutput, `[!] ${message}`].slice(-200),
+          runtimeError: message,
+        },
+      }));
+    }
   };
 
   const syncRuntimeIfRunning = () => {
@@ -887,6 +906,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
     componentStates: {},
     serialOutput: [],
     oscilloscopeTraces: {},
+    runtimeError: null,
   },
 
   startSimulation: () => {
@@ -901,6 +921,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
           componentStates: {},
           serialOutput: [],
           oscilloscopeTraces: {},
+          runtimeError: null,
         },
       };
     });
@@ -917,6 +938,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
           pinStates: {},
           ledStates: {},
           componentStates: {},
+          runtimeError: null,
         },
       };
     });
@@ -1114,6 +1136,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
         componentStates: {},
         serialOutput: [],
         oscilloscopeTraces: {},
+        runtimeError: null,
       },
     });
   },
@@ -1141,6 +1164,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
         componentStates: {},
         serialOutput: [],
         oscilloscopeTraces: {},
+        runtimeError: null,
       },
     });
 
