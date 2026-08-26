@@ -441,6 +441,38 @@ function getWirePinHandles(pins: Pin[]): WirePinHandle[] {
   }));
 }
 
+/** Shared between the LED's glow overlay and its recolored body artwork. */
+const LED_COLOR_HEX: Record<string, string> = {
+  red: '#e74c3c',
+  green: '#27ae60',
+  blue: '#2980b9',
+  yellow: '#f1c40f',
+  white: '#dcdde1',
+  orange: '#e67e22',
+};
+
+/** The placeholder red the led.svg artwork paints its "color_*" layers with. */
+const LED_ARTWORK_PLACEHOLDER_HEX = '#E60000';
+
+const ledRecoloredUrlCache = new Map<string, string>();
+
+/**
+ * led.svg is a flat raster once loaded, so recoloring it means building a
+ * whole new image: swap the placeholder hex the artwork's color layers use
+ * for the requested one, and hand back a fresh data URL for that variant.
+ * Cached per color since there are only a handful.
+ */
+function getRecoloredLedSvgUrl(raw: string, color: string): string {
+  const hex = LED_COLOR_HEX[color] ?? LED_COLOR_HEX.red;
+  const cached = ledRecoloredUrlCache.get(hex);
+  if (cached) return cached;
+
+  const recolored = raw.split(LED_ARTWORK_PLACEHOLDER_HEX).join(hex);
+  const url = `data:image/svg+xml;utf8,${encodeURIComponent(recolored)}`;
+  ledRecoloredUrlCache.set(hex, url);
+  return url;
+}
+
 const BATTERY_LABEL_LAYOUT: Partial<Record<ComponentType, { y: number; fontSize: number; color: string }>> = {
   'li-ion-battery': { y: 14, fontSize: 7, color: '#eafff4' },
   'li-po-battery': { y: 15, fontSize: 7, color: '#dfe9ff' },
@@ -530,7 +562,10 @@ function clampByte(value: unknown): number {
   return Math.min(255, Math.max(0, Math.round(num)));
 }
 
-function getCanvasComponentLabel(language: 'en' | 'tr', type: ComponentType): string {
+function getCanvasComponentLabel(language: 'en' | 'tr', comp: CircuitComponent): string {
+  if (comp.name?.trim()) return comp.name.trim();
+
+  const type = comp.type;
   if (type === 'oscilloscope') return 'SCOPE';
   if (type === 'multimeter') return 'DMM';
   if (type === 'bme280') return 'BME280';
@@ -559,7 +594,14 @@ const ComponentShape: React.FC<{
       }
     : sourceComp;
   const config = SVG_CONFIGS[comp.type];
-  const image = useComponentImage(comp.type);
+  const baseImage = useComponentImage(comp.type);
+  const ledColor = comp.type === 'led' ? String(comp.properties.color ?? 'red') : null;
+  const ledImageUrl = useMemo(
+    () => (ledColor && config?.raw ? getRecoloredLedSvgUrl(config.raw, ledColor) : null),
+    [ledColor, config?.raw]
+  );
+  const ledImage = useAssetImage(ledImageUrl ?? '');
+  const image = ledImageUrl ? ledImage : baseImage;
   const multimeterMode =
     comp.type === 'multimeter' ? getMultimeterMode(comp.properties.mode) : 'voltage';
   const blackProbeDocked =
@@ -618,11 +660,7 @@ const ComponentShape: React.FC<{
         const isOn = simulation.running && ledState?.on;
         const bri = ledState?.brightness ?? 0;
         const color = (comp.properties.color as string) || 'red';
-        const cMap: Record<string, string> = {
-          red: '#e74c3c', green: '#27ae60', blue: '#2980b9',
-          yellow: '#f1c40f', white: '#dcdde1', orange: '#e67e22',
-        };
-        const c = cMap[color] || cMap.red;
+        const c = LED_COLOR_HEX[color] ?? LED_COLOR_HEX.red;
         return isOn ? (
           <>
             <Circle radius={28} fill={c} opacity={0.12 * bri} listening={false} />
@@ -1759,6 +1797,7 @@ const CircuitCanvas: React.FC = () => {
   );
   const warningsKey = circuitWarnings.map((warning) => warning.id).join('|');
   const [dismissedWarningsKey, setDismissedWarningsKey] = useState<string | null>(null);
+  const [hoveredComponentId, setHoveredComponentId] = useState<string | null>(null);
   const visibleWarnings = warningsKey === dismissedWarningsKey ? [] : circuitWarnings;
 
   const setZoom = useCircuitStore((s) => s.setZoom);
@@ -3253,11 +3292,32 @@ const CircuitCanvas: React.FC = () => {
         scaleY={zoom}
         x={stagePos.x}
         y={stagePos.y}
-        draggable={isStagePanning}
+        draggable={isStagePanning || toolMode === 'select'}
         onDragEnd={(e) => {
+          // A dragged part's own dragend bubbles up here too; only the stage's
+          // own drag (started on empty background — a part's Group is a
+          // closer draggable ancestor and takes the gesture first) is ours.
+          if (e.target !== e.target.getStage()) return;
+
           if (isStagePanning) {
             setStagePos({ x: e.target.x(), y: e.target.y() });
+            return;
           }
+
+          // Select mode: dragging empty space grabs the whole circuit and
+          // moves every part together, the same way pan mode moves the view —
+          // except here the camera snaps back and the parts' own positions
+          // are what actually changed.
+          const dx = e.target.x() - stagePos.x;
+          const dy = e.target.y() - stagePos.y;
+          if ((dx !== 0 || dy !== 0) && components.length > 0) {
+            captureUndoSnapshot();
+            for (const comp of components) {
+              updateComponent(comp.id, { x: comp.x + dx, y: comp.y + dy }, { recordHistory: false });
+            }
+          }
+          e.target.x(stagePos.x);
+          e.target.y(stagePos.y);
         }}
         onWheel={handleWheel}
         onClick={handleStageClick}
@@ -3576,6 +3636,10 @@ const CircuitCanvas: React.FC = () => {
               onTap={(e) => handleComponentClick(comp, e)}
               onDblClick={(e) => handleComponentDoubleClick(comp, e)}
               onDblTap={(e) => handleComponentDoubleClick(comp, e)}
+              onMouseEnter={() => setHoveredComponentId(comp.id)}
+              onMouseLeave={() =>
+                setHoveredComponentId((current) => (current === comp.id ? null : current))
+              }
               onContextMenu={(e) => {
                 e.evt.preventDefault();
                 e.cancelBubble = true;
@@ -3638,10 +3702,13 @@ const CircuitCanvas: React.FC = () => {
                   );
                 })}
 
-              {/* Component name label — only while selected, so it doesn't clutter a full canvas */}
-              {(selectedComponentIds.includes(comp.id) || selectedComponentId === comp.id) && (
+              {/* Component name label — only while selected or hovered, so it doesn't
+                  clutter a full canvas */}
+              {(selectedComponentIds.includes(comp.id) ||
+                selectedComponentId === comp.id ||
+                hoveredComponentId === comp.id) && (
                 <Text
-                  text={getCanvasComponentLabel(language, comp.type)}
+                  text={getCanvasComponentLabel(language, comp)}
                   x={-32}
                   y={Math.max(25, componentArtworkBottom(comp.type) + 3)}
                   width={64}

@@ -227,6 +227,41 @@ const PropertiesPanel: React.FC = () => {
             {displayComp.id.slice(0, 8)}
           </span>
         </div>
+        <div className="property-row">
+          <span className="property-label">{t(language, 'componentName')}</span>
+          <input
+            className="property-input"
+            type="text"
+            placeholder={displayName}
+            value={selectedComp.name ?? ''}
+            onFocus={captureUndoSnapshot}
+            onChange={(event) =>
+              updateComponent(
+                selectedComp.id,
+                { name: event.target.value },
+                { recordHistory: false }
+              )
+            }
+          />
+        </div>
+        <div className="property-row" style={{ alignItems: 'flex-start' }}>
+          <span className="property-label" style={{ paddingTop: 8 }}>
+            {t(language, 'componentDescription')}
+          </span>
+          <textarea
+            className="property-input"
+            style={{ width: 150, minHeight: 52, resize: 'vertical', fontFamily: 'inherit' }}
+            value={selectedComp.description ?? ''}
+            onFocus={captureUndoSnapshot}
+            onChange={(event) =>
+              updateComponent(
+                selectedComp.id,
+                { description: event.target.value },
+                { recordHistory: false }
+              )
+            }
+          />
+        </div>
       </div>
 
       <div className="property-group">

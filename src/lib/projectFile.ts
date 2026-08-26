@@ -128,6 +128,10 @@ const sanitizeComponents = (value: unknown): CircuitComponent[] => {
         : uuidv4();
     usedIds.add(id);
 
+    const name = typeof item.name === 'string' ? item.name.trim().slice(0, 200) : '';
+    const description =
+      typeof item.description === 'string' ? item.description.slice(0, 2000) : '';
+
     return [
       {
         id,
@@ -141,6 +145,8 @@ const sanitizeComponents = (value: unknown): CircuitComponent[] => {
         flipX: item.flipX === true,
         pins: sanitizePins(item.pins, type),
         properties: sanitizeProperties(item.properties),
+        ...(name ? { name } : {}),
+        ...(description ? { description } : {}),
       },
     ];
   });

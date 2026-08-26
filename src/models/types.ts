@@ -98,6 +98,10 @@ export interface CircuitComponent {
   flipX?: boolean;
   pins: Pin[];
   properties: Record<string, string | number | boolean>;
+  /** User-given label for this one instance, shown instead of the part's type name when set. */
+  name?: string;
+  /** Free-text notes about this specific part. */
+  description?: string;
 }
 
 export interface Wire {
