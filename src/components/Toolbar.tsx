@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useCircuitStore } from '../store/circuitStore';
 import { useHardwareStore } from '../store/hardwareStore';
 import { WIRE_COLORS } from '../models/types';
@@ -42,6 +42,10 @@ const Toolbar: React.FC = () => {
     hardwarePorts.find((port) => port.path === selectedHardwarePortPath) ?? null;
   const effectiveBoardType = selectedHardwarePort?.boardType ?? boardType;
 
+  // The path of the file this project was last saved to or opened from, so a
+  // plain "Save" overwrites it instead of asking where to put it every time.
+  const [currentFilePath, setCurrentFilePath] = useState<string | null>(null);
+
   const notifyInvalidProject = () => {
     window.alert(t(language, 'invalidProjectFile'));
   };
@@ -49,11 +53,16 @@ const Toolbar: React.FC = () => {
   const handleSave = async () => {
     const data = getProjectData();
     if (window.electronAPI) {
-      await window.electronAPI.saveProject(data, {
-        title: t(language, 'saveProjectDialogTitle'),
-        defaultPath: t(language, 'projectFileName'),
-        filterName: t(language, 'projectFilterName'),
-      });
+      const savedPath = await window.electronAPI.saveProject(
+        data,
+        {
+          title: t(language, 'saveProjectDialogTitle'),
+          defaultPath: t(language, 'projectFileName'),
+          filterName: t(language, 'projectFilterName'),
+        },
+        currentFilePath
+      );
+      if (savedPath) setCurrentFilePath(savedPath);
       return;
     }
 
@@ -70,9 +79,9 @@ const Toolbar: React.FC = () => {
 
   const handleLoad = async () => {
     if (window.electronAPI) {
-      let data: unknown = null;
+      let result: { data: unknown; filePath: string } | null = null;
       try {
-        data = await window.electronAPI.loadProject({
+        result = await window.electronAPI.loadProject({
           title: t(language, 'openProjectDialogTitle'),
           filterName: t(language, 'projectFilterName'),
         });
@@ -81,8 +90,12 @@ const Toolbar: React.FC = () => {
         return;
       }
 
-      if (data === null || data === undefined) return;
-      if (!loadProject(data)) notifyInvalidProject();
+      if (!result) return;
+      if (!loadProject(result.data)) {
+        notifyInvalidProject();
+        return;
+      }
+      setCurrentFilePath(result.filePath);
       return;
     }
 
@@ -114,6 +127,24 @@ const Toolbar: React.FC = () => {
     window.dispatchEvent(new CustomEvent('export-canvas-png'));
   };
 
+  const handleNewProject = () => {
+    clearProject();
+    setCurrentFilePath(null);
+  };
+
+  // Ctrl+S / Ctrl+O are handled globally in CircuitCanvas (so they work no
+  // matter where focus is on the canvas) and reach these same handlers here.
+  useEffect(() => {
+    const onTriggerSave = () => void handleSave();
+    const onTriggerOpen = () => void handleLoad();
+    window.addEventListener('trigger-save', onTriggerSave);
+    window.addEventListener('trigger-open', onTriggerOpen);
+    return () => {
+      window.removeEventListener('trigger-save', onTriggerSave);
+      window.removeEventListener('trigger-open', onTriggerOpen);
+    };
+  });
+
   return (
     <div className="toolbar">
       <div className="toolbar-group">
@@ -123,7 +154,7 @@ const Toolbar: React.FC = () => {
         <button className="toolbar-btn" onClick={handleLoad}>
           {t(language, 'open')}
         </button>
-        <button className="toolbar-btn" onClick={clearProject}>
+        <button className="toolbar-btn" onClick={handleNewProject}>
           {t(language, 'newProject')}
         </button>
         <button className="toolbar-btn" onClick={handleExportPng}>

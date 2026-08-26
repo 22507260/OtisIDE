@@ -197,18 +197,28 @@ ipcMain.handle('app-version', () => app.getVersion());
 ipcMain.handle('save-project', async (_event, payload) => {
   const data = payload?.data;
   const options = readDialogOptions(payload?.options);
-  const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
-    title: options.title || 'Save Project',
-    defaultPath: options.defaultPath || 'circuit-project.json',
-    filters: [
-      {
-        name: options.filterName || 'Circuit Project',
-        extensions: ['json'],
-      },
-    ],
-  });
+  const existingPath =
+    typeof payload?.existingPath === 'string' && payload.existingPath ? payload.existingPath : null;
 
-  if (canceled || !filePath) return null;
+  // A project that already lives on disk gets overwritten in place — only a
+  // brand-new project asks the user where to put it.
+  let filePath = existingPath;
+  if (!filePath) {
+    const result = await dialog.showSaveDialog(mainWindow, {
+      title: options.title || 'Save Project',
+      defaultPath: options.defaultPath || 'circuit-project.json',
+      filters: [
+        {
+          name: options.filterName || 'Circuit Project',
+          extensions: ['json'],
+        },
+      ],
+    });
+
+    if (result.canceled || !result.filePath) return null;
+    filePath = result.filePath;
+  }
+
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
   return filePath;
 });
@@ -227,8 +237,9 @@ ipcMain.handle('load-project', async (_event, optionsPayload) => {
   });
 
   if (canceled || filePaths.length === 0) return null;
-  const content = fs.readFileSync(filePaths[0], 'utf-8');
-  return JSON.parse(content);
+  const filePath = filePaths[0];
+  const content = fs.readFileSync(filePath, 'utf-8');
+  return { data: JSON.parse(content), filePath };
 });
 
 ipcMain.handle('export-png', async (_event, payload) => {

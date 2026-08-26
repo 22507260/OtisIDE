@@ -2,8 +2,8 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
   isCustomWindowChrome: process.platform !== 'darwin',
-  saveProject: (data, options) =>
-    ipcRenderer.invoke('save-project', { data, options }),
+  saveProject: (data, options, existingPath) =>
+    ipcRenderer.invoke('save-project', { data, options, existingPath }),
   loadProject: (options) => ipcRenderer.invoke('load-project', options),
   exportPng: (dataUrl, options) =>
     ipcRenderer.invoke('export-png', { dataUrl, options }),

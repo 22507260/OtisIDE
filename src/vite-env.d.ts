@@ -91,9 +91,12 @@ interface ElectronAPI {
   isCustomWindowChrome?: boolean;
   saveProject: (
     data: unknown,
-    options?: ElectronDialogOptions
+    options?: ElectronDialogOptions,
+    existingPath?: string | null
   ) => Promise<string | null>;
-  loadProject: (options?: ElectronDialogOptions) => Promise<unknown | null>;
+  loadProject: (
+    options?: ElectronDialogOptions
+  ) => Promise<{ data: unknown; filePath: string } | null>;
   exportPng: (
     dataUrl: string,
     options?: ElectronDialogOptions
