@@ -33,7 +33,11 @@ import { DEFAULT_BREADBOARD_POSITION } from '../models/breadboard';
 import { sanitizeProjectData, type ProjectData } from '../lib/projectFile';
 import { readStorage, removeStorage, writeStorage } from '../lib/storage';
 import { v4 as uuidv4 } from 'uuid';
-import { startMockArduinoRuntime, stopMockArduinoRuntime } from '../lib/mockArduinoRuntime';
+import {
+  startMockArduinoRuntime,
+  stopMockArduinoRuntime,
+  findSketchCompileError,
+} from '../lib/mockArduinoRuntime';
 
 interface CircuitStore {
   // Components
@@ -91,6 +95,8 @@ interface CircuitStore {
   /** Drops a copy on the canvas, offset so it does not hide the original. */
   pasteClipboard: () => number;
   canPaste: () => boolean;
+  /** Right-click "Duplicate": clones one part without touching the clipboard. */
+  duplicateComponent: (id: string) => void;
   updateComponentProperty: (
     id: string,
     key: string,
@@ -754,6 +760,27 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
     return components.length;
   },
 
+  duplicateComponent: (id) => {
+    const state = get();
+    const original = state.components.find((component) => component.id === id);
+    if (!original) return;
+
+    pushUndoSnapshot();
+    const [clone] = cloneComponents([original]);
+    clone.id = uuidv4();
+    clone.x = original.x + PASTE_OFFSET;
+    clone.y = original.y + PASTE_OFFSET;
+
+    set((s) => ({
+      components: [...s.components, clone],
+      selectedComponentIds: [clone.id],
+      selectedComponentId: clone.id,
+      selectedWireId: null,
+      rightTab: 'properties',
+    }));
+    syncRuntimeIfRunning();
+  },
+
   selectComponents: (ids) =>
     set((s) => {
       const known = ids.filter((id) => s.components.some((component) => component.id === id));
@@ -910,6 +937,11 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
   },
 
   startSimulation: () => {
+    // A broken sketch can't run — its error is already visible in the
+    // warning banner, so flipping into "running" here would just reset the
+    // board state and immediately die. Refuse the click instead.
+    if (findSketchCompileError(get().code)) return;
+
     set((s) => {
       stopMockArduinoRuntime();
       return {

@@ -1,4 +1,5 @@
 import type { ComponentType } from '../models/types';
+import type { CompileErrorReason } from './mockArduinoRuntime';
 
 export type AppLanguage = 'en' | 'tr';
 
@@ -158,6 +159,7 @@ const UI_STRINGS = {
     select: 'Select',
     startWire: 'Start wire',
     rotate90: 'Rotate 90deg',
+    contextMenuDuplicate: 'Duplicate',
     wireMode: 'Wire mode',
     deleteWire: 'Delete wire',
     chooseBoard: 'Choose board',
@@ -257,6 +259,17 @@ const UI_STRINGS = {
     circuitWarningsTitle: 'Circuit warnings',
     circuitWarningNoCode: 'No setup()/loop() found in the sketch — nothing will run.',
     circuitWarningRuntimeError: 'Sketch error: {{error}}',
+    circuitWarningCompileError: 'Syntax error: {{error}}',
+    compileErrorUnbalancedBrace: "a '{' or '}' doesn't match up (line {{line}})",
+    compileErrorUnbalancedParen: "a '(' or ')' doesn't match up (line {{line}})",
+    compileErrorUnsupportedWhile: "while() loops aren't supported — use a for() loop instead (line {{line}})",
+    compileErrorUnsupportedDoWhile: "do...while loops aren't supported — use a for() loop instead (line {{line}})",
+    compileErrorUnsupportedSwitch: "switch statements aren't supported — use if/else if instead (line {{line}})",
+    compileErrorEmptyIfCondition: 'an if() condition is empty (line {{line}})',
+    compileErrorDanglingOperator: "an expression is left hanging on an operator like +, -, or && (line {{line}})",
+    circuitWarningDeadShort: "Dead short: a power source's + and − terminals are wired straight together with nothing in between.",
+    circuitWarningFloatingLed: "{{name}} isn't connected to any power source — it will never light up.",
+    circuitWarningLedNoResistor: '{{name}} is wired straight to power with no resistor — it may burn out almost immediately. Add a resistor (220–1k ohm) in series.',
     driverForward: 'FORWARD',
     driverReverse: 'REVERSE',
     driverBrake: 'BRAKE',
@@ -412,6 +425,7 @@ const UI_STRINGS = {
     select: 'Seç',
     startWire: 'Kablo çek',
     rotate90: '90° döndür',
+    contextMenuDuplicate: 'Çoğalt',
     wireMode: 'Kablo modu',
     deleteWire: 'Kabloyu sil',
     chooseBoard: 'Kart seç',
@@ -511,6 +525,17 @@ const UI_STRINGS = {
     circuitWarningsTitle: 'Devre uyarıları',
     circuitWarningNoCode: 'Kodda setup()/loop() bulunamadı — hiçbir şey çalışmayacak.',
     circuitWarningRuntimeError: 'Kod hatası: {{error}}',
+    circuitWarningCompileError: 'Sözdizimi hatası: {{error}}',
+    compileErrorUnbalancedBrace: "eşleşmeyen bir '{' ya da '}' var (satır {{line}})",
+    compileErrorUnbalancedParen: "eşleşmeyen bir '(' ya da ')' var (satır {{line}})",
+    compileErrorUnsupportedWhile: 'while() döngüsü desteklenmiyor, yerine for() kullanılmalı (satır {{line}})',
+    compileErrorUnsupportedDoWhile: 'do...while döngüsü desteklenmiyor, yerine for() kullanılmalı (satır {{line}})',
+    compileErrorUnsupportedSwitch: 'switch yapısı desteklenmiyor, yerine if/else if kullanılmalı (satır {{line}})',
+    compileErrorEmptyIfCondition: 'bir if() koşulu boş (satır {{line}})',
+    compileErrorDanglingOperator: 'bir ifade +, -, && gibi bir işleçle yarım kalmış (satır {{line}})',
+    circuitWarningDeadShort: 'Kısa devre: bir güç kaynağının + ve − uçları arada hiçbir şey olmadan doğrudan bağlanmış.',
+    circuitWarningFloatingLed: '{{name}} hiçbir güç kaynağına bağlı değil — hiç yanmayacak.',
+    circuitWarningLedNoResistor: '{{name}} güce doğrudan, direnç olmadan bağlanmış — hemen yanabilir. Seriye bir direnç (220–1k ohm) eklenmeli.',
     driverForward: 'İLERİ',
     driverReverse: 'GERİ',
     driverBrake: 'FREN',
@@ -892,6 +917,25 @@ const DAMAGE_KEYS = {
 export function getDamageLabel(language: AppLanguage, reason: string): string {
   const key = DAMAGE_KEYS[reason as keyof typeof DAMAGE_KEYS];
   return key ? t(language, key) : t(language, 'burned');
+}
+
+const COMPILE_ERROR_KEYS: Record<Exclude<CompileErrorReason, 'unknown'>, TranslationKey> = {
+  'unbalanced-brace': 'compileErrorUnbalancedBrace',
+  'unbalanced-paren': 'compileErrorUnbalancedParen',
+  'unsupported-while': 'compileErrorUnsupportedWhile',
+  'unsupported-do-while': 'compileErrorUnsupportedDoWhile',
+  'unsupported-switch': 'compileErrorUnsupportedSwitch',
+  'empty-if-condition': 'compileErrorEmptyIfCondition',
+  'dangling-operator': 'compileErrorDanglingOperator',
+};
+
+/** What's wrong with the sketch, in words — everything but the 'unknown' catch-all. */
+export function getCompileErrorDetail(
+  language: AppLanguage,
+  reason: Exclude<CompileErrorReason, 'unknown'>,
+  line: number
+): string {
+  return t(language, COMPILE_ERROR_KEYS[reason], { line });
 }
 
 /** What a pin does, for the list at the bottom of the properties panel. */

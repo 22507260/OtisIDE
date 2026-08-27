@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { startMockArduinoRuntime, stopMockArduinoRuntime } from '../mockArduinoRuntime';
+import {
+  startMockArduinoRuntime,
+  stopMockArduinoRuntime,
+  findSketchCompileError,
+  getCircuitWiringIssues,
+} from '../mockArduinoRuntime';
 import { ARDUINO_COMPONENT_ID } from '../../models/arduinoUno';
 import { getDefaultPins, type CircuitComponent, type Pin, type Wire } from '../../models/types';
 
@@ -41,6 +46,32 @@ const rgbLed = (commonType: 'cathode' | 'anode' = 'cathode'): CircuitComponent =
     { id: 'blue', name: 'Blue', type: 'passive', x: 15, y: -15 },
   ],
   properties: { red: 0, green: 0, blue: 0, commonType },
+});
+
+const battery = (): CircuitComponent => ({
+  id: 'battery-1',
+  type: '9v-battery',
+  x: 100,
+  y: 100,
+  rotation: 0,
+  pins: [
+    { id: 'positive', name: '+', type: 'power', x: 40, y: -15 },
+    { id: 'negative', name: '-', type: 'ground', x: 40, y: 15 },
+  ],
+  properties: { cells: 1 },
+});
+
+const resistor = (): CircuitComponent => ({
+  id: 'resistor-1',
+  type: 'resistor',
+  x: 150,
+  y: 200,
+  rotation: 0,
+  pins: [
+    { id: 'pin1', name: 'Pin 1', type: 'passive', x: -25, y: 0 },
+    { id: 'pin2', name: 'Pin 2', type: 'passive', x: 25, y: 0 },
+  ],
+  properties: { resistance: 220, unit: 'ohm' },
 });
 
 const wire = (
@@ -456,5 +487,174 @@ describe('runtime error resilience', () => {
 
     expect(escaped).toBe(false);
     expect(reportedError).toBe('boom');
+  });
+});
+
+describe('findSketchCompileError', () => {
+  it('accepts a normal sketch', () => {
+    expect(findSketchCompileError(BLINK)).toBeNull();
+  });
+
+  it('flags an unclosed brace', () => {
+    const error = findSketchCompileError(`
+      void setup() {
+        Serial.begin(9600);
+    `);
+    expect(error?.reason).toBe('unbalanced-brace');
+  });
+
+  it('flags an unclosed paren', () => {
+    const error = findSketchCompileError(`
+      void setup() {}
+      void loop() {
+        if (true
+      }
+    `);
+    expect(error?.reason).toBe('unbalanced-paren');
+  });
+
+  it('rejects while loops', () => {
+    const error = findSketchCompileError(`
+      void setup() {}
+      void loop() { while (true) { delay(1); } }
+    `);
+    expect(error?.reason).toBe('unsupported-while');
+  });
+
+  it('rejects do...while loops', () => {
+    const error = findSketchCompileError(`
+      void setup() {}
+      void loop() { do { delay(1); } while (true); }
+    `);
+    expect(error?.reason).toBe('unsupported-do-while');
+  });
+
+  it('rejects switch statements', () => {
+    const error = findSketchCompileError(`
+      void setup() {}
+      void loop() { switch (1) { } }
+    `);
+    expect(error?.reason).toBe('unsupported-switch');
+  });
+
+  it('flags an empty if condition', () => {
+    const error = findSketchCompileError(`
+      void setup() {}
+      void loop() { if () { delay(1); } }
+    `);
+    expect(error?.reason).toBe('empty-if-condition');
+  });
+
+  it('flags an expression left hanging on an operator', () => {
+    const error = findSketchCompileError(`
+      void setup() { int x = 5 +; }
+      void loop() { delay(1); }
+    `);
+    expect(error?.reason).toBe('dangling-operator');
+  });
+
+  it('reports the file-accurate line number for an error nested two levels deep', () => {
+    const code = [
+      'void setup() {',
+      '}',
+      '',
+      'void loop() {',
+      '  for (int i = 0; i < 3; i++) {',
+      '    while (true) {',
+      '      delay(1);',
+      '    }',
+      '  }',
+      '}',
+    ].join('\n');
+
+    const error = findSketchCompileError(code);
+    expect(error?.reason).toBe('unsupported-while');
+    expect(error?.line).toBe(6);
+  });
+
+  // The tokenizer has no compound `++`/`--` token — `i++` is two adjacent `+`
+  // operator tokens — so the dangling-operator check must special-case this,
+  // or every ordinary for-loop would be flagged. This is the single highest-
+  // risk regression for this feature; if it ever fails, nothing should ship.
+  it('does not flag a for-loop postfix increment as a dangling operator', () => {
+    const error = findSketchCompileError(`
+      void setup() {}
+      void loop() {
+        for (int i = 0; i < 5; i++) {
+          Serial.println(i);
+        }
+      }
+    `);
+    expect(error).toBeNull();
+  });
+
+  it('does not flag compound assignment (+=) as a dangling operator', () => {
+    const error = findSketchCompileError(`
+      void setup() {}
+      void loop() {
+        int x = 0;
+        x += 5;
+        delay(1);
+      }
+    `);
+    expect(error).toBeNull();
+  });
+});
+
+describe('getCircuitWiringIssues', () => {
+  it('flags a battery wired straight from + to -', () => {
+    const issues = getCircuitWiringIssues(
+      [battery()],
+      [wire('w1', 'battery-1', 'positive', 'battery-1', 'negative')],
+      BOARD_PINS
+    );
+    expect(issues).toContainEqual(expect.objectContaining({ type: 'dead-short' }));
+  });
+
+  it('flags an LED with no wires at all as floating', () => {
+    const issues = getCircuitWiringIssues([led()], [], BOARD_PINS);
+    expect(issues).toContainEqual({ type: 'floating-led', componentId: 'led-1' });
+  });
+
+  it('flags an LED wired straight to a battery with no resistor', () => {
+    const issues = getCircuitWiringIssues(
+      [battery(), led()],
+      [
+        wire('w1', 'battery-1', 'positive', 'led-1', 'anode'),
+        wire('w2', 'led-1', 'cathode', 'battery-1', 'negative'),
+      ],
+      BOARD_PINS
+    );
+    expect(issues).toContainEqual({ type: 'led-no-resistor', componentId: 'led-1' });
+  });
+
+  it('flags an LED wired straight to a digital pin with no resistor, polarity-agnostic', () => {
+    const issues = getCircuitWiringIssues(
+      [led()],
+      [
+        wire('w1', ARDUINO_COMPONENT_ID, 'D9', 'led-1', 'anode'),
+        wire('w2', 'led-1', 'cathode', ARDUINO_COMPONENT_ID, 'GND'),
+      ],
+      BOARD_PINS
+    );
+    expect(issues).toContainEqual({ type: 'led-no-resistor', componentId: 'led-1' });
+  });
+
+  it('does not flag an LED wired through a resistor', () => {
+    const issues = getCircuitWiringIssues(
+      [battery(), resistor(), led()],
+      [
+        wire('w1', 'battery-1', 'positive', 'resistor-1', 'pin1'),
+        wire('w2', 'resistor-1', 'pin2', 'led-1', 'anode'),
+        wire('w3', 'led-1', 'cathode', 'battery-1', 'negative'),
+      ],
+      BOARD_PINS
+    );
+    expect(issues).toEqual([]);
+  });
+
+  it('raises no issues for an unwired battery sitting alone on the canvas', () => {
+    const issues = getCircuitWiringIssues([battery()], [], BOARD_PINS);
+    expect(issues).toEqual([]);
   });
 });

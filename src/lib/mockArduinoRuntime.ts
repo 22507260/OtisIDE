@@ -101,6 +101,49 @@ type NetState = {
   groundNets: Set<number>;
 };
 
+export type CompileErrorReason =
+  | 'unbalanced-brace'
+  | 'unbalanced-paren'
+  | 'unsupported-while'
+  | 'unsupported-do-while'
+  | 'unsupported-switch'
+  | 'empty-if-condition'
+  | 'dangling-operator'
+  | 'unknown';
+
+export type CompileError = {
+  reason: CompileErrorReason;
+  line: number;
+  /** Raw diagnostic text — only meaningful for 'unknown', where no translated copy exists. */
+  detail: string;
+};
+
+/** Thrown by the parser on sketch text it cannot make sense of structurally. */
+class SketchSyntaxError extends Error {
+  constructor(
+    public readonly reason: CompileErrorReason,
+    public readonly line: number,
+    message: string
+  ) {
+    super(message);
+    this.name = 'SketchSyntaxError';
+  }
+}
+
+function lineNumberAt(code: string, offset: number): number {
+  return code.slice(0, Math.max(0, offset)).split('\n').length;
+}
+
+/**
+ * Parsing recurses into substrings (a loop() body, a nested { } block), each
+ * restarting its own line count from 1 — this composes that back with the
+ * line the substring actually started on in the original sketch, so a
+ * reported error line always points at the right place in the code editor.
+ */
+function resolveLine(baseLine: number, code: string, offset: number): number {
+  return baseLine + lineNumberAt(code, offset) - 1;
+}
+
 type ResistiveEdge = {
   fromNet: number;
   toNet: number;
@@ -912,10 +955,16 @@ function extractLcdInstances(code: string, variables: VariableTables): Map<strin
   return instances;
 }
 
-function extractFunctionBody(code: string, functionName: 'setup' | 'loop'): string {
+/** Returns the function's body text along with the line it starts on, so
+ * errors found while parsing that body (a substring with its own line-1
+ * origin) can be reported against the sketch's real line numbers. */
+function extractFunctionBody(
+  code: string,
+  functionName: 'setup' | 'loop'
+): { body: string; baseLine: number } {
   const signature = new RegExp(`void\\s+${functionName}\\s*\\(\\s*\\)\\s*\\{`, 'i');
   const match = signature.exec(code);
-  if (!match) return '';
+  if (!match) return { body: '', baseLine: 1 };
 
   let depth = 1;
   let idx = match.index + match[0].length;
@@ -928,7 +977,18 @@ function extractFunctionBody(code: string, functionName: 'setup' | 'loop'): stri
     idx += 1;
   }
 
-  return code.slice(start, Math.max(start, idx - 1));
+  if (depth > 0) {
+    throw new SketchSyntaxError(
+      'unbalanced-brace',
+      lineNumberAt(code, match.index),
+      `Unclosed '{' for ${functionName}()`
+    );
+  }
+
+  return {
+    body: code.slice(start, Math.max(start, idx - 1)),
+    baseLine: lineNumberAt(code, start),
+  };
 }
 
 function pulseWidthToAngle(pulseWidthUs: number): number {
@@ -1189,7 +1249,8 @@ function extractRuntimeDelimited(
   code: string,
   start: number,
   openChar: string,
-  closeChar: string
+  closeChar: string,
+  baseLine = 1
 ): { content: string; next: number } {
   if (code[start] !== openChar) {
     return { content: '', next: start };
@@ -1222,6 +1283,14 @@ function extractRuntimeDelimited(
     index += 1;
   }
 
+  if (depth > 0) {
+    throw new SketchSyntaxError(
+      openChar === '{' ? 'unbalanced-brace' : 'unbalanced-paren',
+      resolveLine(baseLine, code, start),
+      `Unclosed '${openChar}'`
+    );
+  }
+
   return {
     content: code.slice(start + 1, Math.max(start + 1, index - 1)),
     next: index,
@@ -1230,7 +1299,8 @@ function extractRuntimeDelimited(
 
 function parseRuntimeStatement(
   code: string,
-  start: number
+  start: number,
+  baseLine = 1
 ): { statement: RuntimeStatement | null; next: number } {
   let index = skipRuntimeWhitespace(code, start);
   if (index >= code.length) {
@@ -1242,23 +1312,38 @@ function parseRuntimeStatement(
   }
 
   if (code[index] === '{') {
-    const block = extractRuntimeDelimited(code, index, '{', '}');
+    const block = extractRuntimeDelimited(code, index, '{', '}', baseLine);
+    const blockBaseLine = resolveLine(baseLine, code, index);
     return {
-      statement: { type: 'block', body: parseRuntimeStatements(block.content) },
+      statement: { type: 'block', body: parseRuntimeStatements(block.content, blockBaseLine) },
       next: block.next,
     };
   }
 
   if (startsWithRuntimeKeyword(code, index, 'if')) {
     const conditionStart = skipRuntimeWhitespace(code, index + 2);
-    const condition = extractRuntimeDelimited(code, conditionStart, '(', ')');
-    const consequent = parseRuntimeStatement(code, condition.next);
+    const condition = extractRuntimeDelimited(code, conditionStart, '(', ')', baseLine);
+    if (!condition.content.trim()) {
+      throw new SketchSyntaxError(
+        'empty-if-condition',
+        resolveLine(baseLine, code, conditionStart),
+        'Empty if() condition'
+      );
+    }
+    if (endsWithDanglingOperator(condition.content)) {
+      throw new SketchSyntaxError(
+        'dangling-operator',
+        resolveLine(baseLine, code, conditionStart),
+        'Expression ends with a dangling operator'
+      );
+    }
+    const consequent = parseRuntimeStatement(code, condition.next, baseLine);
     let next = consequent.next;
     let alternate: RuntimeStatement | null = null;
     const elseStart = skipRuntimeWhitespace(code, next);
 
     if (startsWithRuntimeKeyword(code, elseStart, 'else')) {
-      const parsedAlternate = parseRuntimeStatement(code, elseStart + 4);
+      const parsedAlternate = parseRuntimeStatement(code, elseStart + 4, baseLine);
       alternate = parsedAlternate.statement;
       next = parsedAlternate.next;
     }
@@ -1276,9 +1361,18 @@ function parseRuntimeStatement(
 
   if (startsWithRuntimeKeyword(code, index, 'for')) {
     const headerStart = skipRuntimeWhitespace(code, index + 3);
-    const header = extractRuntimeDelimited(code, headerStart, '(', ')');
+    const header = extractRuntimeDelimited(code, headerStart, '(', ')', baseLine);
     const [init = '', condition = '', update = ''] = splitTopLevel(header.content, ';');
-    const body = parseRuntimeStatement(code, header.next);
+    for (const part of [init, condition, update]) {
+      if (part.trim() && endsWithDanglingOperator(part)) {
+        throw new SketchSyntaxError(
+          'dangling-operator',
+          resolveLine(baseLine, code, headerStart),
+          'Expression ends with a dangling operator'
+        );
+      }
+    }
+    const body = parseRuntimeStatement(code, header.next, baseLine);
 
     return {
       statement: {
@@ -1290,6 +1384,28 @@ function parseRuntimeStatement(
       },
       next: body.next,
     };
+  }
+
+  if (startsWithRuntimeKeyword(code, index, 'while')) {
+    throw new SketchSyntaxError(
+      'unsupported-while',
+      resolveLine(baseLine, code, index),
+      "'while' is not supported — use a for() loop instead"
+    );
+  }
+  if (startsWithRuntimeKeyword(code, index, 'do')) {
+    throw new SketchSyntaxError(
+      'unsupported-do-while',
+      resolveLine(baseLine, code, index),
+      "'do...while' is not supported — use a for() loop instead"
+    );
+  }
+  if (startsWithRuntimeKeyword(code, index, 'switch')) {
+    throw new SketchSyntaxError(
+      'unsupported-switch',
+      resolveLine(baseLine, code, index),
+      "'switch' is not supported — use if/else if instead"
+    );
   }
 
   let depth = 0;
@@ -1318,10 +1434,12 @@ function parseRuntimeStatement(
     if (current === ')') depth = Math.max(0, depth - 1);
 
     if (current === ';' && depth === 0) {
+      const sliced = code.slice(index, cursor).trim();
+      validateFallbackExpression(sliced, code, index, baseLine);
       return {
         statement: {
           type: 'expr',
-          code: code.slice(index, cursor).trim(),
+          code: sliced,
         },
         next: cursor + 1,
       };
@@ -1330,22 +1448,70 @@ function parseRuntimeStatement(
     cursor += 1;
   }
 
+  const trailing = code.slice(index).trim();
+  validateFallbackExpression(trailing, code, index, baseLine);
   return {
     statement: {
       type: 'expr',
-      code: code.slice(index).trim(),
+      code: trailing,
     },
     next: code.length,
   };
 }
 
-function parseRuntimeStatements(code: string): RuntimeStatement[] {
+/**
+ * Last line of defense for the brace-blind fallback scanner above: a raw,
+ * un-quoted '{'/'}' here means some construct desynced parsing instead of
+ * being consumed by its own block (if/for do this themselves), and a
+ * trailing operator means the statement was cut off mid-expression.
+ */
+function validateFallbackExpression(
+  expr: string,
+  code: string,
+  offset: number,
+  baseLine: number
+): void {
+  if (!expr) return;
+  if (hasStrayBrace(expr)) {
+    throw new SketchSyntaxError(
+      'unknown',
+      resolveLine(baseLine, code, offset),
+      `Unexpected '{' or '}' in expression: ${expr}`
+    );
+  }
+  if (endsWithDanglingOperator(expr)) {
+    throw new SketchSyntaxError(
+      'dangling-operator',
+      resolveLine(baseLine, code, offset),
+      'Expression ends with a dangling operator'
+    );
+  }
+}
+
+function hasStrayBrace(expr: string): boolean {
+  let quote: string | null = null;
+  for (let i = 0; i < expr.length; i += 1) {
+    const ch = expr[i];
+    if (quote) {
+      if (ch === quote && expr[i - 1] !== '\\') quote = null;
+      continue;
+    }
+    if (ch === '"' || ch === "'") {
+      quote = ch;
+      continue;
+    }
+    if (ch === '{' || ch === '}') return true;
+  }
+  return false;
+}
+
+function parseRuntimeStatements(code: string, baseLine = 1): RuntimeStatement[] {
   const stripped = stripRuntimeComments(code);
   const statements: RuntimeStatement[] = [];
   let index = 0;
 
   while (index < stripped.length) {
-    const parsed = parseRuntimeStatement(stripped, index);
+    const parsed = parseRuntimeStatement(stripped, index, baseLine);
     if (parsed.statement && !(parsed.statement.type === 'expr' && !parsed.statement.code)) {
       statements.push(parsed.statement);
     }
@@ -1436,6 +1602,32 @@ function tokenizeRuntimeExpression(expr: string): RuntimeToken[] {
   }
 
   return tokens;
+}
+
+/**
+ * True when `expr` trails off on an operator with nothing after it — e.g. a
+ * statement cut short mid-edit like `int x = 5 +;`. `i++`/`i--` are exempt:
+ * this tokenizer has no compound `++`/`--` token, so a postfix increment
+ * (by far the most common trailing pattern, via `for(...; i++)`) tokenizes as
+ * two adjacent identical single-char operators and must not be flagged.
+ */
+function endsWithDanglingOperator(expr: string): boolean {
+  const tokens = tokenizeRuntimeExpression(expr);
+  if (tokens.length === 0) return false;
+
+  const last = tokens[tokens.length - 1];
+  if (last.type !== 'operator') return false;
+
+  const prev = tokens[tokens.length - 2];
+  if (
+    prev?.type === 'operator' &&
+    prev.value === last.value &&
+    (last.value === '+' || last.value === '-')
+  ) {
+    return false;
+  }
+
+  return true;
 }
 
 function resolveRuntimeIdentifier(
@@ -2572,6 +2764,131 @@ function getEndpointNet(
   pinId: string
 ): number | undefined {
   return connectivity.endpointToNet.get(endpointKey(componentId, pinId));
+}
+
+export type WiringIssue =
+  | { type: 'dead-short'; net: number; componentId?: string }
+  | { type: 'floating-led'; componentId: string }
+  | { type: 'led-no-resistor'; componentId: string };
+
+/**
+ * Only batteries and board pins count as the power system here — NOT any
+ * component whose own pins happen to be tagged type 'power'/'ground' (e.g. a
+ * driver module's own VCC/GND input pins), because that would treat an
+ * unpowered module as "live" and hide a real floating-LED case behind it.
+ */
+function collectPowerAndGroundKeys(components: CircuitComponent[], boardPins: Pin[]) {
+  const powerKeys = new Set<string>();
+  const groundKeys = new Set<string>();
+  // Anything a sketch could actively drive HIGH, plus true power terminals —
+  // consulted only by the LED-without-resistor check below.
+  const hotCapableKeys = new Set<string>();
+
+  for (const component of components) {
+    if (!BATTERY_TYPES.has(component.type)) continue;
+    const positiveKey = endpointKey(component.id, 'positive');
+    powerKeys.add(positiveKey);
+    hotCapableKeys.add(positiveKey);
+    groundKeys.add(endpointKey(component.id, 'negative'));
+  }
+
+  for (const pin of boardPins) {
+    const key = endpointKey(ARDUINO_COMPONENT_ID, pin.id);
+    if (pin.type === 'power') {
+      powerKeys.add(key);
+      hotCapableKeys.add(key);
+    } else if (pin.type === 'ground') {
+      groundKeys.add(key);
+    } else if (pin.type === 'digital' || pin.type === 'analog' || pin.type === 'pwm') {
+      hotCapableKeys.add(key);
+    }
+  }
+
+  return { powerKeys, groundKeys, hotCapableKeys };
+}
+
+function netHasEndpointFrom(
+  connectivity: Connectivity,
+  net: number | undefined,
+  keys: Set<string>
+): boolean {
+  if (net === undefined) return false;
+  return (connectivity.netEndpoints.get(net) ?? []).some((key) => keys.has(key));
+}
+
+/**
+ * Static, pre-flight wiring checks — pure functions of the current component
+ * and wire graph, so they run continuously (not gated on the sim running) to
+ * surface obvious mistakes before the user ever presses Start. Deliberately a
+ * short, sharp list rather than a general design-rule checker: reverse
+ * polarity, resistor sizing, multi-battery correctness and non-LED loads are
+ * all intentionally out of scope for v1.
+ */
+export function getCircuitWiringIssues(
+  components: CircuitComponent[],
+  wires: Wire[],
+  boardPins: Pin[]
+): WiringIssue[] {
+  const issues: WiringIssue[] = [];
+  const { powerKeys, groundKeys, hotCapableKeys } = collectPowerAndGroundKeys(components, boardPins);
+
+  // A resistor (or potentiometer) is a real net boundary here, not a bridge,
+  // so "wired straight across" can be told apart from "wired through
+  // something that limits current" — the trick both checks below rely on.
+  const strict = buildConnectivity(components, wires, boardPins, {
+    bridgeResistors: false,
+    bridgePotentiometers: false,
+  });
+  const relaxed = buildConnectivity(components, wires, boardPins);
+
+  for (const [net, endpoints] of strict.netEndpoints) {
+    const hasPower = endpoints.some((key) => powerKeys.has(key));
+    const hasGround = endpoints.some((key) => groundKeys.has(key));
+    if (!hasPower || !hasGround) continue;
+
+    const batteryEndpoint = endpoints.find((key) =>
+      components.some(
+        (component) =>
+          BATTERY_TYPES.has(component.type) &&
+          (key === endpointKey(component.id, 'positive') ||
+            key === endpointKey(component.id, 'negative'))
+      )
+    );
+    issues.push({ type: 'dead-short', net, componentId: batteryEndpoint?.split(':')[0] });
+  }
+
+  for (const component of components) {
+    if (component.type !== 'led') continue;
+
+    const anodeNet = getEndpointNet(relaxed, component.id, 'anode');
+    const cathodeNet = getEndpointNet(relaxed, component.id, 'cathode');
+    const touchesPower =
+      netHasEndpointFrom(relaxed, anodeNet, powerKeys) ||
+      netHasEndpointFrom(relaxed, anodeNet, groundKeys) ||
+      netHasEndpointFrom(relaxed, cathodeNet, powerKeys) ||
+      netHasEndpointFrom(relaxed, cathodeNet, groundKeys);
+
+    if (!touchesPower) {
+      issues.push({ type: 'floating-led', componentId: component.id });
+      continue;
+    }
+
+    const anodeStrictNet = getEndpointNet(strict, component.id, 'anode');
+    const cathodeStrictNet = getEndpointNet(strict, component.id, 'cathode');
+    const anodeHot = netHasEndpointFrom(strict, anodeStrictNet, hotCapableKeys);
+    const anodeGround = netHasEndpointFrom(strict, anodeStrictNet, groundKeys);
+    const cathodeHot = netHasEndpointFrom(strict, cathodeStrictNet, hotCapableKeys);
+    const cathodeGround = netHasEndpointFrom(strict, cathodeStrictNet, groundKeys);
+
+    // Polarity-agnostic on purpose: computeComponentDamage above judges
+    // stress the same way (Math.abs of the voltage difference), so a
+    // backwards LED isn't quietly exempted from this check either.
+    if ((anodeHot && cathodeGround) || (cathodeHot && anodeGround)) {
+      issues.push({ type: 'led-no-resistor', componentId: component.id });
+    }
+  }
+
+  return issues;
 }
 
 function inferBoardPinVoltage(pin: Pin, logicHighVoltage: number): number | null {
@@ -3861,6 +4178,40 @@ export function stopMockArduinoRuntime(): void {
   activeStop = null;
 }
 
+function parseSketch(code: string): {
+  setupStatements: RuntimeStatement[];
+  loopStatements: RuntimeStatement[];
+  loopBody: string;
+} {
+  const setup = extractFunctionBody(code, 'setup');
+  const setupStatements = parseRuntimeStatements(setup.body, setup.baseLine);
+  const loop = extractFunctionBody(code, 'loop');
+  const loopStatements = parseRuntimeStatements(loop.body, loop.baseLine);
+  return { setupStatements, loopStatements, loopBody: loop.body };
+}
+
+/**
+ * Structural syntax check only (unbalanced braces, unsupported control flow,
+ * an expression cut off mid-statement) — never a full type-/semantic-checker.
+ * Never throws itself; always resolves to a value, since this runs on every
+ * render to drive the live warning banner, independent of pressing Start.
+ */
+export function findSketchCompileError(code: string): CompileError | null {
+  try {
+    parseSketch(code);
+    return null;
+  } catch (error) {
+    if (error instanceof SketchSyntaxError) {
+      return { reason: error.reason, line: error.line, detail: error.message };
+    }
+    return {
+      reason: 'unknown',
+      line: 0,
+      detail: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
 export function startMockArduinoRuntime(
   code: string,
   components: CircuitComponent[],
@@ -3874,9 +4225,7 @@ export function startMockArduinoRuntime(
   const variables = buildVariableTables(code);
   const servoInstances = extractServoInstances(code);
   const lcdRuntime = extractLcdInstances(code, variables);
-  const setupStatements = parseRuntimeStatements(extractFunctionBody(code, 'setup'));
-  const loopBody = extractFunctionBody(code, 'loop');
-  const loopStatements = parseRuntimeStatements(loopBody);
+  const { setupStatements, loopStatements, loopBody } = parseSketch(code);
   const connectivity = buildConnectivity(components, wires, boardPins);
   const measurementConnectivity = buildConnectivity(components, wires, boardPins, {
     bridgeResistors: false,

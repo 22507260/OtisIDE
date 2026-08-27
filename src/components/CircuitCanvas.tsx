@@ -8,6 +8,7 @@ import {
   ComponentType,
   Pin,
   SimulationState,
+  Wire,
   getDefaultPins,
   WIRE_DEFAULT_WIDTH,
 } from '../models/types';
@@ -39,6 +40,7 @@ import {
 } from '../hooks/useComponentImages';
 import {
   getComponentDisplayName,
+  getCompileErrorDetail,
   getDamageLabel,
   getMultimeterModeLabel,
   getMultimeterStatusLabel,
@@ -47,6 +49,11 @@ import {
   t,
 } from '../lib/i18n';
 import { getHalfBridgeStatus } from '../lib/driverStatus';
+import {
+  findSketchCompileError,
+  getCircuitWiringIssues,
+  type WiringIssue,
+} from '../lib/mockArduinoRuntime';
 import {
   getArtworkLeft,
   getComponentTransform,
@@ -488,9 +495,11 @@ function componentArtworkBottom(type: ComponentType): number {
 }
 
 /**
- * Problems worth interrupting the user for: parts that just burned out, and a
- * sketch with no setup()/loop() to run at all. Both are cheap to notice from
- * state the simulation already publishes, so this needs no extra plumbing.
+ * Problems worth interrupting the user for: a sketch that can't even be
+ * parsed, wiring mistakes visible from the graph alone, and — once running —
+ * parts that just burned out or a sketch with no setup()/loop() to run at
+ * all. The compile and wiring checks run unconditionally (not gated on
+ * `running`) since the whole point is to catch them before Start is pressed.
  */
 type CircuitWarning = {
   id: string;
@@ -498,19 +507,68 @@ type CircuitWarning = {
   /** Present only for a warning that points at one specific part. */
   componentId?: string;
   /** Present only for a warning whose detail lives in a bottom-panel tab. */
-  jumpToTab?: 'serial' | 'device';
+  jumpToTab?: 'code' | 'serial' | 'device';
 };
+
+function mapWiringIssueToWarning(
+  language: 'en' | 'tr',
+  issue: WiringIssue,
+  components: CircuitComponent[]
+): CircuitWarning {
+  if (issue.type === 'dead-short') {
+    return {
+      id: `wiring-short-${issue.net}`,
+      text: t(language, 'circuitWarningDeadShort'),
+      componentId: issue.componentId,
+    };
+  }
+
+  const comp = components.find((item) => item.id === issue.componentId);
+  const info = comp ? COMPONENT_CATALOG.find((item) => item.type === comp.type) : undefined;
+  const name = comp ? getComponentDisplayName(language, comp.type, info?.name ?? comp.type) : '';
+
+  return issue.type === 'floating-led'
+    ? {
+        id: `wiring-floating-${issue.componentId}`,
+        text: t(language, 'circuitWarningFloatingLed', { name }),
+        componentId: issue.componentId,
+      }
+    : {
+        id: `wiring-no-resistor-${issue.componentId}`,
+        text: t(language, 'circuitWarningLedNoResistor', { name }),
+        componentId: issue.componentId,
+      };
+}
 
 function computeCircuitWarnings(
   language: 'en' | 'tr',
   running: boolean,
   code: string,
   components: CircuitComponent[],
+  wires: Wire[],
+  boardPins: Pin[],
   componentStates: SimulationState['componentStates'],
   runtimeError: string | null,
   hardwareError: string | null
 ): CircuitWarning[] {
   const warnings: CircuitWarning[] = [];
+
+  const compileError = findSketchCompileError(code);
+  if (compileError) {
+    const detail =
+      compileError.reason === 'unknown'
+        ? compileError.detail
+        : getCompileErrorDetail(language, compileError.reason, compileError.line);
+    warnings.push({
+      id: 'compile-error',
+      text: t(language, 'circuitWarningCompileError', { error: detail }),
+      jumpToTab: 'code',
+    });
+  }
+
+  for (const issue of getCircuitWiringIssues(components, wires, boardPins)) {
+    warnings.push(mapWiringIssueToWarning(language, issue, components));
+  }
 
   if (running) {
     // Each burned part gets its own line — and its own click target — instead
@@ -1769,6 +1827,10 @@ const CircuitCanvas: React.FC = () => {
   const boardType = useCircuitStore((s) => s.boardType);
   const boardPosition = useCircuitStore((s) => s.boardPosition);
   const breadboardPosition = useCircuitStore((s) => s.breadboardPosition);
+  // Needed by circuitWarnings below, so it's declared here rather than lower
+  // down where it's otherwise used (with the rest of the board-rendering
+  // values it groups with).
+  const boardPins = useMemo(() => getControllerBoardPins(boardType), [boardType]);
   const language = useCircuitStore((s) => s.language);
   const setBottomTab = useCircuitStore((s) => s.setBottomTab);
   const bottomPanelCollapsed = useCircuitStore((s) => s.bottomPanelCollapsed);
@@ -1781,6 +1843,8 @@ const CircuitCanvas: React.FC = () => {
         simulation.running,
         code,
         components,
+        wires,
+        boardPins,
         simulation.componentStates,
         simulation.runtimeError,
         hardwareError
@@ -1790,6 +1854,8 @@ const CircuitCanvas: React.FC = () => {
       simulation.running,
       code,
       components,
+      wires,
+      boardPins,
       simulation.componentStates,
       simulation.runtimeError,
       hardwareError,
@@ -1822,7 +1888,6 @@ const CircuitCanvas: React.FC = () => {
   const updateComponentProperty = useCircuitStore((s) => s.updateComponentProperty);
   const isStagePanning = toolMode === 'pan' || middlePanActive;
   const currentBoard = useMemo(() => getControllerBoardDefinition(boardType), [boardType]);
-  const boardPins = useMemo(() => getControllerBoardPins(boardType), [boardType]);
   const builtinLedBrightness = useMemo(() => {
     const led = currentBoard.builtinLed;
     if (!led || !simulation.running) return 0;
@@ -3178,6 +3243,11 @@ const CircuitCanvas: React.FC = () => {
             })}>
               <span>{t(language, 'rotate90')}</span>
             </button>
+            <button className="context-menu-item" onClick={action(() => {
+              useCircuitStore.getState().duplicateComponent(selectedComponent.id);
+            })}>
+              <span>{t(language, 'contextMenuDuplicate')}</span>
+            </button>
             <div className="context-menu-divider" />
             <button className="context-menu-item danger" onClick={action(() => {
               removeComponent(selectedComponent.id);
@@ -3702,11 +3772,10 @@ const CircuitCanvas: React.FC = () => {
                   );
                 })}
 
-              {/* Component name label — only while selected or hovered, so it doesn't
-                  clutter a full canvas */}
-              {(selectedComponentIds.includes(comp.id) ||
-                selectedComponentId === comp.id ||
-                hoveredComponentId === comp.id) && (
+              {/* Component name label — only while hovered, so it doesn't clutter a
+                  full canvas; the selected component's name already shows in the
+                  properties panel, so selection alone no longer reveals it here */}
+              {hoveredComponentId === comp.id && (
                 <Text
                   text={getCanvasComponentLabel(language, comp)}
                   x={-32}
