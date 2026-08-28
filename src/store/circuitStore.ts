@@ -5,6 +5,8 @@ import {
   Wire,
   ToolMode,
   RightTab,
+  BottomTab,
+  ErrorLogEntry,
   SimulationState,
   AIMessage,
   AIConversation,
@@ -60,8 +62,15 @@ interface CircuitStore {
   setRightTab: (tab: RightTab) => void;
   bottomPanelCollapsed: boolean;
   toggleBottomPanel: () => void;
-  bottomTab: 'code' | 'serial' | 'device' | 'oscilloscope';
-  setBottomTab: (tab: 'code' | 'serial' | 'device' | 'oscilloscope') => void;
+  bottomTab: BottomTab;
+  setBottomTab: (tab: BottomTab) => void;
+  /** Every problem seen this session, kept after its popup is dismissed. */
+  errorLog: ErrorLogEntry[];
+  /** Problems raised just now, shown in a popup until it is closed. */
+  errorDialog: ErrorLogEntry[] | null;
+  reportErrors: (entries: Array<{ sourceId: string; text: string }>) => void;
+  dismissErrorDialog: () => void;
+  clearErrorLog: () => void;
   language: AppLanguage;
   setLanguage: (language: AppLanguage) => void;
 
@@ -202,6 +211,8 @@ void loop() {
 `;
 
 const MAX_UNDO_HISTORY = 100;
+/** Old problems are dropped rather than letting the log grow without bound. */
+const MAX_ERROR_LOG_ENTRIES = 200;
 /** How far a pasted copy lands from the part it came from. */
 const PASTE_OFFSET = 24;
 
@@ -608,6 +619,29 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
   toggleBottomPanel: () => set((s) => ({ bottomPanelCollapsed: !s.bottomPanelCollapsed })),
   bottomTab: 'code',
   setBottomTab: (tab) => set({ bottomTab: tab }),
+
+  errorLog: [],
+  errorDialog: null,
+  // Callers pass only what has just appeared — they track which problems were
+  // already standing, so a problem fixed and then made again is reported anew.
+  reportErrors: (entries) => {
+    if (entries.length === 0) return;
+
+    const fresh = entries.map((entry) => ({
+      id: uuidv4(),
+      sourceId: entry.sourceId,
+      text: entry.text,
+      at: Date.now(),
+    }));
+
+    set((s) => ({
+      errorLog: [...s.errorLog, ...fresh].slice(-MAX_ERROR_LOG_ENTRIES),
+      errorDialog: fresh,
+    }));
+  },
+  dismissErrorDialog: () => set({ errorDialog: null }),
+  clearErrorLog: () => set({ errorLog: [], errorDialog: null }),
+
   language: initialLanguage,
   setLanguage: (language) => {
     writeStorage(APP_LANGUAGE_STORAGE_KEY, language);

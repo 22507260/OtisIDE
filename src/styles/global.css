@@ -1742,6 +1742,87 @@ body::after {
   gap: 8px;
 }
 
+/* Error popup — same shape as the update card, in a warning colour so a
+   problem cannot be mistaken for an announcement. */
+.error-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 4100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(4, 8, 14, 0.72);
+  backdrop-filter: blur(6px);
+}
+
+.error-card {
+  width: min(520px, 100%);
+  border: 1px solid rgba(249, 115, 22, 0.42);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(249, 115, 22, 0.09), rgba(255, 255, 255, 0)), #18120a;
+  box-shadow: 0 40px 90px -40px rgba(0, 0, 0, 0.95);
+  padding: 24px 26px 20px;
+}
+
+.error-card-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.error-badge {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  font-size: 15px;
+  color: #1a1005;
+  background: var(--accent-orange);
+}
+
+.error-title {
+  font-size: 17px;
+  font-weight: 650;
+  margin: 0;
+}
+
+.error-list {
+  list-style: none;
+  margin: 0 0 14px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 40vh;
+  overflow-y: auto;
+}
+
+.error-list li {
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(249, 115, 22, 0.2);
+  background: rgba(249, 115, 22, 0.08);
+}
+
+.error-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 0 0 16px;
+}
+
+.error-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .desktop-update-btn {
   /* Sits inside the draggable title bar, so it has to opt out of dragging. */
   -webkit-app-region: no-drag;

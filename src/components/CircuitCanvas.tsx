@@ -51,9 +51,11 @@ import {
 import { getHalfBridgeStatus } from '../lib/driverStatus';
 import {
   findSketchCompileError,
+  findSketchDiagnostics,
   getCircuitWiringIssues,
   type WiringIssue,
 } from '../lib/mockArduinoRuntime';
+import { getWirePinTargetSize } from '../lib/wirePinTargets';
 import {
   getArtworkLeft,
   getComponentTransform,
@@ -74,7 +76,6 @@ const GRID_DOT_RADIUS = 0.5;
 const WIRE_BEND_HANDLE_RADIUS = 4.5;
 const WIRE_PLUG_HANDLE_RADIUS = 6;
 const SNAP_RADIUS_SQ = (HOLE_SP * 2.5) ** 2;
-const WIRE_PIN_RADIUS = 6;
 const BREADBOARD_WIRE_SNAP_RADIUS_SQ = (HOLE_SP * 1.8) ** 2;
 const PROBE_SNAP_RADIUS_SQ = (HOLE_SP * 1.8) ** 2;
 const PROBE_DOCK_SNAP_RADIUS_SQ = 24 ** 2;
@@ -448,6 +449,7 @@ function getWirePinHandles(pins: Pin[]): WirePinHandle[] {
   }));
 }
 
+
 /** Shared between the LED's glow overlay and its recolored body artwork. */
 const LED_COLOR_HEX: Record<string, string> = {
   red: '#e74c3c',
@@ -527,17 +529,27 @@ function mapWiringIssueToWarning(
   const info = comp ? COMPONENT_CATALOG.find((item) => item.type === comp.type) : undefined;
   const name = comp ? getComponentDisplayName(language, comp.type, info?.name ?? comp.type) : '';
 
-  return issue.type === 'floating-led'
-    ? {
-        id: `wiring-floating-${issue.componentId}`,
-        text: t(language, 'circuitWarningFloatingLed', { name }),
-        componentId: issue.componentId,
-      }
-    : {
-        id: `wiring-no-resistor-${issue.componentId}`,
-        text: t(language, 'circuitWarningLedNoResistor', { name }),
-        componentId: issue.componentId,
-      };
+  if (issue.type === 'floating-part') {
+    return {
+      id: `wiring-floating-${issue.componentId}`,
+      text: t(language, 'circuitWarningFloatingPart', { name }),
+      componentId: issue.componentId,
+    };
+  }
+
+  if (issue.type === 'module-missing-supply') {
+    return {
+      id: `wiring-supply-${issue.componentId}`,
+      text: t(language, 'circuitWarningModuleMissingSupply', { name }),
+      componentId: issue.componentId,
+    };
+  }
+
+  return {
+    id: `wiring-no-resistor-${issue.componentId}`,
+    text: t(language, 'circuitWarningPartNoResistor', { name }),
+    componentId: issue.componentId,
+  };
 }
 
 function computeCircuitWarnings(
@@ -564,6 +576,25 @@ function computeCircuitWarnings(
       text: t(language, 'circuitWarningCompileError', { error: detail }),
       jumpToTab: 'code',
     });
+  } else {
+    // Only worth saying "this name is unknown" once the sketch parses at all —
+    // half-typed code would otherwise light up with noise on every keystroke.
+    for (const diagnostic of findSketchDiagnostics(code)) {
+      warnings.push({
+        id: `${diagnostic.kind}-${diagnostic.line}-${diagnostic.detail}`,
+        text:
+          diagnostic.kind === 'undeclared-variable'
+            ? t(language, 'circuitWarningUndeclared', {
+                name: diagnostic.detail,
+                line: diagnostic.line,
+              })
+            : t(language, 'circuitWarningTypeMismatch', {
+                detail: diagnostic.detail,
+                line: diagnostic.line,
+              }),
+        jumpToTab: 'code',
+      });
+    }
   }
 
   for (const issue of getCircuitWiringIssues(components, wires, boardPins)) {
@@ -1864,7 +1895,29 @@ const CircuitCanvas: React.FC = () => {
   const warningsKey = circuitWarnings.map((warning) => warning.id).join('|');
   const [dismissedWarningsKey, setDismissedWarningsKey] = useState<string | null>(null);
   const [hoveredComponentId, setHoveredComponentId] = useState<string | null>(null);
+  /** Which wiring target the cursor is over, so its name can be shown. */
+  const [hoveredPin, setHoveredPin] = useState<{ componentId: string; pinId: string } | null>(null);
+  /** True while the background itself is being dragged (panning or moving all). */
+  const [stageDragging, setStageDragging] = useState(false);
+  const stageDragOriginRef = useRef<{ x: number; y: number } | null>(null);
   const visibleWarnings = warningsKey === dismissedWarningsKey ? [] : circuitWarnings;
+
+  // Anything that has just gone wrong gets popped up once and written to the
+  // log, which outlives the popup. Problems already standing are left alone,
+  // so a re-render neither duplicates them nor reopens a dismissed dialog.
+  const reportErrors = useCircuitStore((s) => s.reportErrors);
+  const knownWarningIdsRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const current = new Set(circuitWarnings.map((warning) => warning.id));
+    const appeared = circuitWarnings.filter(
+      (warning) => !knownWarningIdsRef.current.has(warning.id)
+    );
+    knownWarningIdsRef.current = current;
+
+    if (appeared.length > 0) {
+      reportErrors(appeared.map((warning) => ({ sourceId: warning.id, text: warning.text })));
+    }
+  }, [circuitWarnings, reportErrors]);
 
   const setZoom = useCircuitStore((s) => s.setZoom);
   const setStagePos = useCircuitStore((s) => s.setStagePos);
@@ -3363,11 +3416,32 @@ const CircuitCanvas: React.FC = () => {
         x={stagePos.x}
         y={stagePos.y}
         draggable={isStagePanning || toolMode === 'select'}
+        onDragStart={(e) => {
+          if (e.target !== e.target.getStage()) return;
+          // Where the gesture began, so the move can be measured against it
+          // even if the store's stagePos shifts underneath us mid-drag.
+          stageDragOriginRef.current = { x: e.target.x(), y: e.target.y() };
+          setStageDragging(true);
+        }}
+        onDragMove={(e) => {
+          if (e.target !== e.target.getStage()) return;
+          // The stage's x/y are controlled props, so any re-render during the
+          // drag (a hover changing, the simulation ticking) would otherwise
+          // slam the view back to the last committed position — which is what
+          // made panning snap back instead of following the cursor.
+          if (isStagePanning) {
+            setStagePos({ x: e.target.x(), y: e.target.y() });
+          }
+        }}
         onDragEnd={(e) => {
           // A dragged part's own dragend bubbles up here too; only the stage's
           // own drag (started on empty background — a part's Group is a
           // closer draggable ancestor and takes the gesture first) is ours.
           if (e.target !== e.target.getStage()) return;
+
+          const origin = stageDragOriginRef.current;
+          stageDragOriginRef.current = null;
+          setStageDragging(false);
 
           if (isStagePanning) {
             setStagePos({ x: e.target.x(), y: e.target.y() });
@@ -3378,8 +3452,9 @@ const CircuitCanvas: React.FC = () => {
           // moves every part together, the same way pan mode moves the view —
           // except here the camera snaps back and the parts' own positions
           // are what actually changed.
-          const dx = e.target.x() - stagePos.x;
-          const dy = e.target.y() - stagePos.y;
+          const from = origin ?? stagePos;
+          const dx = e.target.x() - from.x;
+          const dy = e.target.y() - from.y;
           if ((dx !== 0 || dy !== 0) && components.length > 0) {
             captureUndoSnapshot();
             for (const comp of components) {
@@ -3706,7 +3781,12 @@ const CircuitCanvas: React.FC = () => {
               onTap={(e) => handleComponentClick(comp, e)}
               onDblClick={(e) => handleComponentDoubleClick(comp, e)}
               onDblTap={(e) => handleComponentDoubleClick(comp, e)}
-              onMouseEnter={() => setHoveredComponentId(comp.id)}
+              onMouseEnter={() => {
+                // Hovering mid-pan would re-render and yank the view back, so
+                // labels stay quiet until the background is let go of.
+                if (stageDragging) return;
+                setHoveredComponentId(comp.id);
+              }}
               onMouseLeave={() =>
                 setHoveredComponentId((current) => (current === comp.id ? null : current))
               }
@@ -3723,54 +3803,94 @@ const CircuitCanvas: React.FC = () => {
                 language={language}
               />
               {/* Clickable pin areas (for wiring) */}
-              {toolMode === 'wire' &&
-                getWirePinHandles(getMirroredPins(comp.pins, comp.flipX)).map((handle) => {
+              {toolMode === 'wire' && (() => {
+                const mirroredPins = getMirroredPins(comp.pins, comp.flipX);
+                const { radius: pinRadius, hitStrokeWidth } = getWirePinTargetSize(mirroredPins);
+
+                return getWirePinHandles(mirroredPins).map((handle) => {
                   const isSelectedPin =
                     wiringStart?.componentId === comp.id &&
                     wiringStart?.pinId === handle.pin.id;
+                  const isHoveredPin =
+                    hoveredPin?.componentId === comp.id && hoveredPin?.pinId === handle.pin.id;
                   const pinWorldPosition = getComponentPinWorldPosition(
                     comp,
                     handle.pin.id
                   );
+                  const connect = (e: Konva.KonvaEventObject<Event>) => {
+                    e.cancelBubble = true;
+                    if (!pinWorldPosition) return;
+                    handlePinClick(
+                      comp.id,
+                      handle.pin.id,
+                      pinWorldPosition.x,
+                      pinWorldPosition.y
+                    );
+                  };
 
                   return (
                     <Group key={handle.pin.id}>
                       <Circle
                         x={handle.targetX}
                         y={handle.targetY}
-                        radius={WIRE_PIN_RADIUS}
+                        radius={isHoveredPin ? pinRadius * 1.35 : pinRadius}
                         fill={
                           isSelectedPin
                             ? 'rgba(255, 255, 255, 0.28)'
-                            : 'rgba(78, 204, 163, 0.2)'
+                            : isHoveredPin
+                              ? 'rgba(78, 204, 163, 0.45)'
+                              : 'rgba(78, 204, 163, 0.2)'
                         }
-                        stroke={isSelectedPin ? '#fff' : '#4ecca3'}
-                        strokeWidth={isSelectedPin ? 1.8 : 1.2}
-                        hitStrokeWidth={18}
-                        onClick={(e) => {
-                          e.cancelBubble = true;
-                          if (!pinWorldPosition) return;
-                          handlePinClick(
-                            comp.id,
-                            handle.pin.id,
-                            pinWorldPosition.x,
-                            pinWorldPosition.y
-                          );
-                        }}
-                        onTap={(e) => {
-                          e.cancelBubble = true;
-                          if (!pinWorldPosition) return;
-                          handlePinClick(
-                            comp.id,
-                            handle.pin.id,
-                            pinWorldPosition.x,
-                            pinWorldPosition.y
-                          );
-                        }}
+                        stroke={isSelectedPin || isHoveredPin ? '#fff' : '#4ecca3'}
+                        strokeWidth={isSelectedPin || isHoveredPin ? 1.8 : 1.2}
+                        hitStrokeWidth={hitStrokeWidth}
+                        onMouseEnter={() =>
+                          setHoveredPin({ componentId: comp.id, pinId: handle.pin.id })
+                        }
+                        onMouseLeave={() =>
+                          setHoveredPin((current) =>
+                            current?.componentId === comp.id && current?.pinId === handle.pin.id
+                              ? null
+                              : current
+                          )
+                        }
+                        onClick={connect}
+                        onTap={connect}
                       />
+                      {/* Which leg the click will actually take, spelled out —
+                          on a part with legs this close together the circles
+                          alone are too small to tell apart. Sits on its own
+                          plate so it stays readable over the artwork. */}
+                      {isHoveredPin && (
+                        <>
+                          <Rect
+                            x={handle.targetX - 30}
+                            y={handle.targetY - pinRadius - 16}
+                            width={60}
+                            height={13}
+                            cornerRadius={3}
+                            fill="rgba(8, 20, 16, 0.88)"
+                            stroke="#4ecca3"
+                            strokeWidth={0.6}
+                            listening={false}
+                          />
+                          <Text
+                            text={handle.pin.name || handle.pin.id}
+                            x={handle.targetX - 30}
+                            y={handle.targetY - pinRadius - 13}
+                            width={60}
+                            align="center"
+                            fontSize={8.5}
+                            fontStyle="bold"
+                            fill="#eaf6f1"
+                            listening={false}
+                          />
+                        </>
+                      )}
                     </Group>
                   );
-                })}
+                });
+              })()}
 
               {/* Component name label — only while hovered, so it doesn't clutter a
                   full canvas; the selected component's name already shows in the

@@ -613,7 +613,7 @@ describe('getCircuitWiringIssues', () => {
 
   it('flags an LED with no wires at all as floating', () => {
     const issues = getCircuitWiringIssues([led()], [], BOARD_PINS);
-    expect(issues).toContainEqual({ type: 'floating-led', componentId: 'led-1' });
+    expect(issues).toContainEqual({ type: 'floating-part', componentId: 'led-1' });
   });
 
   it('flags an LED wired straight to a battery with no resistor', () => {
@@ -625,7 +625,7 @@ describe('getCircuitWiringIssues', () => {
       ],
       BOARD_PINS
     );
-    expect(issues).toContainEqual({ type: 'led-no-resistor', componentId: 'led-1' });
+    expect(issues).toContainEqual({ type: 'part-no-resistor', componentId: 'led-1' });
   });
 
   it('flags an LED wired straight to a digital pin with no resistor, polarity-agnostic', () => {
@@ -637,7 +637,7 @@ describe('getCircuitWiringIssues', () => {
       ],
       BOARD_PINS
     );
-    expect(issues).toContainEqual({ type: 'led-no-resistor', componentId: 'led-1' });
+    expect(issues).toContainEqual({ type: 'part-no-resistor', componentId: 'led-1' });
   });
 
   it('does not flag an LED wired through a resistor', () => {

@@ -2,6 +2,7 @@ import '../lib/monacoSetup';
 import Editor, { type Monaco } from '@monaco-editor/react';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useCircuitStore } from '../store/circuitStore';
+import AIPanel from './AIPanel';
 import type { CircuitComponent, OscilloscopeSample } from '../models/types';
 import {
   HARDWARE_BAUD_RATE_OPTIONS,
@@ -178,6 +179,8 @@ const BottomPanel: React.FC = () => {
   const oscilloscopeTraces = useCircuitStore((s) => s.simulation.oscilloscopeTraces);
   const clearSerialOutput = useCircuitStore((s) => s.clearSerialOutput);
   const clearOscilloscopeTraces = useCircuitStore((s) => s.clearOscilloscopeTraces);
+  const errorLog = useCircuitStore((s) => s.errorLog);
+  const clearErrorLog = useCircuitStore((s) => s.clearErrorLog);
   const simulation = useCircuitStore((s) => s.simulation);
   const language = useCircuitStore((s) => s.language);
 
@@ -404,6 +407,31 @@ const BottomPanel: React.FC = () => {
               ? ` (${hardwareConsoleEntries.length})`
               : ''}
           </button>
+          <button
+            className={`tab-btn ${bottomTab === 'ai' ? 'active' : ''}`}
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              setBottomTab('ai');
+              if (bottomPanelCollapsed) toggleBottomPanel();
+            }}
+            style={{ padding: '4px 10px', fontSize: 11 }}
+          >
+            {t(language, 'aiAssistantTab')}
+          </button>
+          <button
+            className={`tab-btn ${bottomTab === 'errors' ? 'active' : ''}`}
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              setBottomTab('errors');
+              if (bottomPanelCollapsed) toggleBottomPanel();
+            }}
+            style={{ padding: '4px 10px', fontSize: 11 }}
+          >
+            {t(language, 'errorsTab')}
+            {errorLog.length > 0 ? ` (${errorLog.length})` : ''}
+          </button>
         </div>
 
         <div className="bottom-panel-meta">
@@ -552,6 +580,41 @@ const BottomPanel: React.FC = () => {
                   theme="ai-circuit-dark"
                   value={code}
                 />
+              </div>
+            </div>
+          ) : bottomTab === 'ai' ? (
+            <AIPanel />
+          ) : bottomTab === 'errors' ? (
+            <div className="serial-shell">
+              <div className="serial-shell-head">
+                <div>
+                  <div className="serial-shell-title">{t(language, 'errorsTab')}</div>
+                  <div className="serial-shell-text">{t(language, 'errorDialogHint')}</div>
+                </div>
+                {errorLog.length > 0 && (
+                  <button
+                    className="toolbar-btn"
+                    style={{ fontSize: 11, padding: '6px 10px' }}
+                    onClick={clearErrorLog}
+                    type="button"
+                  >
+                    {t(language, 'errorsClear')}
+                  </button>
+                )}
+              </div>
+              <div className="serial-output">
+                {errorLog.length === 0 ? (
+                  <div className="serial-empty">{t(language, 'errorsEmpty')}</div>
+                ) : (
+                  [...errorLog].reverse().map((entry) => (
+                    <div key={entry.id} className="serial-line">
+                      <span style={{ opacity: 0.55 }}>
+                        {new Date(entry.at).toLocaleTimeString()}
+                      </span>{' '}
+                      {entry.text}
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           ) : bottomTab === 'serial' ? (

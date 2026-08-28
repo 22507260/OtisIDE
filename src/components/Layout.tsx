@@ -4,19 +4,19 @@ import Toolbar from './Toolbar';
 import Palette from './Palette';
 import CircuitCanvas from './CircuitCanvas';
 import PropertiesPanel from './PropertiesPanel';
-import AIPanel from './AIPanel';
 import BottomPanel from './BottomPanel';
 import UpdateNotice from './UpdateNotice';
+import { ErrorDialog } from './ErrorDialog';
 import { useCircuitStore } from '../store/circuitStore';
 import { t } from '../lib/i18n';
 
 const Layout: React.FC = () => {
-  const rightTab = useCircuitStore((s) => s.rightTab);
   const language = useCircuitStore((s) => s.language);
 
   return (
     <div className="app-shell">
       <UpdateNotice />
+      <ErrorDialog />
       <DesktopTitleBar />
       <div className="app-container">
         <Toolbar />
@@ -29,36 +29,17 @@ const Layout: React.FC = () => {
             <CircuitCanvas />
             <BottomPanel />
           </div>
+          {/* The assistant now lives beside the device console at the bottom,
+              leaving this panel to the selected part's properties alone. */}
           <div className="right-panel">
             <div className="tab-bar">
-              <TabButton
-                tab="properties"
-                label={t(language, 'propertiesTab')}
-              />
-              <TabButton tab="ai" label={t(language, 'aiAssistantTab')} />
+              <button className="tab-btn active">{t(language, 'propertiesTab')}</button>
             </div>
-            {rightTab === 'properties' ? <PropertiesPanel /> : <AIPanel />}
+            <PropertiesPanel />
           </div>
         </div>
       </div>
     </div>
-  );
-};
-
-const TabButton: React.FC<{ tab: 'properties' | 'ai'; label: string }> = ({
-  tab,
-  label,
-}) => {
-  const rightTab = useCircuitStore((s) => s.rightTab);
-  const setRightTab = useCircuitStore((s) => s.setRightTab);
-
-  return (
-    <button
-      className={`tab-btn ${rightTab === tab ? 'active' : ''}`}
-      onClick={() => setRightTab(tab)}
-    >
-      {label}
-    </button>
   );
 };
 

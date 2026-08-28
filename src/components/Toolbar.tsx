@@ -191,7 +191,7 @@ const Toolbar: React.FC = () => {
           onClick={() => setToolMode('delete')}
           title={t(language, 'deleteToolTitle')}
         >
-          {t(language, 'deleteTool')}
+          {t(language, 'deleteToolButton')}
         </button>
       </div>
 

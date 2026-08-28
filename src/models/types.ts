@@ -130,6 +130,17 @@ export type ToolMode = 'select' | 'wire' | 'pan' | 'delete';
 
 export type RightTab = 'properties' | 'ai';
 
+export type BottomTab = 'code' | 'serial' | 'device' | 'oscilloscope' | 'errors' | 'ai';
+
+/** One problem, kept in the log so closing its popup does not lose it. */
+export interface ErrorLogEntry {
+  id: string;
+  /** Which warning raised it, so the same standing problem is logged once. */
+  sourceId: string;
+  text: string;
+  at: number;
+}
+
 export interface SimulationState {
   running: boolean;
   pinStates: Record<string, number>;

@@ -2768,8 +2768,27 @@ function getEndpointNet(
 
 export type WiringIssue =
   | { type: 'dead-short'; net: number; componentId?: string }
-  | { type: 'floating-led'; componentId: string }
-  | { type: 'led-no-resistor'; componentId: string };
+  | { type: 'floating-part'; componentId: string }
+  | { type: 'part-no-resistor'; componentId: string }
+  | { type: 'module-missing-supply'; componentId: string };
+
+/**
+ * Two-terminal loads: parts that simply sit there unless current can get in one
+ * side and out the other, so "neither leg reaches the power system" is a real,
+ * checkable mistake rather than a matter of taste.
+ */
+const TWO_TERMINAL_LOADS: Partial<Record<CircuitComponent['type'], [string, string]>> = {
+  led: ['anode', 'cathode'],
+  diode: ['anode', 'cathode'],
+  buzzer: ['positive', 'negative'],
+  'dc-motor': ['pin1', 'pin2'],
+};
+
+/** Parts that burn out fast when wired straight across a supply. */
+const NEEDS_SERIES_RESISTOR = new Set<CircuitComponent['type']>(['led', 'diode']);
+
+/** An RGB LED is really three LEDs sharing a leg. */
+const RGB_LED_CHANNELS = ['red', 'green', 'blue'];
 
 /**
  * Only batteries and board pins count as the power system here — NOT any
@@ -2857,34 +2876,83 @@ export function getCircuitWiringIssues(
     issues.push({ type: 'dead-short', net, componentId: batteryEndpoint?.split(':')[0] });
   }
 
+  /** Is either end of this pair attached to the power system at all? */
+  const touchesPowerSystem = (componentId: string, pinIds: string[]): boolean =>
+    pinIds.some((pinId) => {
+      const net = getEndpointNet(relaxed, componentId, pinId);
+      return (
+        netHasEndpointFrom(relaxed, net, powerKeys) ||
+        netHasEndpointFrom(relaxed, net, groundKeys)
+      );
+    });
+
+  /**
+   * True when the two pins sit directly across a supply with nothing in
+   * between. Polarity-agnostic on purpose: computeComponentDamage judges
+   * stress the same way (Math.abs of the voltage difference), so a backwards
+   * part isn't quietly exempted from this check either.
+   */
+  const isWiredStraightAcross = (componentId: string, fromPin: string, toPin: string): boolean => {
+    const fromNet = getEndpointNet(strict, componentId, fromPin);
+    const toNet = getEndpointNet(strict, componentId, toPin);
+    const fromHot = netHasEndpointFrom(strict, fromNet, hotCapableKeys);
+    const fromGround = netHasEndpointFrom(strict, fromNet, groundKeys);
+    const toHot = netHasEndpointFrom(strict, toNet, hotCapableKeys);
+    const toGround = netHasEndpointFrom(strict, toNet, groundKeys);
+
+    return (fromHot && toGround) || (toHot && fromGround);
+  };
+
   for (const component of components) {
-    if (component.type !== 'led') continue;
+    const terminals = TWO_TERMINAL_LOADS[component.type];
 
-    const anodeNet = getEndpointNet(relaxed, component.id, 'anode');
-    const cathodeNet = getEndpointNet(relaxed, component.id, 'cathode');
-    const touchesPower =
-      netHasEndpointFrom(relaxed, anodeNet, powerKeys) ||
-      netHasEndpointFrom(relaxed, anodeNet, groundKeys) ||
-      netHasEndpointFrom(relaxed, cathodeNet, powerKeys) ||
-      netHasEndpointFrom(relaxed, cathodeNet, groundKeys);
+    if (terminals) {
+      if (!touchesPowerSystem(component.id, terminals)) {
+        issues.push({ type: 'floating-part', componentId: component.id });
+        continue;
+      }
 
-    if (!touchesPower) {
-      issues.push({ type: 'floating-led', componentId: component.id });
+      if (
+        NEEDS_SERIES_RESISTOR.has(component.type) &&
+        isWiredStraightAcross(component.id, terminals[0], terminals[1])
+      ) {
+        issues.push({ type: 'part-no-resistor', componentId: component.id });
+      }
       continue;
     }
 
-    const anodeStrictNet = getEndpointNet(strict, component.id, 'anode');
-    const cathodeStrictNet = getEndpointNet(strict, component.id, 'cathode');
-    const anodeHot = netHasEndpointFrom(strict, anodeStrictNet, hotCapableKeys);
-    const anodeGround = netHasEndpointFrom(strict, anodeStrictNet, groundKeys);
-    const cathodeHot = netHasEndpointFrom(strict, cathodeStrictNet, hotCapableKeys);
-    const cathodeGround = netHasEndpointFrom(strict, cathodeStrictNet, groundKeys);
+    // An RGB LED is three LEDs behind one shared leg, so each colour is
+    // checked against that leg the same way a plain LED is checked.
+    if (component.type === 'rgb-led') {
+      if (!touchesPowerSystem(component.id, ['common', ...RGB_LED_CHANNELS])) {
+        issues.push({ type: 'floating-part', componentId: component.id });
+        continue;
+      }
 
-    // Polarity-agnostic on purpose: computeComponentDamage above judges
-    // stress the same way (Math.abs of the voltage difference), so a
-    // backwards LED isn't quietly exempted from this check either.
-    if ((anodeHot && cathodeGround) || (cathodeHot && anodeGround)) {
-      issues.push({ type: 'led-no-resistor', componentId: component.id });
+      const unlimited = RGB_LED_CHANNELS.some((channel) =>
+        isWiredStraightAcross(component.id, channel, 'common')
+      );
+      if (unlimited) {
+        issues.push({ type: 'part-no-resistor', componentId: component.id });
+      }
+      continue;
+    }
+
+    // A module with a supply pin that reaches neither power nor ground can
+    // never come alive, however carefully its data pins are wired.
+    const supplyPin = component.pins.find((pin) =>
+      SUPPLY_PIN_IDS.includes(pin.id.toLowerCase())
+    );
+    const groundPin = component.pins.find((pin) => pin.type === 'ground');
+    if (supplyPin && groundPin) {
+      const supplyNet = getEndpointNet(relaxed, component.id, supplyPin.id);
+      const groundNet = getEndpointNet(relaxed, component.id, groundPin.id);
+      const supplied = netHasEndpointFrom(relaxed, supplyNet, powerKeys);
+      const grounded = netHasEndpointFrom(relaxed, groundNet, groundKeys);
+
+      if (!supplied || !grounded) {
+        issues.push({ type: 'module-missing-supply', componentId: component.id });
+      }
     }
   }
 
@@ -4210,6 +4278,191 @@ export function findSketchCompileError(code: string): CompileError | null {
       detail: error instanceof Error ? error.message : String(error),
     };
   }
+}
+
+export type SketchDiagnosticKind = 'undeclared-variable' | 'type-mismatch';
+
+export type SketchDiagnostic = {
+  kind: SketchDiagnosticKind;
+  line: number;
+  /** The offending name or assignment, quoted back to the user as-is. */
+  detail: string;
+};
+
+/** C/Arduino words that are never a variable being read. */
+const SKETCH_RESERVED_WORDS = new Set([
+  'IF', 'ELSE', 'FOR', 'WHILE', 'DO', 'SWITCH', 'CASE', 'DEFAULT', 'BREAK', 'CONTINUE',
+  'RETURN', 'GOTO', 'SIZEOF', 'STRUCT', 'ENUM', 'UNION', 'TYPEDEF', 'CLASS', 'PUBLIC',
+  'PRIVATE', 'PROTECTED', 'NEW', 'DELETE', 'NAMESPACE', 'USING', 'TEMPLATE', 'OPERATOR',
+  'SETUP', 'LOOP',
+]);
+
+const SKETCH_TYPE_WORDS = new Set([
+  'VOID', 'INT', 'LONG', 'SHORT', 'CHAR', 'BYTE', 'BOOL', 'BOOLEAN', 'FLOAT', 'DOUBLE',
+  'STRING', 'UNSIGNED', 'SIGNED', 'CONST', 'CONSTEXPR', 'STATIC', 'VOLATILE', 'EXTERN',
+  'UINT8_T', 'UINT16_T', 'UINT32_T', 'UINT64_T', 'INT8_T', 'INT16_T', 'INT32_T',
+  'INT64_T', 'SIZE_T', 'WORD', 'AUTO', 'NULLPTR', 'NULL',
+]);
+
+/** Constants the board itself provides, so using one is never "undeclared". */
+const SKETCH_BUILTIN_CONSTANTS = new Set([
+  'HIGH', 'LOW', 'INPUT', 'OUTPUT', 'INPUT_PULLUP', 'INPUT_PULLDOWN', 'LED_BUILTIN',
+  'TRUE', 'FALSE', 'DEC', 'HEX', 'OCT', 'BIN', 'PI', 'HALF_PI', 'TWO_PI', 'DEG_TO_RAD',
+  'RAD_TO_DEG', 'EULER', 'SERIAL', 'MSBFIRST', 'LSBFIRST', 'CHANGE', 'RISING', 'FALLING',
+  'A0', 'A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7', 'A8', 'A9', 'A10', 'A11', 'A12',
+  'A13', 'A14', 'A15',
+]);
+
+const NUMERIC_TYPE_WORDS = new Set([
+  'INT', 'LONG', 'SHORT', 'BYTE', 'FLOAT', 'DOUBLE', 'UINT8_T', 'UINT16_T', 'UINT32_T',
+  'INT8_T', 'INT16_T', 'INT32_T', 'SIZE_T', 'WORD', 'BOOL', 'BOOLEAN',
+]);
+
+/**
+ * Replaces every string/char literal's contents with spaces, so a scan can walk
+ * the code without tripping over words inside `Serial.println("no such var")`.
+ * Offsets are preserved, keeping reported line numbers honest.
+ */
+function blankSketchLiterals(code: string): string {
+  let result = '';
+  let index = 0;
+  let quote: string | null = null;
+
+  while (index < code.length) {
+    const current = code[index];
+
+    if (quote) {
+      if (current === quote && code[index - 1] !== '\\') {
+        quote = null;
+        result += current;
+      } else {
+        result += current === '\n' ? '\n' : ' ';
+      }
+      index += 1;
+      continue;
+    }
+
+    if (current === '"' || current === "'") {
+      quote = current;
+      result += current;
+      index += 1;
+      continue;
+    }
+
+    result += current;
+    index += 1;
+  }
+
+  return result;
+}
+
+/** Every name the sketch itself introduces: variables, #defines, objects. */
+function collectDeclaredSketchNames(code: string): Set<string> {
+  const declared = new Set<string>();
+
+  // `int a = 1, b, c[4];` — the type word, then every declarator after it.
+  const declarationRegex =
+    /\b(?:const\s+|constexpr\s+|static\s+|volatile\s+|extern\s+|unsigned\s+|signed\s+)*(?:int|long|short|char|byte|bool|boolean|float|double|String|uint8_t|uint16_t|uint32_t|uint64_t|int8_t|int16_t|int32_t|int64_t|size_t|word)\s+([^;{)]*)/gi;
+
+  for (const match of code.matchAll(declarationRegex)) {
+    for (const part of match[1].split(',')) {
+      const name = /^\s*\*?\s*([A-Za-z_]\w*)/.exec(part);
+      if (name) declared.add(normalizeVariableName(name[1]));
+    }
+  }
+
+  // `Servo arm;` / `LiquidCrystal lcd(12, 11, 5, 4, 3, 2);` — a class instance.
+  // The class name counts as known too, otherwise the type word in the
+  // declaration itself would be read back as an unknown variable.
+  for (const match of code.matchAll(/\b([A-Z][A-Za-z0-9_]*)\s+([A-Za-z_]\w*)\s*[;(=]/g)) {
+    if (SKETCH_TYPE_WORDS.has(match[1].toUpperCase())) continue;
+    declared.add(normalizeVariableName(match[1]));
+    declared.add(normalizeVariableName(match[2]));
+  }
+
+  for (const match of code.matchAll(/^\s*#define\s+([A-Za-z_]\w*)/gim)) {
+    declared.add(normalizeVariableName(match[1]));
+  }
+
+  return declared;
+}
+
+/**
+ * Semantic checks the parser cannot make: a name that was never declared, and
+ * an initialiser whose type obviously cannot fit the variable. These are
+ * advisory — unlike a syntax error they never block Start, because a
+ * false positive here would otherwise make a perfectly good sketch unrunnable.
+ */
+export function findSketchDiagnostics(code: string): SketchDiagnostic[] {
+  const scanned = blankSketchLiterals(stripRuntimeComments(code));
+  const declared = collectDeclaredSketchNames(scanned);
+  const diagnostics: SketchDiagnostic[] = [];
+  const reported = new Set<string>();
+
+  const identifierRegex = /[A-Za-z_]\w*/g;
+  for (const match of scanned.matchAll(identifierRegex)) {
+    const raw = match[0];
+    const normalized = normalizeVariableName(raw);
+    const start = match.index ?? 0;
+    const before = scanned.slice(0, start);
+    const after = scanned.slice(start + raw.length);
+
+    // A call, a member, or the object a member is read from — none of these is
+    // a plain variable read, and checking them needs a real symbol table.
+    if (/^\s*[(.]/.test(after)) continue;
+    if (/[.>]\s*$/.test(before)) continue;
+    // `#include <Servo.h>` and friends.
+    if (/#\s*\w*\s*[<"]?[\w./]*$/.test(before.slice(-40))) continue;
+
+    if (
+      SKETCH_RESERVED_WORDS.has(normalized) ||
+      SKETCH_TYPE_WORDS.has(normalized) ||
+      SKETCH_BUILTIN_CONSTANTS.has(normalized) ||
+      SUPPORTED_RUNTIME_BUILTINS.has(normalized) ||
+      declared.has(normalized) ||
+      reported.has(normalized)
+    ) {
+      continue;
+    }
+
+    reported.add(normalized);
+    diagnostics.push({
+      kind: 'undeclared-variable',
+      line: lineNumberAt(scanned, start),
+      detail: raw,
+    });
+  }
+
+  // A string parked in a number, or a number parked in a String.
+  const initialiserRegex =
+    /\b(?:const\s+|constexpr\s+|static\s+|volatile\s+)*(int|long|short|byte|bool|boolean|float|double|String|uint8_t|uint16_t|uint32_t|int8_t|int16_t|int32_t|size_t|word)\s+([A-Za-z_]\w*)\s*=\s*([^;]+);/gi;
+
+  // Literals are needed intact here, so this reads the commentless source
+  // rather than the blanked-out copy the identifier scan above walks.
+  const withLiterals = stripRuntimeComments(code);
+  for (const match of withLiterals.matchAll(initialiserRegex)) {
+    const type = match[1].toUpperCase();
+    const name = match[2];
+    const value = match[3].trim();
+    const isStringLiteral = /^"(?:\\.|[^"\\])*"$/.test(value);
+    const isNumberLiteral = /^-?\d+(?:\.\d+)?$/.test(value);
+
+    if (NUMERIC_TYPE_WORDS.has(type) && isStringLiteral) {
+      diagnostics.push({
+        kind: 'type-mismatch',
+        line: lineNumberAt(withLiterals, match.index ?? 0),
+        detail: `${match[1]} ${name} = ${value}`,
+      });
+    } else if (type === 'STRING' && isNumberLiteral) {
+      diagnostics.push({
+        kind: 'type-mismatch',
+        line: lineNumberAt(withLiterals, match.index ?? 0),
+        detail: `${match[1]} ${name} = ${value}`,
+      });
+    }
+  }
+
+  return diagnostics.sort((a, b) => a.line - b.line);
 }
 
 export function startMockArduinoRuntime(
