@@ -14,6 +14,7 @@ const Toolbar: React.FC = () => {
   const setWireColorById = useCircuitStore((s) => s.setWireColorById);
   const simulation = useCircuitStore((s) => s.simulation);
   const startSimulation = useCircuitStore((s) => s.startSimulation);
+  const requestValidation = useCircuitStore((s) => s.requestValidation);
   const stopSimulation = useCircuitStore((s) => s.stopSimulation);
   const clearProject = useCircuitStore((s) => s.clearProject);
   const getProjectData = useCircuitStore((s) => s.getProjectData);
@@ -281,7 +282,10 @@ const Toolbar: React.FC = () => {
 
             <button
               className="toolbar-btn"
-              onClick={() => void verifySketch(code, effectiveBoardType)}
+              onClick={() => {
+                requestValidation();
+                void verifySketch(code, effectiveBoardType);
+              }}
               disabled={!hardwareCliAvailable || uploadInProgress}
               title={t(language, 'verifySketch')}
             >
@@ -290,7 +294,10 @@ const Toolbar: React.FC = () => {
 
             <button
               className="toolbar-btn success"
-              onClick={() => void uploadSketch(code, effectiveBoardType)}
+              onClick={() => {
+                requestValidation();
+                void uploadSketch(code, effectiveBoardType);
+              }}
               disabled={
                 !hardwareCliAvailable ||
                 !selectedHardwarePortPath ||

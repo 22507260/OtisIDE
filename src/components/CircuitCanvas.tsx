@@ -497,11 +497,17 @@ function componentArtworkBottom(type: ComponentType): number {
 }
 
 /**
- * Problems worth interrupting the user for: a sketch that can't even be
- * parsed, wiring mistakes visible from the graph alone, and — once running —
- * parts that just burned out or a sketch with no setup()/loop() to run at
- * all. The compile and wiring checks run unconditionally (not gated on
- * `running`) since the whole point is to catch them before Start is pressed.
+ * Problems worth telling the user about, in two kinds.
+ *
+ * Static ones — a sketch that will not parse, wiring mistakes visible from the
+ * graph alone — are found by inspecting the project, so they would also be
+ * "found" the instant a part is dropped and has not been wired up yet. That is
+ * not a mistake, it is a circuit halfway through being built, so these are only
+ * surfaced when the user actually asks: Verify, Upload or Start.
+ *
+ * Live ones — a part that just burned out, a statement that threw, compiler
+ * output from the board — are events that happen while something is already
+ * running, which the user started themselves, so they show up as they occur.
  */
 type CircuitWarning = {
   id: string;
@@ -510,6 +516,8 @@ type CircuitWarning = {
   componentId?: string;
   /** Present only for a warning whose detail lives in a bottom-panel tab. */
   jumpToTab?: 'code' | 'serial' | 'device';
+  /** True for something that happened just now rather than something found by inspection. */
+  live?: boolean;
 };
 
 function mapWiringIssueToWarning(
@@ -615,11 +623,12 @@ function computeCircuitWarnings(
         id: `damaged-${comp.id}`,
         text: `${name} — ${reason}`,
         componentId: comp.id,
+        live: true,
       });
     }
 
     if (!/void\s+setup\s*\(/.test(code) || !/void\s+loop\s*\(/.test(code)) {
-      warnings.push({ id: 'no-code', text: t(language, 'circuitWarningNoCode') });
+      warnings.push({ id: 'no-code', text: t(language, 'circuitWarningNoCode'), live: true });
     }
 
     if (runtimeError) {
@@ -627,6 +636,7 @@ function computeCircuitWarnings(
         id: 'runtime-error',
         text: t(language, 'circuitWarningRuntimeError', { error: runtimeError }),
         jumpToTab: 'serial',
+        live: true,
       });
     }
   }
@@ -639,6 +649,7 @@ function computeCircuitWarnings(
       id: 'hardware-error',
       text: firstLine.length > 160 ? `${firstLine.slice(0, 160)}…` : firstLine,
       jumpToTab: 'device',
+      live: true,
     });
   }
 
@@ -1892,32 +1903,67 @@ const CircuitCanvas: React.FC = () => {
       hardwareError,
     ]
   );
-  const warningsKey = circuitWarnings.map((warning) => warning.id).join('|');
-  const [dismissedWarningsKey, setDismissedWarningsKey] = useState<string | null>(null);
   const [hoveredComponentId, setHoveredComponentId] = useState<string | null>(null);
   /** Which wiring target the cursor is over, so its name can be shown. */
   const [hoveredPin, setHoveredPin] = useState<{ componentId: string; pinId: string } | null>(null);
   /** True while the background itself is being dragged (panning or moving all). */
   const [stageDragging, setStageDragging] = useState(false);
   const stageDragOriginRef = useRef<{ x: number; y: number } | null>(null);
-  const visibleWarnings = warningsKey === dismissedWarningsKey ? [] : circuitWarnings;
 
-  // Anything that has just gone wrong gets popped up once and written to the
-  // log, which outlives the popup. Problems already standing are left alone,
-  // so a re-render neither duplicates them nor reopens a dismissed dialog.
+  const [dismissedWarningsKey, setDismissedWarningsKey] = useState<string | null>(null);
+
+  const liveWarnings = useMemo(
+    () => circuitWarnings.filter((warning) => warning.live),
+    [circuitWarnings]
+  );
+
+  // Findings from inspecting the project are held back until the user asks for
+  // a check, then kept on screen as that check's result. Otherwise dropping a
+  // part that is not wired up yet would immediately be called a mistake.
+  const validationRequestId = useCircuitStore((s) => s.validationRequestId);
+  const [staticFindings, setStaticFindings] = useState<CircuitWarning[]>([]);
+  const staticWarningsRef = useRef<CircuitWarning[]>([]);
+  staticWarningsRef.current = circuitWarnings.filter((warning) => !warning.live);
+
   const reportErrors = useCircuitStore((s) => s.reportErrors);
-  const knownWarningIdsRef = useRef<Set<string>>(new Set());
   useEffect(() => {
-    const current = new Set(circuitWarnings.map((warning) => warning.id));
-    const appeared = circuitWarnings.filter(
-      (warning) => !knownWarningIdsRef.current.has(warning.id)
-    );
-    knownWarningIdsRef.current = current;
+    if (validationRequestId === 0) return;
+
+    const found = staticWarningsRef.current;
+    setStaticFindings(found);
+    setDismissedWarningsKey(null);
+
+    if (found.length > 0) {
+      reportErrors(found.map((warning) => ({ sourceId: warning.id, text: warning.text })));
+    }
+  }, [validationRequestId, reportErrors]);
+
+  // A part burning out or a statement throwing happens while something the
+  // user started is already running, so those are reported as they occur.
+  const knownLiveIdsRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const appeared = liveWarnings.filter((warning) => !knownLiveIdsRef.current.has(warning.id));
+    knownLiveIdsRef.current = new Set(liveWarnings.map((warning) => warning.id));
 
     if (appeared.length > 0) {
       reportErrors(appeared.map((warning) => ({ sourceId: warning.id, text: warning.text })));
     }
-  }, [circuitWarnings, reportErrors]);
+  }, [liveWarnings, reportErrors]);
+
+  // Only findings from the last check that are still true: fixing a wire
+  // clears its warning straight away, while a problem introduced afterwards
+  // waits for the next check rather than interrupting the work.
+  const shownWarnings = useMemo(() => {
+    const stillPresent = new Set(
+      circuitWarnings.filter((warning) => !warning.live).map((warning) => warning.id)
+    );
+    return [
+      ...staticFindings.filter((warning) => stillPresent.has(warning.id)),
+      ...liveWarnings,
+    ];
+  }, [staticFindings, liveWarnings, circuitWarnings]);
+  const warningsKey = shownWarnings.map((warning) => warning.id).join('|');
+  const visibleWarnings = warningsKey === dismissedWarningsKey ? [] : shownWarnings;
 
   const setZoom = useCircuitStore((s) => s.setZoom);
   const setStagePos = useCircuitStore((s) => s.setStagePos);

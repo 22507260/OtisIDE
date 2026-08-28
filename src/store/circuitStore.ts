@@ -64,6 +64,13 @@ interface CircuitStore {
   toggleBottomPanel: () => void;
   bottomTab: BottomTab;
   setBottomTab: (tab: BottomTab) => void;
+  /**
+   * Bumped when the user asks for the project to be checked — Verify, Upload
+   * or Start. Checks that merely inspect the circuit wait for this instead of
+   * firing as parts are dropped, when a half-built circuit is not yet wrong.
+   */
+  validationRequestId: number;
+  requestValidation: () => void;
   /** Every problem seen this session, kept after its popup is dismissed. */
   errorLog: ErrorLogEntry[];
   /** Problems raised just now, shown in a popup until it is closed. */
@@ -620,6 +627,9 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
   bottomTab: 'code',
   setBottomTab: (tab) => set({ bottomTab: tab }),
 
+  validationRequestId: 0,
+  requestValidation: () => set((s) => ({ validationRequestId: s.validationRequestId + 1 })),
+
   errorLog: [],
   errorDialog: null,
   // Callers pass only what has just appeared — they track which problems were
@@ -971,6 +981,10 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
   },
 
   startSimulation: () => {
+    // Pressing Start is the user asking for the project to be checked, so the
+    // static findings surface now — including the one that stops the run below.
+    get().requestValidation();
+
     // A broken sketch can't run — its error is already visible in the
     // warning banner, so flipping into "running" here would just reset the
     // board state and immediately die. Refuse the click instead.
