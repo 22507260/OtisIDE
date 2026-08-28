@@ -108,6 +108,69 @@ describe('sanitizeProjectData', () => {
     expect(led.properties).toEqual({});
   });
 
+  it('takes pin positions from the current artwork, not the saved file', () => {
+    // A part saved before its artwork was corrected: the ids still match, but
+    // every coordinate is stale, which is what left wires hanging off the
+    // wrong spot on parts placed by an older build.
+    const project = sanitizeProjectData(
+      {
+        components: [
+          {
+            id: 'rgb-1',
+            type: 'rgb-led',
+            x: 100,
+            y: 100,
+            pins: [
+              { id: 'red', name: 'Red', type: 'passive', x: 999, y: 999 },
+              { id: 'common', name: 'Common', type: 'passive', x: 999, y: 999 },
+              { id: 'green', name: 'Green', type: 'passive', x: 999, y: 999 },
+              { id: 'blue', name: 'Blue', type: 'passive', x: 999, y: 999 },
+            ],
+            properties: {},
+          },
+        ],
+        wires: [],
+      },
+      FALLBACK_CODE
+    );
+
+    const rgb = project!.components[0];
+    expect(rgb.pins.map((pin) => pin.id)).toEqual(['red', 'common', 'green', 'blue']);
+    for (const pin of rgb.pins) {
+      expect(pin.x).not.toBe(999);
+      expect(pin.y).not.toBe(999);
+    }
+    // The four legs stay spread out rather than collapsing onto one point.
+    expect(new Set(rgb.pins.map((pin) => pin.x)).size).toBe(4);
+  });
+
+  it('keeps a saved pin the artwork no longer defines, so its wire survives', () => {
+    const project = sanitizeProjectData(
+      {
+        components: [
+          {
+            id: 'led-9',
+            type: 'led',
+            x: 0,
+            y: 0,
+            pins: [
+              { id: 'anode', name: 'Anode', type: 'passive', x: 1, y: 2 },
+              { id: 'legacy', name: 'Legacy', type: 'passive', x: 7, y: 8 },
+            ],
+            properties: {},
+          },
+        ],
+        wires: [],
+      },
+      FALLBACK_CODE
+    );
+
+    const ids = project!.components[0].pins.map((pin) => pin.id);
+    expect(ids).toContain('anode');
+    expect(ids).toContain('cathode');
+    expect(ids).toContain('legacy');
+  });
+
   it('gives duplicated component ids a fresh one', () => {
     const data = validProject();
     data.components.push({ ...data.components[0] });

@@ -66,31 +66,45 @@ const readPosition = (
   };
 };
 
+/**
+ * Pin positions belong to the artwork, not to the saved file — nothing in the
+ * app can move a pin. So a part whose artwork has since been corrected takes
+ * the current geometry rather than the coordinates it was stored with,
+ * otherwise a part placed before the fix would keep its old, wrong pin
+ * positions forever and its wires would hang off the wrong spot.
+ *
+ * A saved pin the artwork no longer defines is kept as-is: a wire may still
+ * reference it, and dropping it would break that connection.
+ */
 const sanitizePins = (value: unknown, type: ComponentType): Pin[] => {
   const defaults = getDefaultPins(type);
   if (!Array.isArray(value)) return defaults;
 
-  const pins = value.flatMap((item): Pin[] => {
+  const seen = new Set<string>();
+  const strays = value.flatMap((item): Pin[] => {
     if (!isRecord(item) || typeof item.id !== 'string' || !item.id) return [];
+    seen.add(item.id);
+    if (defaults.some((pin) => pin.id === item.id)) return [];
 
-    const fallbackPin = defaults.find((pin) => pin.id === item.id);
     const pinType =
       typeof item.type === 'string' && KNOWN_PIN_TYPES.has(item.type)
         ? (item.type as PinType)
-        : fallbackPin?.type ?? 'passive';
+        : 'passive';
 
     return [
       {
         id: item.id,
-        name: typeof item.name === 'string' ? item.name : fallbackPin?.name ?? item.id,
+        name: typeof item.name === 'string' ? item.name : item.id,
         type: pinType,
-        x: readNumber(item.x, fallbackPin?.x ?? 0),
-        y: readNumber(item.y, fallbackPin?.y ?? 0),
+        x: readNumber(item.x, 0),
+        y: readNumber(item.y, 0),
       },
     ];
   });
 
-  return pins.length > 0 ? pins : defaults;
+  if (seen.size === 0) return defaults;
+
+  return [...defaults, ...strays];
 };
 
 const sanitizeProperties = (value: unknown): CircuitComponent['properties'] => {

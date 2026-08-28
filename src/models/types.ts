@@ -332,11 +332,13 @@ export function getDefaultPins(type: ComponentType): Pin[] {
         { id: 'pin2', name: 'Terminal 2', type: 'passive', x: 15, y: 0 },
       ]);
     case 'rgb-led':
+      // Matches where the artwork actually puts the four leg tips, so the
+      // fallback lands in the right place if the layout cannot be measured.
       return withSvgLayout([
-        { id: 'red', name: 'Red', type: 'passive', x: -15, y: -15 },
-        { id: 'common', name: 'Common', type: 'passive', x: -5, y: -15 },
-        { id: 'green', name: 'Green', type: 'passive', x: 5, y: -15 },
-        { id: 'blue', name: 'Blue', type: 'passive', x: 15, y: -15 },
+        { id: 'red', name: 'Red', type: 'passive', x: -11.8, y: 28 },
+        { id: 'common', name: 'Common', type: 'passive', x: -3.9, y: 28 },
+        { id: 'green', name: 'Green', type: 'passive', x: 3.9, y: 28 },
+        { id: 'blue', name: 'Blue', type: 'passive', x: 11.8, y: 28 },
       ]);
     case 'ldr':
       return withSvgLayout([

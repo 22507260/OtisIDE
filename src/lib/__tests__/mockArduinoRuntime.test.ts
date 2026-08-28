@@ -439,6 +439,84 @@ describe('RGB LED', () => {
       expect(Number(last.blue)).toBe(0);
     }
   });
+
+  it('mixes two channels at once, the way a real one makes yellow', async () => {
+    const recording = await run(
+      `void setup() {
+         pinMode(9, OUTPUT); pinMode(5, OUTPUT);
+         digitalWrite(9, HIGH); digitalWrite(5, HIGH);
+       }
+       void loop() { delay(50); }`,
+      [rgbLed('cathode')],
+      [
+        wire('w1', ARDUINO_COMPONENT_ID, 'D9', 'rgb-1', 'red'),
+        wire('w2', ARDUINO_COMPONENT_ID, 'D5', 'rgb-1', 'green'),
+        wire('w3', 'rgb-1', 'common', ARDUINO_COMPONENT_ID, 'GND'),
+      ],
+      600
+    );
+
+    const states = statesOf(recording, 'rgb-1');
+    const last = states[states.length - 1];
+    expect(Number(last.red)).toBeGreaterThan(200);
+    expect(Number(last.green)).toBeGreaterThan(200);
+    expect(Number(last.blue)).toBe(0);
+  });
+
+  it('dims a channel driven by analogWrite instead of only on or off', async () => {
+    const recording = await run(
+      `void setup() { pinMode(9, OUTPUT); analogWrite(9, 64); }
+       void loop() { delay(50); }`,
+      [rgbLed('cathode')],
+      [
+        wire('w1', ARDUINO_COMPONENT_ID, 'D9', 'rgb-1', 'red'),
+        wire('w2', 'rgb-1', 'common', ARDUINO_COMPONENT_ID, 'GND'),
+      ],
+      600
+    );
+
+    const states = statesOf(recording, 'rgb-1');
+    const last = states[states.length - 1];
+    const red = Number(last.red);
+    expect(red).toBeGreaterThan(0);
+    expect(red).toBeLessThan(160);
+  });
+
+  it('stays dark when the common leg is wired backwards', async () => {
+    const recording = await run(
+      `void setup() { pinMode(9, OUTPUT); digitalWrite(9, LOW); }
+       void loop() { delay(50); }`,
+      // Common cathode, but the common leg is on 5V and the channel on a low
+      // pin — a real one cannot conduct that way round.
+      [rgbLed('cathode')],
+      [
+        wire('w1', ARDUINO_COMPONENT_ID, 'D9', 'rgb-1', 'red'),
+        wire('w2', 'rgb-1', 'common', ARDUINO_COMPONENT_ID, '5V'),
+      ],
+      600
+    );
+
+    const states = statesOf(recording, 'rgb-1');
+    const last = states[states.length - 1];
+    expect(Number(last.red)).toBe(0);
+    expect(Number(last.green)).toBe(0);
+    expect(Number(last.blue)).toBe(0);
+  });
+
+  it('burns out when a channel is wired across a battery with no resistor', async () => {
+    const recording = await run(
+      `void setup() {} void loop() { delay(50); }`,
+      [rgbLed('cathode'), battery()],
+      [
+        wire('w1', 'battery-1', 'positive', 'rgb-1', 'red'),
+        wire('w2', 'rgb-1', 'common', 'battery-1', 'negative'),
+      ],
+      600
+    );
+
+    const damaged = statesOf(recording, 'rgb-1').some((state) => state.damaged === true);
+    expect(damaged).toBe(true);
+  });
 });
 
 describe('runtime error resilience', () => {
