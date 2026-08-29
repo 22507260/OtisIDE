@@ -85,6 +85,12 @@
           "arch": [
             "x64"
           ]
+        },
+        {
+          "target": "pacman",
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "icon": "build/icon.png",
@@ -98,6 +104,15 @@
           "Categories": "Development;Electronics;IDE;"
         }
       }
+    },
+    "pacman": {
+      "depends": [
+        "gtk3",
+        "nss",
+        "alsa-lib",
+        "libxss",
+        "libnotify"
+      ]
     },
     "nsis": {
       "oneClick": false,
