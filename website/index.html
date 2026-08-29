@@ -342,17 +342,17 @@
   <section class="hero">
     <div class="wrap hero-grid">
       <div>
-        <div class="pill"><span class="dot"></span> Sürüm <b>1.10.0</b> · Windows ve Linux · 64 bit</div>
+        <div class="pill"><span class="dot"></span> Sürüm <b>1.10.6</b> · Windows ve Linux · 64 bit</div>
         <h1>Devreni çiz, <em>yapay zekâ</em> kabloları bağlasın.</h1>
         <p class="lead">
           OtisIDE; breadboard üzerine sürükle bırak devre kurma, pin farkındalıklı kablolama,
           Arduino kodu üretme ve kartına doğrudan yükleme işlerini tek pencerede toplar.
         </p>
         <div class="cta-row">
-          <a class="btn btn-primary" href="https://github.com/22507260/OtisIDE/releases/download/v1.10.0/OtisIDE-1.10.0-x64.exe">
+          <a class="btn btn-primary" href="https://github.com/22507260/OtisIDE/releases/download/v1.10.6/OtisIDE-1.10.6-x64.exe">
             ⬇ Windows için indir (.exe)
           </a>
-          <a class="btn btn-ghost" href="https://github.com/22507260/OtisIDE/releases/download/v1.10.0/OtisIDE-1.10.0-x86_64.AppImage">
+          <a class="btn btn-ghost" href="https://github.com/22507260/OtisIDE/releases/download/v1.10.6/OtisIDE-1.10.6-x86_64.AppImage">
             ⬇ Linux için indir (.AppImage)
           </a>
         </div>
@@ -459,7 +459,7 @@
       <div class="steps">
         <div class="step">
           <h3>Kurulum dosyasını indir</h3>
-          <p>Yukarıdaki indirme butonu <code>OtisIDE-1.10.0-x64.exe</code> dosyasını verir. 64 bit Windows 10 veya 11 gerekir.</p>
+          <p>Yukarıdaki indirme butonu <code>OtisIDE-1.10.6-x64.exe</code> dosyasını verir. 64 bit Windows 10 veya 11 gerekir.</p>
         </div>
         <div class="step">
           <h3>Sihirbazı çalıştır</h3>
@@ -483,21 +483,21 @@
         <h2>OtisIDE'yi indir</h2>
         <p>Windows için kurulum sihirbazlı, Linux için çalıştırılabilir AppImage. Kurulum sonrası internet olmadan da çizim, kod ve simülasyon çalışır.</p>
         <div class="cta-row">
-          <a class="btn btn-primary" href="https://github.com/22507260/OtisIDE/releases/download/v1.10.0/OtisIDE-1.10.0-x64.exe">
-            ⬇ OtisIDE-1.10.0-x64.exe
+          <a class="btn btn-primary" href="https://github.com/22507260/OtisIDE/releases/download/v1.10.6/OtisIDE-1.10.6-x64.exe">
+            ⬇ OtisIDE-1.10.6-x64.exe
           </a>
-          <a class="btn btn-primary" href="https://github.com/22507260/OtisIDE/releases/download/v1.10.0/OtisIDE-1.10.0-x86_64.AppImage">
-            ⬇ OtisIDE-1.10.0-x86_64.AppImage
+          <a class="btn btn-primary" href="https://github.com/22507260/OtisIDE/releases/download/v1.10.6/OtisIDE-1.10.6-x86_64.AppImage">
+            ⬇ OtisIDE-1.10.6-x86_64.AppImage
           </a>
           <a class="btn btn-ghost" href="https://github.com/22507260/OtisIDE/releases" target="_blank" rel="noopener">
             GitHub sürümleri
           </a>
         </div>
         <div class="cta-meta">
-          <span><span class="dot"></span> Sürüm 1.10.0</span>
+          <span><span class="dot"></span> Sürüm 1.10.6</span>
           <span><span class="dot"></span> <span data-file-size>98 MB</span></span>
           <span><span class="dot"></span> Windows 10/11 · x64</span>
-          <span><span class="dot"></span> Linux x86_64 · AppImage / .deb</span>
+          <span><span class="dot"></span> Linux x86_64 · AppImage / .deb / Arch</span>
         </div>
         <p class="checksum">
           Windows dosyası (SHA-256): <code data-sha256>d1214067c2b6a1fb5cc16e6d3c0ec83d4f180e739ce134d1da94a6a7a38c0b43</code>
@@ -507,9 +507,26 @@
         </p>
         <p class="checksum">
           AppImage'i çalıştırmadan önce izin vermeniz gerekir:
-          <code>chmod +x OtisIDE-1.10.0-x86_64.AppImage</code>. Debian ve Ubuntu için
-          <a href="https://github.com/22507260/OtisIDE/releases" target="_blank" rel="noopener">.deb paketi</a>
-          da aynı sürümde yayınlanıyor.
+          <code>chmod +x OtisIDE-1.10.6-x86_64.AppImage</code>. Debian ve Ubuntu için
+          <a href="https://github.com/22507260/OtisIDE/releases" target="_blank" rel="noopener">.deb paketi</a>,
+          Arch ve Manjaro için
+          <a href="https://github.com/22507260/OtisIDE/releases" target="_blank" rel="noopener">.pacman paketi</a>
+          da aynı sürümde yayınlanıyor. Arch'ta tek satırda kurmak için:
+        </p>
+        <p class="checksum">
+          <code>sudo pacman -U https://github.com/22507260/OtisIDE/releases/latest/download/OtisIDE.pacman</code>
+          — bu adres her zaman en son sürümü verir, sürüm numarası yazman gerekmez.
+        </p>
+        <p class="checksum">
+          Depo olarak eklemek istersen <code>/etc/pacman.conf</code> dosyasının sonuna
+          bir kez şunu ekle:
+        </p>
+        <p class="checksum">
+          <code>[otiside]<br />SigLevel = Optional TrustAll<br />Server = https://github.com/22507260/OtisIDE/releases/latest/download</code>
+        </p>
+        <p class="checksum">
+          Sonrasında <code>sudo pacman -Sy otiside</code> ile kurulur ve
+          <code>sudo pacman -Syu</code> ile diğer paketlerinle birlikte güncellenir.
         </p>
       </div>
     </div>

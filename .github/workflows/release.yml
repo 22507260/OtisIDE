@@ -90,6 +90,28 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      # Turns the release into a pacman repository, so Arch users add it once
+      # and then install and upgrade OtisIDE with the rest of their system.
+      # repo-add ships with pacman, which the runner does not have, so it runs
+      # in an Arch container against the package just built.
+      - name: Build the pacman repository database
+        run: |
+          docker run --rm -v "$PWD/release:/repo" -w /repo archlinux:base \
+            bash -c "repo-add --quiet otiside.db.tar.gz OtisIDE.pacman"
+          # Release assets cannot be symlinks, so the names pacman asks for are
+          # written out as real files.
+          cp release/otiside.db.tar.gz release/otiside.db
+          cp release/otiside.files.tar.gz release/otiside.files
+          tar -xzOf release/otiside.db --wildcards '*/desc'
+
+      - name: Publish the repository database
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "$GITHUB_REF_NAME" \
+            release/otiside.db release/otiside.files \
+            --repo "$GITHUB_REPOSITORY" --clobber
+
       - name: Confirm every Linux package is there
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -99,4 +121,9 @@ jobs:
           echo "$assets"
           echo "$assets" | grep -qx "OtisIDE-$version-x86_64.AppImage" || { echo "Missing the AppImage"; exit 1; }
           echo "$assets" | grep -q "\.deb$" || { echo "Missing the deb"; exit 1; }
-          echo "$assets" | grep -q "\.pacman$" || { echo "Missing the Arch package"; exit 1; }
+          echo "$assets" | grep -qx "OtisIDE.pacman" || { echo "Missing the Arch package"; exit 1; }
+          echo "$assets" | grep -qx "otiside.db" || { echo "Missing the repository database"; exit 1; }
+          # The database has to name the package file exactly as it is published,
+          # or pacman asks the release for a file that is not there.
+          tar -xzOf release/otiside.db --wildcards '*/desc' | grep -A1 '%FILENAME%' | grep -qx "OtisIDE.pacman" \
+            || { echo "The database points at a different file name"; exit 1; }
