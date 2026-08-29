@@ -106,6 +106,7 @@
       }
     },
     "pacman": {
+      "artifactName": "${productName}.${ext}",
       "depends": [
         "gtk3",
         "nss",
