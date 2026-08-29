@@ -2710,6 +2710,13 @@ const CircuitCanvas: React.FC = () => {
       event.cancelBubble = true;
     }
 
+    // A selection box released over a part would otherwise end as a click on
+    // it, narrowing the whole selection back down to that one part.
+    if (marqueeMovedRef.current) {
+      marqueeMovedRef.current = false;
+      return;
+    }
+
     closeContextMenu();
     const addToSelection = Boolean(
       event && 'ctrlKey' in event.evt && (event.evt.ctrlKey || event.evt.metaKey)
