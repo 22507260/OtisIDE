@@ -98,8 +98,10 @@ jobs:
         run: |
           docker run --rm -v "$PWD/release:/repo" -w /repo archlinux:base \
             bash -c "repo-add --quiet otiside.db.tar.gz OtisIDE.pacman"
-          # Release assets cannot be symlinks, so the names pacman asks for are
-          # written out as real files.
+          # repo-add leaves otiside.db as a symlink to the tarball, and a
+          # release asset cannot be a symlink, so the names pacman asks for are
+          # written out as real files in its place.
+          rm -f release/otiside.db release/otiside.files
           cp release/otiside.db.tar.gz release/otiside.db
           cp release/otiside.files.tar.gz release/otiside.files
           tar -xzOf release/otiside.db --wildcards '*/desc'
