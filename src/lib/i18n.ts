@@ -226,6 +226,8 @@ const UI_STRINGS = {
     updateUnsupportedTitle: 'Update check unavailable',
     updateUnsupportedText:
       'Auto-update only works in the installed app, not in this development build.',
+    updateUnsupportedAppImageText:
+      'Auto-update replaces the .AppImage file the app was started from, and this copy was run unpacked, so there is no file to replace. Start OtisIDE from the .AppImage itself to update in place, or download the new version from the website.',
     updateCurrentVersionLine: 'Installed version: {{current}}',
     close: 'Close',
     crashTitle: 'OtisIDE ran into a problem',
@@ -504,6 +506,8 @@ const UI_STRINGS = {
     updateUnsupportedTitle: 'Güncelleme denetimi kullanılamıyor',
     updateUnsupportedText:
       'Otomatik güncelleme yalnızca kurulu uygulamada çalışır, bu geliştirme derlemesinde çalışmaz.',
+    updateUnsupportedAppImageText:
+      'Otomatik güncelleme, uygulamanın başlatıldığı .AppImage dosyasının üzerine yazar; bu kopya paketten çıkarılmış olarak çalıştırıldığı için değiştirilecek bir dosya yok. Yerinde güncellemek için OtisIDE\'yi doğrudan .AppImage dosyasından başlat ya da yeni sürümü siteden indir.',
     updateCurrentVersionLine: 'Yüklü sürüm: {{current}}',
     close: 'Kapat',
     crashTitle: 'OtisIDE bir sorunla karşılaştı',

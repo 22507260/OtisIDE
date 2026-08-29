@@ -107,7 +107,14 @@ const UpdateNotice: React.FC = () => {
         )}
 
         {state === 'unsupported' && (
-          <p className="update-ready-text">{t(language, 'updateUnsupportedText')}</p>
+          <p className="update-ready-text">
+            {t(
+              language,
+              status.reason === 'not-appimage'
+                ? 'updateUnsupportedAppImageText'
+                : 'updateUnsupportedText'
+            )}
+          </p>
         )}
 
         <div className="update-actions">

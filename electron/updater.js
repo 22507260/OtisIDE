@@ -16,6 +16,26 @@ const { toVersionInfo } = require('./updateNotes');
 /** How often a session that stays open looks for a newer release. */
 const UPDATE_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 
+/**
+ * A check that never comes back would otherwise leave the window saying
+ * "checking for updates" for the rest of the session, which is what a stalled
+ * connection actually looks like from the user's side.
+ */
+const UPDATE_CHECK_TIMEOUT_MS = 25 * 1000;
+
+/**
+ * On Linux the updater replaces the .AppImage file it was started from, so it
+ * needs to know which file that is. Running the binary unpacked out of the
+ * image — which is what you get after `--appimage-extract`, or from a distro
+ * package — leaves it with nothing to replace, and electron-updater warns and
+ * then simply never settles its promise. Better to say so up front.
+ */
+function getUnsupportedReason() {
+  if (!app.isPackaged) return 'not-packaged';
+  if (process.platform === 'linux' && !process.env.APPIMAGE) return 'not-appimage';
+  return null;
+}
+
 let mainWindowGetter = null;
 let checkStarted = false;
 let periodicTimer = null;
@@ -136,10 +156,10 @@ function configureAutoUpdater() {
 }
 
 async function checkForUpdates({ silent = true } = {}) {
-  if (!app.isPackaged) {
-    // electron-updater refuses to run from an unpacked build.
-    publish('unsupported');
-    return { ok: false, reason: 'not-packaged' };
+  const unsupported = getUnsupportedReason();
+  if (unsupported) {
+    publish('unsupported', { reason: unsupported });
+    return { ok: false, reason: unsupported };
   }
 
   if (state === 'downloading') {
@@ -148,7 +168,15 @@ async function checkForUpdates({ silent = true } = {}) {
 
   try {
     publish('checking');
-    const result = await autoUpdater.checkForUpdates();
+    const result = await Promise.race([
+      autoUpdater.checkForUpdates(),
+      new Promise((_resolve, reject) => {
+        setTimeout(
+          () => reject(new Error('Update check timed out')),
+          UPDATE_CHECK_TIMEOUT_MS
+        ).unref?.();
+      }),
+    ]);
     return { ok: true, version: result?.updateInfo?.version || '' };
   } catch (error) {
     publish('error', { error: formatError(error), silent });
@@ -157,7 +185,11 @@ async function checkForUpdates({ silent = true } = {}) {
 }
 
 async function downloadUpdate() {
-  if (!app.isPackaged) return { ok: false, reason: 'not-packaged' };
+  const unsupported = getUnsupportedReason();
+  if (unsupported) {
+    publish('unsupported', { reason: unsupported });
+    return { ok: false, reason: unsupported };
+  }
 
   try {
     publish('downloading', { percent: 0 });
@@ -195,8 +227,9 @@ function startUpdateCheck() {
   if (checkStarted) return;
   checkStarted = true;
 
-  if (!app.isPackaged) {
-    publish('unsupported');
+  const unsupported = getUnsupportedReason();
+  if (unsupported) {
+    publish('unsupported', { reason: unsupported });
     return;
   }
 

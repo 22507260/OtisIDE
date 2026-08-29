@@ -85,6 +85,8 @@ interface UpdaterStatusPayload {
   total?: number;
   error?: string;
   silent?: boolean;
+  /** Why updating is unavailable, when state is 'unsupported'. */
+  reason?: 'not-packaged' | 'not-appimage';
 }
 
 interface ElectronAPI {
