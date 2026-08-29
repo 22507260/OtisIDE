@@ -9,7 +9,9 @@ import {
   BREADBOARD_COMPONENT_ID,
   BREADBOARD_HOLES,
   BREADBOARD_STRIP_GROUPS,
+  DEFAULT_BREADBOARD_POSITION,
 } from '../models/breadboard';
+import { getBreadboardContacts } from './breadboardContacts';
 
 type SimulationPropertyValue = string | number | boolean;
 
@@ -2637,6 +2639,8 @@ function connectPairs(graph: Map<string, Set<string>>, componentId: string, pinI
 type ConnectivityBuildOptions = {
   bridgeResistors?: boolean;
   bridgePotentiometers?: boolean;
+  /** Where the breadboard sits, so seated legs can be found by geometry. */
+  breadboardPosition?: { x: number; y: number };
 };
 
 function finalizeConnectivity(
@@ -2679,6 +2683,7 @@ function buildConnectivity(
   const {
     bridgeResistors = true,
     bridgePotentiometers = true,
+    breadboardPosition = DEFAULT_BREADBOARD_POSITION,
   } = options;
   const graph = new Map<string, Set<string>>();
 
@@ -2714,6 +2719,16 @@ function buildConnectivity(
         addEdge(graph, stripKeys[i], stripKeys[j]);
       }
     }
+  }
+
+  // A leg pushed into a hole conducts, exactly as it would on a real board —
+  // no wire needs to be drawn to it.
+  for (const contact of getBreadboardContacts(components, breadboardPosition)) {
+    addEdge(
+      graph,
+      endpointKey(contact.componentId, contact.pinId),
+      endpointKey(BREADBOARD_COMPONENT_ID, contact.holeId)
+    );
   }
 
   for (const component of components) {
@@ -2846,7 +2861,8 @@ function netHasEndpointFrom(
 export function getCircuitWiringIssues(
   components: CircuitComponent[],
   wires: Wire[],
-  boardPins: Pin[]
+  boardPins: Pin[],
+  breadboardPosition: { x: number; y: number } = DEFAULT_BREADBOARD_POSITION
 ): WiringIssue[] {
   const issues: WiringIssue[] = [];
   const { powerKeys, groundKeys, hotCapableKeys } = collectPowerAndGroundKeys(components, boardPins);
@@ -2857,8 +2873,9 @@ export function getCircuitWiringIssues(
   const strict = buildConnectivity(components, wires, boardPins, {
     bridgeResistors: false,
     bridgePotentiometers: false,
+    breadboardPosition,
   });
-  const relaxed = buildConnectivity(components, wires, boardPins);
+  const relaxed = buildConnectivity(components, wires, boardPins, { breadboardPosition });
 
   for (const [net, endpoints] of strict.netEndpoints) {
     const hasPower = endpoints.some((key) => powerKeys.has(key));
@@ -4280,7 +4297,10 @@ export function findSketchCompileError(code: string): CompileError | null {
   }
 }
 
-export type SketchDiagnosticKind = 'undeclared-variable' | 'type-mismatch';
+export type SketchDiagnosticKind =
+  | 'undeclared-variable'
+  | 'type-mismatch'
+  | 'unknown-function';
 
 export type SketchDiagnostic = {
   kind: SketchDiagnosticKind;
@@ -4311,6 +4331,41 @@ const SKETCH_BUILTIN_CONSTANTS = new Set([
   'RAD_TO_DEG', 'EULER', 'SERIAL', 'MSBFIRST', 'LSBFIRST', 'CHANGE', 'RISING', 'FALLING',
   'A0', 'A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7', 'A8', 'A9', 'A10', 'A11', 'A12',
   'A13', 'A14', 'A15',
+]);
+
+/**
+ * Functions a real Arduino sketch may call without declaring them: the core
+ * API, plus the C helpers that come with it. The simulator quietly ignores
+ * most of them, which is exactly why they have to be listed — otherwise
+ * `pinMode(...)` would be reported as unknown alongside `pinModeXXX(...)`.
+ */
+const SKETCH_KNOWN_FUNCTIONS = new Set([
+  // Digital and analog I/O
+  'PINMODE', 'DIGITALWRITE', 'DIGITALREAD', 'ANALOGREAD', 'ANALOGWRITE',
+  'ANALOGREFERENCE', 'ANALOGREADRESOLUTION', 'ANALOGWRITERESOLUTION',
+  // Time
+  'DELAY', 'DELAYMICROSECONDS', 'MILLIS', 'MICROS',
+  // Sound and pulses
+  'TONE', 'NOTONE', 'PULSEIN', 'PULSEINLONG', 'SHIFTIN', 'SHIFTOUT',
+  // Interrupts
+  'ATTACHINTERRUPT', 'DETACHINTERRUPT', 'DIGITALPINTOINTERRUPT',
+  'INTERRUPTS', 'NOINTERRUPTS',
+  // Maths
+  'MIN', 'MAX', 'ABS', 'CONSTRAIN', 'MAP', 'POW', 'SQ', 'SQRT', 'SIN', 'COS',
+  'TAN', 'FLOOR', 'CEIL', 'ROUND', 'FABS', 'LOG', 'LOG10', 'EXP', 'RANDOM',
+  'RANDOMSEED',
+  // Bits and bytes
+  'LOWBYTE', 'HIGHBYTE', 'BITREAD', 'BITWRITE', 'BITSET', 'BITCLEAR', 'BIT',
+  // Character tests
+  'ISALPHA', 'ISALPHANUMERIC', 'ISDIGIT', 'ISSPACE', 'ISWHITESPACE',
+  'ISUPPERCASE', 'ISLOWERCASE', 'ISPUNCT', 'ISHEXADECIMALDIGIT', 'ISCONTROL',
+  'ISPRINTABLE', 'ISGRAPH', 'ISASCII',
+  // C standard library odds and ends sketches reach for
+  'MEMCPY', 'MEMSET', 'MEMCMP', 'STRLEN', 'STRCMP', 'STRNCMP', 'STRCPY',
+  'STRNCPY', 'STRCAT', 'STRSTR', 'STRTOK', 'SPRINTF', 'SNPRINTF', 'ATOI',
+  'ATOL', 'ATOF', 'ITOA', 'DTOSTRF', 'MALLOC', 'FREE',
+  // The sketch's own entry points
+  'SETUP', 'LOOP',
 ]);
 
 const NUMERIC_TYPE_WORDS = new Set([
@@ -4384,7 +4439,33 @@ function collectDeclaredSketchNames(code: string): Set<string> {
     declared.add(normalizeVariableName(match[1]));
   }
 
+  // A function-like macro's parameters, which exist only inside its body:
+  // `#define SQUARE(x) ((x) * (x))`.
+  for (const match of code.matchAll(/^\s*#define\s+[A-Za-z_]\w*\s*\(([^)]*)\)/gim)) {
+    for (const part of match[1].split(',')) {
+      const name = /^\s*([A-Za-z_]\w*)\s*$/.exec(part);
+      if (name) declared.add(normalizeVariableName(name[1]));
+    }
+  }
+
   return declared;
+}
+
+/**
+ * Functions the sketch defines or prototypes itself. Kept apart from
+ * collectDeclaredSketchNames because its declaration regex has no `void` in
+ * its type list, so `void blink() { … }` would go unnoticed there.
+ */
+function collectDefinedSketchFunctions(code: string): Set<string> {
+  const defined = new Set<string>();
+  const definitionRegex =
+    /\b(?:const\s+|static\s+|inline\s+|virtual\s+|extern\s+|unsigned\s+|signed\s+)*(?:void|int|long|short|char|byte|bool|boolean|float|double|String|uint8_t|uint16_t|uint32_t|uint64_t|int8_t|int16_t|int32_t|int64_t|size_t|word)\s*\**\s*([A-Za-z_]\w*)\s*\(/gi;
+
+  for (const match of code.matchAll(definitionRegex)) {
+    defined.add(normalizeVariableName(match[1]));
+  }
+
+  return defined;
 }
 
 /**
@@ -4396,6 +4477,7 @@ function collectDeclaredSketchNames(code: string): Set<string> {
 export function findSketchDiagnostics(code: string): SketchDiagnostic[] {
   const scanned = blankSketchLiterals(stripRuntimeComments(code));
   const declared = collectDeclaredSketchNames(scanned);
+  const definedFunctions = collectDefinedSketchFunctions(scanned);
   const diagnostics: SketchDiagnostic[] = [];
   const reported = new Set<string>();
 
@@ -4407,12 +4489,40 @@ export function findSketchDiagnostics(code: string): SketchDiagnostic[] {
     const before = scanned.slice(0, start);
     const after = scanned.slice(start + raw.length);
 
-    // A call, a member, or the object a member is read from — none of these is
-    // a plain variable read, and checking them needs a real symbol table.
-    if (/^\s*[(.]/.test(after)) continue;
+    // A member, or the object one is read from — telling those apart needs a
+    // real symbol table, so neither is judged here.
+    if (/^\s*\./.test(after)) continue;
     if (/[.>]\s*$/.test(before)) continue;
     // `#include <Servo.h>` and friends.
     if (/#\s*\w*\s*[<"]?[\w./]*$/.test(before.slice(-40))) continue;
+
+    if (/^\s*\(/.test(after)) {
+      // The name of a function-like macro being defined, not a call.
+      if (/#\s*define\s+$/.test(before.slice(-40))) continue;
+
+      if (
+        SKETCH_RESERVED_WORDS.has(normalized) ||
+        // A cast or a conversion — `int(x)`, `String(9)`.
+        SKETCH_TYPE_WORDS.has(normalized) ||
+        SKETCH_KNOWN_FUNCTIONS.has(normalized) ||
+        SUPPORTED_RUNTIME_BUILTINS.has(normalized) ||
+        // Also covers `LiquidCrystal lcd(12, 11, 5, 4, 3, 2);`, where the
+        // instance being constructed reads as a call.
+        declared.has(normalized) ||
+        definedFunctions.has(normalized) ||
+        reported.has(normalized)
+      ) {
+        continue;
+      }
+
+      reported.add(normalized);
+      diagnostics.push({
+        kind: 'unknown-function',
+        line: lineNumberAt(scanned, start),
+        detail: raw,
+      });
+      continue;
+    }
 
     if (
       SKETCH_RESERVED_WORDS.has(normalized) ||
@@ -4420,6 +4530,8 @@ export function findSketchDiagnostics(code: string): SketchDiagnostic[] {
       SKETCH_BUILTIN_CONSTANTS.has(normalized) ||
       SUPPORTED_RUNTIME_BUILTINS.has(normalized) ||
       declared.has(normalized) ||
+      // A function passed by name, the way attachInterrupt takes a handler.
+      definedFunctions.has(normalized) ||
       reported.has(normalized)
     ) {
       continue;
@@ -4471,7 +4583,8 @@ export function startMockArduinoRuntime(
   wires: Wire[],
   boardPins: Pin[],
   logicHighVoltage: number,
-  callbacks: RuntimeCallbacks
+  callbacks: RuntimeCallbacks,
+  breadboardPosition: { x: number; y: number } = DEFAULT_BREADBOARD_POSITION
 ): void {
   stopMockArduinoRuntime();
 
@@ -4479,10 +4592,11 @@ export function startMockArduinoRuntime(
   const servoInstances = extractServoInstances(code);
   const lcdRuntime = extractLcdInstances(code, variables);
   const { setupStatements, loopStatements, loopBody } = parseSketch(code);
-  const connectivity = buildConnectivity(components, wires, boardPins);
+  const connectivity = buildConnectivity(components, wires, boardPins, { breadboardPosition });
   const measurementConnectivity = buildConnectivity(components, wires, boardPins, {
     bridgeResistors: false,
     bridgePotentiometers: false,
+    breadboardPosition,
   });
   const pinValues = new Map<string, number>();
   const damagedComponents = new Map<string, DamageRecord>();

@@ -522,7 +522,8 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
             set((s) => ({
               simulation: { ...s.simulation, runtimeError: message },
             })),
-        }
+        },
+        state.breadboardPosition
       );
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

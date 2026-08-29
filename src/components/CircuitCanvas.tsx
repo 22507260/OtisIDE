@@ -53,6 +53,7 @@ import {
   findSketchCompileError,
   findSketchDiagnostics,
   getCircuitWiringIssues,
+  type SketchDiagnostic,
   type WiringIssue,
 } from '../lib/mockArduinoRuntime';
 import { getWirePinTargetSize } from '../lib/wirePinTargets';
@@ -84,6 +85,11 @@ const MULTIMETER_RED_V_ANCHOR = { x: 36, y: 103 };
 const MULTIMETER_RED_A_ANCHOR = { x: -36, y: 103 };
 const PROBE_IMAGE_WIDTH = 24;
 const PROBE_IMAGE_HEIGHT = 72;
+/** How far the pointer must travel before a click becomes a selection box. */
+const MARQUEE_THRESHOLD = 4;
+
+/** The two corners of a selection box, in world coordinates. */
+type MarqueeRect = { x1: number; y1: number; x2: number; y2: number };
 
 type WirePinHandle = {
   pin: Pin;
@@ -497,6 +503,56 @@ function componentArtworkBottom(type: ComponentType): number {
 }
 
 /**
+ * A part's artwork as an axis-aligned box in world coordinates. The four local
+ * corners go through the same transform the artwork itself is drawn with, so a
+ * rotated or mirrored part is still boxed where it actually appears.
+ */
+function getComponentWorldBounds(comp: CircuitComponent) {
+  const config = SVG_CONFIGS[comp.type];
+  if (!config) return { left: comp.x, top: comp.y, right: comp.x, bottom: comp.y };
+
+  const left = -config.offsetX;
+  const top = -config.offsetY;
+  const right = config.width - config.offsetX;
+  const bottom = config.height - config.offsetY;
+  const transform = getComponentTransform(comp);
+
+  const corners = [
+    transformPoint(left, top, transform),
+    transformPoint(right, top, transform),
+    transformPoint(right, bottom, transform),
+    transformPoint(left, bottom, transform),
+  ];
+
+  return {
+    left: comp.x + Math.min(...corners.map((corner) => corner.x)),
+    top: comp.y + Math.min(...corners.map((corner) => corner.y)),
+    right: comp.x + Math.max(...corners.map((corner) => corner.x)),
+    bottom: comp.y + Math.max(...corners.map((corner) => corner.y)),
+  };
+}
+
+/** Every part the selection box touches — overlapping counts, not enclosing. */
+function getComponentsInMarquee(components: CircuitComponent[], rect: MarqueeRect): string[] {
+  const left = Math.min(rect.x1, rect.x2);
+  const right = Math.max(rect.x1, rect.x2);
+  const top = Math.min(rect.y1, rect.y2);
+  const bottom = Math.max(rect.y1, rect.y2);
+
+  return components
+    .filter((comp) => {
+      const bounds = getComponentWorldBounds(comp);
+      return (
+        bounds.left <= right &&
+        bounds.right >= left &&
+        bounds.top <= bottom &&
+        bounds.bottom >= top
+      );
+    })
+    .map((comp) => comp.id);
+}
+
+/**
  * Problems worth telling the user about, in two kinds.
  *
  * Static ones — a sketch that will not parse, wiring mistakes visible from the
@@ -560,6 +616,30 @@ function mapWiringIssueToWarning(
   };
 }
 
+function getSketchDiagnosticText(
+  language: 'en' | 'tr',
+  diagnostic: SketchDiagnostic
+): string {
+  if (diagnostic.kind === 'undeclared-variable') {
+    return t(language, 'circuitWarningUndeclared', {
+      name: diagnostic.detail,
+      line: diagnostic.line,
+    });
+  }
+
+  if (diagnostic.kind === 'unknown-function') {
+    return t(language, 'circuitWarningUnknownFunction', {
+      name: diagnostic.detail,
+      line: diagnostic.line,
+    });
+  }
+
+  return t(language, 'circuitWarningTypeMismatch', {
+    detail: diagnostic.detail,
+    line: diagnostic.line,
+  });
+}
+
 function computeCircuitWarnings(
   language: 'en' | 'tr',
   running: boolean,
@@ -567,6 +647,7 @@ function computeCircuitWarnings(
   components: CircuitComponent[],
   wires: Wire[],
   boardPins: Pin[],
+  breadboardPosition: { x: number; y: number },
   componentStates: SimulationState['componentStates'],
   runtimeError: string | null,
   hardwareError: string | null
@@ -590,22 +671,13 @@ function computeCircuitWarnings(
     for (const diagnostic of findSketchDiagnostics(code)) {
       warnings.push({
         id: `${diagnostic.kind}-${diagnostic.line}-${diagnostic.detail}`,
-        text:
-          diagnostic.kind === 'undeclared-variable'
-            ? t(language, 'circuitWarningUndeclared', {
-                name: diagnostic.detail,
-                line: diagnostic.line,
-              })
-            : t(language, 'circuitWarningTypeMismatch', {
-                detail: diagnostic.detail,
-                line: diagnostic.line,
-              }),
+        text: getSketchDiagnosticText(language, diagnostic),
         jumpToTab: 'code',
       });
     }
   }
 
-  for (const issue of getCircuitWiringIssues(components, wires, boardPins)) {
+  for (const issue of getCircuitWiringIssues(components, wires, boardPins, breadboardPosition)) {
     warnings.push(mapWiringIssueToWarning(language, issue, components));
   }
 
@@ -1887,6 +1959,7 @@ const CircuitCanvas: React.FC = () => {
         components,
         wires,
         boardPins,
+        breadboardPosition,
         simulation.componentStates,
         simulation.runtimeError,
         hardwareError
@@ -1898,6 +1971,7 @@ const CircuitCanvas: React.FC = () => {
       components,
       wires,
       boardPins,
+      breadboardPosition,
       simulation.componentStates,
       simulation.runtimeError,
       hardwareError,
@@ -1906,9 +1980,14 @@ const CircuitCanvas: React.FC = () => {
   const [hoveredComponentId, setHoveredComponentId] = useState<string | null>(null);
   /** Which wiring target the cursor is over, so its name can be shown. */
   const [hoveredPin, setHoveredPin] = useState<{ componentId: string; pinId: string } | null>(null);
-  /** True while the background itself is being dragged (panning or moving all). */
+  /** True while the background itself is being dragged, which only pans. */
   const [stageDragging, setStageDragging] = useState(false);
-  const stageDragOriginRef = useRef<{ x: number; y: number } | null>(null);
+  /** The selection rectangle being dragged across empty space in select mode. */
+  const [marquee, setMarquee] = useState<MarqueeRect | null>(null);
+  const marqueeStartRef = useRef<{ x: number; y: number } | null>(null);
+  /** True once a marquee has grown past the click threshold, so the click that
+   *  ends the drag does not immediately clear what the marquee just selected. */
+  const marqueeMovedRef = useRef(false);
 
   const [dismissedWarningsKey, setDismissedWarningsKey] = useState<string | null>(null);
 
@@ -1975,6 +2054,7 @@ const CircuitCanvas: React.FC = () => {
   const captureUndoSnapshot = useCircuitStore((s) => s.captureUndoSnapshot);
   const addComponent = useCircuitStore((s) => s.addComponent);
   const selectComponent = useCircuitStore((s) => s.selectComponent);
+  const selectComponents = useCircuitStore((s) => s.selectComponents);
   const selectedComponentIds = useCircuitStore((s) => s.selectedComponentIds);
   const toggleComponentSelection = useCircuitStore((s) => s.toggleComponentSelection);
   const updateComponent = useCircuitStore((s) => s.updateComponent);
@@ -2720,6 +2800,13 @@ const CircuitCanvas: React.FC = () => {
 
   // Stage click
   const handleStageClick = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
+    // A selection box ends with a click on the background; letting it through
+    // would clear the selection the box had just made.
+    if (marqueeMovedRef.current) {
+      marqueeMovedRef.current = false;
+      return;
+    }
+
     const clickedOnEmpty = e.target === e.target.getStage() || e.target.name() === 'background';
     if (clickedOnEmpty) {
       closeContextMenu();
@@ -2753,6 +2840,23 @@ const CircuitCanvas: React.FC = () => {
 
   // Mouse move for wiring preview
   const handleMouseMove = useCallback((_e: Konva.KonvaEventObject<MouseEvent>) => {
+    const marqueeStart = marqueeStartRef.current;
+    if (marqueeStart) {
+      const pointer = getWorldPointerPosition();
+      if (pointer) {
+        if (
+          Math.abs(pointer.x - marqueeStart.x) > MARQUEE_THRESHOLD ||
+          Math.abs(pointer.y - marqueeStart.y) > MARQUEE_THRESHOLD
+        ) {
+          marqueeMovedRef.current = true;
+        }
+        if (marqueeMovedRef.current) {
+          setMarquee({ x1: marqueeStart.x, y1: marqueeStart.y, x2: pointer.x, y2: pointer.y });
+        }
+      }
+      return;
+    }
+
     if (toolMode === 'wire') {
       const pointer = getWorldPointerPosition();
       const hoveredHole = resolveBreadboardHoleAtPointer();
@@ -2995,6 +3099,35 @@ const CircuitCanvas: React.FC = () => {
     };
   }, [stopMiddlePan]);
 
+  // Closing the selection box. Bound to the window rather than the stage so a
+  // drag that ends off-canvas still selects instead of leaving the box behind.
+  useEffect(() => {
+    const finishMarquee = () => {
+      const start = marqueeStartRef.current;
+      marqueeStartRef.current = null;
+      if (!start) return;
+
+      if (marqueeMovedRef.current && marquee) {
+        selectComponents(getComponentsInMarquee(components, marquee));
+      }
+      setMarquee(null);
+    };
+
+    const cancelMarquee = () => {
+      marqueeStartRef.current = null;
+      marqueeMovedRef.current = false;
+      setMarquee(null);
+    };
+
+    window.addEventListener('mouseup', finishMarquee);
+    window.addEventListener('blur', cancelMarquee);
+
+    return () => {
+      window.removeEventListener('mouseup', finishMarquee);
+      window.removeEventListener('blur', cancelMarquee);
+    };
+  }, [components, marquee, selectComponents]);
+
   useEffect(() => {
     clearTransientCanvasState();
   }, [boardType, clearTransientCanvasState]);
@@ -3029,6 +3162,19 @@ const CircuitCanvas: React.FC = () => {
       setContextMenu(null);
     }
 
+    if (e.evt.button === 0 && toolMode === 'select') {
+      const startedOnEmpty =
+        e.target === e.target.getStage() || e.target.name() === 'background';
+      if (startedOnEmpty) {
+        const pointer = getWorldPointerPosition();
+        if (pointer) {
+          marqueeStartRef.current = pointer;
+          marqueeMovedRef.current = false;
+        }
+      }
+      return;
+    }
+
     if (e.evt.button !== 1) return;
 
     e.evt.preventDefault();
@@ -3038,7 +3184,7 @@ const CircuitCanvas: React.FC = () => {
     setMiddlePanActive(true);
     stage.draggable(true);
     stage.startDrag();
-  }, []);
+  }, [toolMode, getWorldPointerPosition]);
 
   const handleDragStart = useCallback((comp: CircuitComponent, e: Konva.KonvaEventObject<DragEvent>) => {
     closeContextMenu();
@@ -3461,12 +3607,13 @@ const CircuitCanvas: React.FC = () => {
         scaleY={zoom}
         x={stagePos.x}
         y={stagePos.y}
-        draggable={isStagePanning || toolMode === 'select'}
+        // Only the pan tool (and the middle mouse button) moves the view.
+        // Select mode used to drag the background too, which shifted every part
+        // while the board and the breadboard stayed put — tearing the circuit
+        // apart. There, dragging empty space draws a selection box instead.
+        draggable={isStagePanning}
         onDragStart={(e) => {
           if (e.target !== e.target.getStage()) return;
-          // Where the gesture began, so the move can be measured against it
-          // even if the store's stagePos shifts underneath us mid-drag.
-          stageDragOriginRef.current = { x: e.target.x(), y: e.target.y() };
           setStageDragging(true);
         }}
         onDragMove={(e) => {
@@ -3485,30 +3632,8 @@ const CircuitCanvas: React.FC = () => {
           // closer draggable ancestor and takes the gesture first) is ours.
           if (e.target !== e.target.getStage()) return;
 
-          const origin = stageDragOriginRef.current;
-          stageDragOriginRef.current = null;
           setStageDragging(false);
-
-          if (isStagePanning) {
-            setStagePos({ x: e.target.x(), y: e.target.y() });
-            return;
-          }
-
-          // Select mode: dragging empty space grabs the whole circuit and
-          // moves every part together, the same way pan mode moves the view —
-          // except here the camera snaps back and the parts' own positions
-          // are what actually changed.
-          const from = origin ?? stagePos;
-          const dx = e.target.x() - from.x;
-          const dy = e.target.y() - from.y;
-          if ((dx !== 0 || dy !== 0) && components.length > 0) {
-            captureUndoSnapshot();
-            for (const comp of components) {
-              updateComponent(comp.id, { x: comp.x + dx, y: comp.y + dy }, { recordHistory: false });
-            }
-          }
-          e.target.x(stagePos.x);
-          e.target.y(stagePos.y);
+          setStagePos({ x: e.target.x(), y: e.target.y() });
         }}
         onWheel={handleWheel}
         onClick={handleStageClick}
@@ -4102,6 +4227,21 @@ const CircuitCanvas: React.FC = () => {
                 </Group>
               );
             })}
+
+          {/* Selection box */}
+          {marquee && (
+            <Rect
+              x={Math.min(marquee.x1, marquee.x2)}
+              y={Math.min(marquee.y1, marquee.y2)}
+              width={Math.abs(marquee.x2 - marquee.x1)}
+              height={Math.abs(marquee.y2 - marquee.y1)}
+              fill="rgba(94, 160, 255, 0.12)"
+              stroke="#5ea0ff"
+              strokeWidth={1}
+              dash={[4, 4]}
+              listening={false}
+            />
+          )}
         </Layer>
       </Stage>
 

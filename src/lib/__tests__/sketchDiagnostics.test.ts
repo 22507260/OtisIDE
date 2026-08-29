@@ -89,6 +89,61 @@ describe('findSketchDiagnostics — no false positives', () => {
     `;
     expect(findSketchDiagnostics(code)).toEqual([]);
   });
+
+  it('accepts the core Arduino API', () => {
+    const code = `
+      void setup() {
+        pinMode(9, OUTPUT);
+        randomSeed(analogRead(A0));
+      }
+      void loop() {
+        int level = map(random(0, 1023), 0, 1023, 0, 255);
+        analogWrite(9, constrain(level, 0, 255));
+        tone(8, 440, 100);
+        delayMicroseconds(500);
+      }
+    `;
+    expect(findSketchDiagnostics(code)).toEqual([]);
+  });
+
+  it('accepts a function the sketch defines itself, called or passed by name', () => {
+    const code = `
+      int ledPin = 9;
+      void blink(int times);
+
+      void setup() {
+        pinMode(ledPin, OUTPUT);
+        attachInterrupt(digitalPinToInterrupt(2), onPress, RISING);
+      }
+
+      void onPress() { blink(2); }
+
+      void blink(int times) {
+        for (int i = 0; i < times; i++) {
+          digitalWrite(ledPin, HIGH);
+          delay(100);
+          digitalWrite(ledPin, LOW);
+          delay(100);
+        }
+      }
+
+      void loop() { blink(1); }
+    `;
+    expect(findSketchDiagnostics(code)).toEqual([]);
+  });
+
+  it('accepts a function-like macro and a cast', () => {
+    const code = `
+      #define SQUARE(x) ((x) * (x))
+      void setup() {}
+      void loop() {
+        float reading = analogRead(A0);
+        int scaled = (int)(SQUARE(reading) / 1024.0);
+        analogWrite(9, scaled);
+      }
+    `;
+    expect(findSketchDiagnostics(code)).toEqual([]);
+  });
 });
 
 describe('findSketchDiagnostics — real problems', () => {
@@ -128,6 +183,37 @@ describe('findSketchDiagnostics — real problems', () => {
       void loop() {}
     `;
     expect(kinds(code)).toContain('type-mismatch');
+  });
+
+  it('reports a call to a function nothing declares', () => {
+    const code = `
+      int redPin = 9;
+      void setup() { pinModeXXX(redPin, OUTPUT); }
+      void loop() {}
+    `;
+    expect(kinds(code)).toContain('unknown-function');
+    expect(names(code)).toContain('pinModeXXX');
+  });
+
+  it('points at the line the unknown call is on', () => {
+    const code = [
+      'int redPin = 9;',
+      'void setup() {',
+      '  pinModeXXX(redPin, OUTPUT);',
+      '}',
+      'void loop() {}',
+    ].join('\n');
+    const [first] = findSketchDiagnostics(code);
+    expect(first.kind).toBe('unknown-function');
+    expect(first.line).toBe(3);
+  });
+
+  it('does not mistake an undeclared name for an unknown call', () => {
+    const code = `
+      void setup() {}
+      void loop() { digitalWrite(ledPin, HIGH); }
+    `;
+    expect(kinds(code)).toEqual(['undeclared-variable']);
   });
 
   it('points at the line the problem is on', () => {

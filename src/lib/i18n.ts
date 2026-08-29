@@ -275,6 +275,8 @@ const UI_STRINGS = {
     circuitWarningPartNoResistor: '{{name}} is wired straight to power with no resistor — it may burn out almost immediately. Add a resistor (220–1k ohm) in series.',
     circuitWarningModuleMissingSupply: '{{name}} has no supply: its VCC and GND pins must reach power and ground.',
     circuitWarningUndeclared: "'{{name}}' was never declared (line {{line}}).",
+    circuitWarningUnknownFunction:
+      "'{{name}}' is not a function the compiler knows (line {{line}}).",
     circuitWarningTypeMismatch: 'Type mismatch: {{detail}} (line {{line}}).',
     errorDialogTitle: 'There is a problem',
     errorDialogTitlePlural: '{{count}} problems found',
@@ -555,6 +557,8 @@ const UI_STRINGS = {
     circuitWarningPartNoResistor: '{{name}} güce doğrudan, direnç olmadan bağlanmış — hemen yanabilir. Seriye bir direnç (220–1k ohm) eklenmeli.',
     circuitWarningModuleMissingSupply: '{{name}} beslenmiyor: VCC ve GND uçları güce ve toprağa bağlanmalı.',
     circuitWarningUndeclared: "'{{name}}' hiç tanımlanmamış (satır {{line}}).",
+    circuitWarningUnknownFunction:
+      "'{{name}}' derleyicinin bildiği bir fonksiyon değil (satır {{line}}).",
     circuitWarningTypeMismatch: 'Tip uyuşmazlığı: {{detail}} (satır {{line}}).',
     errorDialogTitle: 'Bir sorun var',
     errorDialogTitlePlural: '{{count}} sorun bulundu',

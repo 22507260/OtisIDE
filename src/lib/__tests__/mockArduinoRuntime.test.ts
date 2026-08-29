@@ -6,6 +6,7 @@ import {
   getCircuitWiringIssues,
 } from '../mockArduinoRuntime';
 import { ARDUINO_COMPONENT_ID } from '../../models/arduinoUno';
+import { BREADBOARD_COMPONENT_ID, HOLE_SP } from '../../models/breadboard';
 import { getDefaultPins, type CircuitComponent, type Pin, type Wire } from '../../models/types';
 
 const BOARD_PINS: Pin[] = [
@@ -734,5 +735,89 @@ describe('getCircuitWiringIssues', () => {
   it('raises no issues for an unwired battery sitting alone on the canvas', () => {
     const issues = getCircuitWiringIssues([battery()], [], BOARD_PINS);
     expect(issues).toEqual([]);
+  });
+
+  // Parts pushed into breadboard holes conduct through them, so a circuit
+  // built on the board rather than with drawn wires is a real circuit.
+  describe('parts seated in the breadboard', () => {
+    // Column N of row A sits at x = 80 + (N - 1) * HOLE_SP, y = 286.
+    const holeX = (column: number) => 80 + (column - 1) * HOLE_SP;
+    const ROW_A_Y = 286;
+
+    const seatedResistor = (fromColumn: number, toColumn: number): CircuitComponent => ({
+      ...resistor(),
+      x: holeX(fromColumn),
+      y: ROW_A_Y,
+      pins: [
+        { id: 'pin1', name: 'Pin 1', type: 'passive', x: 0, y: 0 },
+        { id: 'pin2', name: 'Pin 2', type: 'passive', x: holeX(toColumn) - holeX(fromColumn), y: 0 },
+      ],
+    });
+
+    const seatedLed = (fromColumn: number, toColumn: number): CircuitComponent => ({
+      ...led(),
+      x: holeX(fromColumn),
+      y: ROW_A_Y,
+      pins: [
+        { id: 'anode', name: 'Anode (+)', type: 'passive', x: 0, y: 0 },
+        { id: 'cathode', name: 'Cathode (-)', type: 'passive', x: holeX(toColumn) - holeX(fromColumn), y: 0 },
+      ],
+    });
+
+    it('lets a resistor plugged into the board limit the current', () => {
+      const issues = getCircuitWiringIssues(
+        [seatedResistor(1, 5), seatedLed(5, 10)],
+        [
+          wire('w1', ARDUINO_COMPONENT_ID, 'D9', BREADBOARD_COMPONENT_ID, 'bb-b-1'),
+          wire('w2', BREADBOARD_COMPONENT_ID, 'bb-b-10', ARDUINO_COMPONENT_ID, 'GND'),
+        ],
+        BOARD_PINS
+      );
+      expect(issues).toEqual([]);
+    });
+
+    it('flags the LED again once it is lifted off the board', () => {
+      const issues = getCircuitWiringIssues(
+        [seatedResistor(1, 5), { ...seatedLed(5, 10), x: 900, y: 900 }],
+        [
+          wire('w1', ARDUINO_COMPONENT_ID, 'D9', BREADBOARD_COMPONENT_ID, 'bb-b-1'),
+          wire('w2', BREADBOARD_COMPONENT_ID, 'bb-b-10', ARDUINO_COMPONENT_ID, 'GND'),
+        ],
+        BOARD_PINS
+      );
+      expect(issues).toContainEqual({ type: 'floating-part', componentId: 'led-1' });
+    });
+
+    it('flags an LED seated straight across the supply with no resistor', () => {
+      const issues = getCircuitWiringIssues(
+        [seatedLed(1, 10)],
+        [
+          wire('w1', ARDUINO_COMPONENT_ID, 'D9', BREADBOARD_COMPONENT_ID, 'bb-b-1'),
+          wire('w2', BREADBOARD_COMPONENT_ID, 'bb-b-10', ARDUINO_COMPONENT_ID, 'GND'),
+        ],
+        BOARD_PINS
+      );
+      expect(issues).toContainEqual({ type: 'part-no-resistor', componentId: 'led-1' });
+    });
+
+    it('follows the breadboard when it is moved', () => {
+      const moved = { x: 160, y: 340 };
+      const shift = (component: CircuitComponent): CircuitComponent => ({
+        ...component,
+        x: component.x + (moved.x - 60),
+        y: component.y + (moved.y - 240),
+      });
+
+      const issues = getCircuitWiringIssues(
+        [shift(seatedResistor(1, 5)), shift(seatedLed(5, 10))],
+        [
+          wire('w1', ARDUINO_COMPONENT_ID, 'D9', BREADBOARD_COMPONENT_ID, 'bb-b-1'),
+          wire('w2', BREADBOARD_COMPONENT_ID, 'bb-b-10', ARDUINO_COMPONENT_ID, 'GND'),
+        ],
+        BOARD_PINS,
+        moved
+      );
+      expect(issues).toEqual([]);
+    });
   });
 });
