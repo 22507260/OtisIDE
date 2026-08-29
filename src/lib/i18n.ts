@@ -110,6 +110,7 @@ const UI_STRINGS = {
     output: 'Output',
     sensor: 'Sensor',
     display: 'Display',
+    batteries: 'Batteries',
     other: 'Other',
     red: 'Red',
     green: 'Green',
@@ -392,6 +393,7 @@ const UI_STRINGS = {
     output: 'Çıkış',
     sensor: 'Sensör',
     display: 'Ekran',
+    batteries: 'Piller',
     other: 'Diğer',
     red: 'Kırmızı',
     green: 'Yeşil',
@@ -659,6 +661,7 @@ const CATEGORY_NAME_TR: Record<string, string> = {
   Output: UI_STRINGS.tr.output,
   Sensor: UI_STRINGS.tr.sensor,
   Display: UI_STRINGS.tr.display,
+  Battery: UI_STRINGS.tr.batteries,
   Other: UI_STRINGS.tr.other,
 };
 

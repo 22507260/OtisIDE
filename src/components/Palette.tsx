@@ -17,6 +17,7 @@ const Palette: React.FC = () => {
     Output: false,
     Sensor: false,
     Display: false,
+    Battery: false,
     Other: false,
   });
   const deferredSearchQuery = useDeferredValue(searchQuery);
