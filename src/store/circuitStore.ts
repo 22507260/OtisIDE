@@ -336,11 +336,12 @@ const loadProjectDraft = (): ProjectData | null => {
   }
 };
 
-// Turkish is what the program is written for, so that is what it opens in;
-// anyone who picked English keeps English.
+// A first run opens in English, which is the language the most people who find
+// this can read. Picking one is remembered from then on, so anyone who switches
+// to Turkish gets Turkish every time after.
 const loadLanguage = (): AppLanguage => {
   const stored = readStorage(APP_LANGUAGE_STORAGE_KEY);
-  return stored === 'en' ? 'en' : 'tr';
+  return stored === 'tr' ? 'tr' : 'en';
 };
 
 const loadAIProvider = (): AIProvider => {
