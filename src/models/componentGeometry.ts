@@ -339,6 +339,12 @@ export const SVG_CONFIGS: Record<ComponentType, SvgConfig> = {
   multimeter:     { url: multimeterSvg,    raw: multimeterSvgRaw,    width: 160, height: 248, offsetX: 80,  offsetY: 124 },
   oscilloscope:   { url: oscilloscopeSvg,  raw: oscilloscopeSvgRaw,  width: 164, height: 104, offsetX: 82,  offsetY: 52 },
   'motor-driver': { url: motorDriverSvg,   raw: motorDriverSvgRaw,   width: 72,  height: 30, offsetX: 36,  offsetY: 8  },
+  // The breadboard has no artwork file: the canvas draws its holes, rails and
+  // gutter itself. It is listed here for its size alone, so selection boxes and
+  // bounds treat it like any other part. Unlike the rest it is drawn from its
+  // top-left corner, hence the zero offsets. Size mirrors BB_BOARD_W and
+  // BB_TOTAL_H in models/breadboard.ts — imported by value would make a cycle.
+  breadboard:     { url: '',               raw: '',                  width: 764.5, height: 242.5, offsetX: 0, offsetY: 0 },
 };
 
 function getViewBox(raw: string): { minX: number; minY: number; width: number; height: number } | null {

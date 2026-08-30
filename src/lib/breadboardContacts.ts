@@ -9,9 +9,9 @@
  */
 
 import {
-  DEFAULT_BREADBOARD_POSITION,
   HOLE_SP,
-  getNearestBreadboardHole,
+  getBreadboardPlacements,
+  getNearestHoleAcrossBreadboards,
 } from '../models/breadboard';
 import type { CircuitComponent } from '../models/types';
 import { getComponentTransform, transformPoint } from './componentTransform';
@@ -41,6 +41,8 @@ const NON_SEATING_TYPES = new Set<CircuitComponent['type']>(['multimeter']);
 export type BreadboardContact = {
   componentId: string;
   pinId: string;
+  /** Which board the hole belongs to; hole ids repeat from board to board. */
+  breadboardId: string;
   holeId: string;
 };
 
@@ -48,39 +50,49 @@ export type BreadboardContact = {
  * Every leg-in-hole contact in the circuit. Derived purely from geometry, so
  * it follows parts as they are dragged with nothing to keep in sync.
  */
-export function getBreadboardContacts(
-  components: CircuitComponent[],
-  breadboardPosition: { x: number; y: number } = DEFAULT_BREADBOARD_POSITION
-): BreadboardContact[] {
+export function getBreadboardContacts(components: CircuitComponent[]): BreadboardContact[] {
+  const boards = getBreadboardPlacements(components);
+  if (boards.length === 0) return [];
+
   const contacts: BreadboardContact[] = [];
 
   for (const component of components) {
     if (NON_SEATING_TYPES.has(component.type)) continue;
+    // A board is not plugged into another board.
+    if (component.type === 'breadboard') continue;
 
     const transform = getComponentTransform(component);
     // One hole holds one leg. Parts whose legs sit closer together than the
     // hole pitch could otherwise claim the same hole twice, shorting
     // themselves out through a hole that in reality only fits one of them.
+    // Keyed by board as well as hole, since hole ids repeat across boards.
     const claimed = new Map<string, { pinId: string; distSq: number }>();
 
     for (const pin of component.pins) {
       const moved = transformPoint(pin.x, pin.y, transform);
-      const hole = getNearestBreadboardHole(
+      const nearest = getNearestHoleAcrossBreadboards(
         component.x + moved.x,
         component.y + moved.y,
-        breadboardPosition
+        boards
       );
 
-      if (hole.distSq > CONTACT_RADIUS_SQ) continue;
+      if (!nearest || nearest.distSq > CONTACT_RADIUS_SQ) continue;
 
-      const current = claimed.get(hole.id);
-      if (!current || hole.distSq < current.distSq) {
-        claimed.set(hole.id, { pinId: pin.id, distSq: hole.distSq });
+      const key = `${nearest.breadboardId}::${nearest.hole.id}`;
+      const current = claimed.get(key);
+      if (!current || nearest.distSq < current.distSq) {
+        claimed.set(key, { pinId: pin.id, distSq: nearest.distSq });
       }
     }
 
-    for (const [holeId, seated] of claimed) {
-      contacts.push({ componentId: component.id, pinId: seated.pinId, holeId });
+    for (const [key, seated] of claimed) {
+      const separator = key.indexOf('::');
+      contacts.push({
+        componentId: component.id,
+        pinId: seated.pinId,
+        breadboardId: key.slice(0, separator),
+        holeId: key.slice(separator + 2),
+      });
     }
   }
 

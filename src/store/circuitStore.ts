@@ -31,7 +31,7 @@ import {
   getControllerBoardDefinition,
   getControllerBoardPins,
 } from '../models/arduinoUno';
-import { DEFAULT_BREADBOARD_POSITION } from '../models/breadboard';
+import { BREADBOARD_COMPONENT_ID, DEFAULT_BREADBOARD_POSITION } from '../models/breadboard';
 import { sanitizeProjectData, type ProjectData } from '../lib/projectFile';
 import { readStorage, removeStorage, writeStorage } from '../lib/storage';
 import { v4 as uuidv4 } from 'uuid';
@@ -90,8 +90,6 @@ interface CircuitStore {
   setBoardType: (boardType: ControllerBoardType) => void;
   boardPosition: { x: number; y: number };
   setBoardPosition: (pos: { x: number; y: number }) => void;
-  breadboardPosition: { x: number; y: number };
-  setBreadboardPosition: (pos: { x: number; y: number }) => void;
   captureUndoSnapshot: () => void;
 
   // Component actions
@@ -189,7 +187,6 @@ interface CircuitStore {
     code: string;
     boardType: ControllerBoardType;
     boardPosition: { x: number; y: number };
-    breadboardPosition: { x: number; y: number };
   };
 }
 
@@ -199,12 +196,53 @@ type ProjectSnapshot = {
   code: string;
   boardType: ControllerBoardType;
   boardPosition: { x: number; y: number };
-  breadboardPosition: { x: number; y: number };
   selectedComponentId: string | null;
   /** Every selected part, with the primary one last. Holding Ctrl adds to it. */
   selectedComponentIds: string[];
   selectedWireId: string | null;
 };
+
+/**
+ * A breadboard, as an ordinary component.
+ *
+ * It used to be a fixture: one board, kept outside the parts list, addressed by
+ * a fixed id. Wires to its holes were written as `breadboard-fixed:bb-a-1`, so
+ * the migrated board keeps that id and every wire in every project saved before
+ * still lands where it always did.
+ */
+function createDefaultBreadboard(
+  position: { x: number; y: number } = DEFAULT_BREADBOARD_POSITION,
+  id: string = BREADBOARD_COMPONENT_ID
+): CircuitComponent {
+  return {
+    id,
+    type: 'breadboard',
+    x: position.x,
+    y: position.y,
+    rotation: 0,
+    pins: [],
+    properties: {},
+  };
+}
+
+/**
+ * Brings a project forward to boards-as-components.
+ *
+ * The old shape is recognised by its `breadboardPosition` field: anything
+ * carrying one predates the change and gets its single board back at the spot
+ * it was stored at. Anything without one is already in the new shape, so it is
+ * left exactly as it is — including a project whose board the user deleted on
+ * purpose, which must not quietly come back.
+ */
+function withMigratedBreadboard(
+  components: CircuitComponent[],
+  legacyPosition: { x: number; y: number } | null | undefined
+): CircuitComponent[] {
+  if (components.some((component) => component.type === 'breadboard')) return components;
+  if (!legacyPosition) return components;
+
+  return [createDefaultBreadboard(legacyPosition), ...components];
+}
 
 const DEFAULT_CODE = `// Arduino sketch
 void setup() {
@@ -416,7 +454,6 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
       code: state.code,
       boardType: state.boardType,
       boardPosition: { ...state.boardPosition },
-      breadboardPosition: { ...state.breadboardPosition },
       selectedComponentId: state.selectedComponentId,
       selectedComponentIds: [...state.selectedComponentIds],
       selectedWireId: state.selectedWireId,
@@ -526,8 +563,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
             set((s) => ({
               simulation: { ...s.simulation, runtimeError: message },
             })),
-        },
-        state.breadboardPosition
+        }
       );
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -557,7 +593,6 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
       code: snapshot.code,
       boardType: snapshot.boardType,
       boardPosition: { ...snapshot.boardPosition },
-      breadboardPosition: { ...snapshot.breadboardPosition },
       selectedComponentId: snapshot.selectedComponentId,
       selectedComponentIds: [...(snapshot.selectedComponentIds ?? [])],
       selectedWireId: snapshot.selectedWireId,
@@ -611,7 +646,12 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
 
   return ({
   // Components
-  components: draft?.components ?? [],
+  // No draft at all means a first run, which starts with a board to build on.
+  // A draft that exists is taken at its word: if it says there is no board, the
+  // user removed it and it must not reappear.
+  components: draft
+    ? withMigratedBreadboard(draft.components ?? [], draft.breadboardPosition)
+    : [createDefaultBreadboard()],
   selectedComponentId: null,
   selectedComponentIds: [],
 
@@ -677,8 +717,6 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
   },
   boardPosition: draft?.boardPosition ?? { ...DEFAULT_CONTROLLER_BOARD_POSITION },
   setBoardPosition: (boardPosition) => set({ boardPosition }),
-  breadboardPosition: draft?.breadboardPosition ?? { ...DEFAULT_BREADBOARD_POSITION },
-  setBreadboardPosition: (breadboardPosition) => set({ breadboardPosition }),
   captureUndoSnapshot: () => pushUndoSnapshot(),
 
   // Component actions
@@ -1218,15 +1256,13 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
       get().code !== DEFAULT_CODE ||
       get().boardType !== DEFAULT_CONTROLLER_BOARD_TYPE ||
       get().boardPosition.x !== DEFAULT_CONTROLLER_BOARD_POSITION.x ||
-      get().boardPosition.y !== DEFAULT_CONTROLLER_BOARD_POSITION.y ||
-      get().breadboardPosition.x !== DEFAULT_BREADBOARD_POSITION.x ||
-      get().breadboardPosition.y !== DEFAULT_BREADBOARD_POSITION.y
+      get().boardPosition.y !== DEFAULT_CONTROLLER_BOARD_POSITION.y
     ) {
       pushUndoSnapshot();
     }
     stopMockArduinoRuntime();
     set({
-      components: [],
+      components: [createDefaultBreadboard()],
       wires: [],
       selectedComponentId: null,
       selectedComponentIds: [],
@@ -1234,7 +1270,6 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
       code: DEFAULT_CODE,
       boardType: DEFAULT_CONTROLLER_BOARD_TYPE,
       boardPosition: { ...DEFAULT_CONTROLLER_BOARD_POSITION },
-      breadboardPosition: { ...DEFAULT_BREADBOARD_POSITION },
       simulation: {
         running: false,
         pinStates: {},
@@ -1254,12 +1289,11 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
     pushUndoSnapshot();
     stopMockArduinoRuntime();
     set({
-      components: project.components,
+      components: withMigratedBreadboard(project.components, project.breadboardPosition),
       wires: project.wires,
       code: project.code,
       boardType: getControllerBoardDefinition(project.boardType).type,
       boardPosition: project.boardPosition,
-      breadboardPosition: project.breadboardPosition,
       selectedComponentId: null,
       selectedComponentIds: [],
       selectedWireId: null,
@@ -1278,22 +1312,8 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
   },
 
   getProjectData: () => {
-    const {
-      components,
-      wires,
-      code,
-      boardType,
-      boardPosition,
-      breadboardPosition,
-    } = get();
-    return {
-      components,
-      wires,
-      code,
-      boardType,
-      boardPosition,
-      breadboardPosition,
-    };
+    const { components, wires, code, boardType, boardPosition } = get();
+    return { components, wires, code, boardType, boardPosition };
   },
   });
 });
@@ -1332,8 +1352,7 @@ useCircuitStore.subscribe((state, previous) => {
     state.wires !== previous.wires ||
     state.code !== previous.code ||
     state.boardType !== previous.boardType ||
-    state.boardPosition !== previous.boardPosition ||
-    state.breadboardPosition !== previous.breadboardPosition;
+    state.boardPosition !== previous.boardPosition;
 
   if (changed) scheduleProjectDraftSave();
 });

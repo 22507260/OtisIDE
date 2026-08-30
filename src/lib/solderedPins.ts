@@ -13,7 +13,6 @@
  * counting for nothing before breadboard contacts existed.
  */
 
-import { BREADBOARD_COMPONENT_ID, DEFAULT_BREADBOARD_POSITION } from '../models/breadboard';
 import { ARDUINO_COMPONENT_ID } from '../models/arduinoUno';
 import type { CircuitComponent, Wire } from '../models/types';
 import { getBreadboardContacts } from './breadboardContacts';
@@ -22,21 +21,24 @@ export function pinKey(componentId: string, pinId: string): string {
   return `${componentId}::${pinId}`;
 }
 
-/**
- * The fixtures are wired to constantly and would be lit up end to end, which
- * says nothing about the part the user selected. Blobs belong on parts.
- */
-const FIXTURE_IDS = new Set<string>([BREADBOARD_COMPONENT_ID, ARDUINO_COMPONENT_ID]);
-
 export function getSolderedPinKeys(
   components: CircuitComponent[],
-  wires: Wire[],
-  breadboardPosition: { x: number; y: number } = DEFAULT_BREADBOARD_POSITION
+  wires: Wire[]
 ): Set<string> {
   const soldered = new Set<string>();
 
+  /**
+   * The board and the breadboards are wired to constantly and would be lit up
+   * end to end, which says nothing about the part in front of the user. Blobs
+   * belong on the legs of parts.
+   */
+  const boardIds = new Set(
+    components.filter((component) => component.type === 'breadboard').map((component) => component.id)
+  );
+
   const add = (componentId: string, pinId: string) => {
-    if (!componentId || !pinId || FIXTURE_IDS.has(componentId)) return;
+    if (!componentId || !pinId) return;
+    if (componentId === ARDUINO_COMPONENT_ID || boardIds.has(componentId)) return;
     soldered.add(pinKey(componentId, pinId));
   };
 
@@ -45,7 +47,7 @@ export function getSolderedPinKeys(
     add(wire.endComponentId, wire.endPinId);
   }
 
-  for (const contact of getBreadboardContacts(components, breadboardPosition)) {
+  for (const contact of getBreadboardContacts(components)) {
     add(contact.componentId, contact.pinId);
   }
 

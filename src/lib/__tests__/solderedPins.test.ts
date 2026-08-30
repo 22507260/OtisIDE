@@ -36,28 +36,40 @@ const wire = (overrides: Partial<Wire> = {}): Wire => ({
 /** Well clear of the board, so only wiring can connect it. */
 const inTheAir = { x: -900, y: -900 };
 
+/** The board itself, an ordinary component now. */
+const board = (overrides: Partial<CircuitComponent> = {}): CircuitComponent => ({
+  id: BREADBOARD_COMPONENT_ID,
+  type: 'breadboard',
+  x: BB_X,
+  y: BB_Y,
+  rotation: 0,
+  pins: [],
+  properties: {},
+  ...overrides,
+});
+
 describe('getSolderedPinKeys', () => {
   it('marks a leg a cable reaches', () => {
-    const keys = getSolderedPinKeys([part(inTheAir)], [wire()]);
+    const keys = getSolderedPinKeys([board(), part(inTheAir)], [wire()]);
     expect(keys.has(pinKey('resistor-1', 'pin1'))).toBe(true);
     expect(keys.has(pinKey('resistor-1', 'pin2'))).toBe(false);
   });
 
   it('marks a leg seated in a breadboard hole', () => {
-    const keys = getSolderedPinKeys([part()], []);
+    const keys = getSolderedPinKeys([board(), part()], []);
     expect(keys.has(pinKey('resistor-1', 'pin1'))).toBe(true);
     expect(keys.has(pinKey('resistor-1', 'pin2'))).toBe(true);
   });
 
   it('marks nothing on a part that is neither wired nor plugged in', () => {
-    expect(getSolderedPinKeys([part(inTheAir)], []).size).toBe(0);
+    expect(getSolderedPinKeys([board(), part(inTheAir)], []).size).toBe(0);
   });
 
   it('leaves the board and the breadboard themselves unmarked', () => {
     // Both ends of both cables land on a fixture, which is wired to constantly
     // and says nothing about the part the user selected.
     const keys = getSolderedPinKeys(
-      [part(inTheAir)],
+      [board(), part(inTheAir)],
       [
         wire(),
         wire({
@@ -85,8 +97,20 @@ describe('getSolderedPinKeys', () => {
       y: A1.y + (moved.y - BB_Y),
     });
 
-    expect(getSolderedPinKeys([shifted], [], moved).size).toBe(2);
+    const movedBoard = board({ x: moved.x, y: moved.y });
+
+    expect(getSolderedPinKeys([movedBoard, shifted], []).size).toBe(2);
     // …and the part left at its old spot no longer reaches the moved board.
-    expect(getSolderedPinKeys([part()], [], moved).size).toBe(0);
+    expect(getSolderedPinKeys([movedBoard, part()], []).size).toBe(0);
+  });
+
+  it('never marks a board, only the legs plugged into one', () => {
+    const keys = getSolderedPinKeys(
+      [board(), part()],
+      [wire({ id: 'w-hole', startComponentId: BREADBOARD_COMPONENT_ID, startPinId: 'bb-a-1' })]
+    );
+
+    expect(keys.has(pinKey(BREADBOARD_COMPONENT_ID, 'bb-a-1'))).toBe(false);
+    expect(keys.has(pinKey('resistor-1', 'pin1'))).toBe(true);
   });
 });

@@ -22,6 +22,9 @@ import {
 } from '../models/arduinoUno';
 import {
   BREADBOARD_COMPONENT_ID,
+  getBreadboardPlacements,
+  getNearestHoleAcrossBreadboards,
+  type BreadboardPlacement,
   DEFAULT_BREADBOARD_POSITION,
   type BreadboardHole,
   BB_COLS,
@@ -371,6 +374,7 @@ function getComponentPinWorldPosition(
   };
 }
 
+/** Whether a point is over (or just outside) one particular board. */
 function isNearBreadboardArea(
   x: number,
   y: number,
@@ -385,12 +389,21 @@ function isNearBreadboardArea(
   );
 }
 
+/** Whether a point is over any of the boards on the canvas. */
+function isNearAnyBreadboard(
+  x: number,
+  y: number,
+  boards: readonly BreadboardPlacement[]
+): boolean {
+  return boards.some((board) => isNearBreadboardArea(x, y, board));
+}
+
 function snapPinsToBreadboard(
   x: number,
   y: number,
   pins: Array<{ x: number; y: number }>,
   breadboardPosition: { x: number; y: number } = DEFAULT_BREADBOARD_POSITION
-): { x: number; y: number } | null {
+): { x: number; y: number; score: number } | null {
   if (pins.length === 0) return null;
 
   let bestCandidate: { x: number; y: number; score: number } | null = null;
@@ -435,7 +448,30 @@ function snapPinsToBreadboard(
     }
   }
 
-  return bestCandidate ? { x: bestCandidate.x, y: bestCandidate.y } : null;
+  return bestCandidate;
+}
+
+/**
+ * The best seat across every board on the canvas. Each board is asked on its
+ * own and the closest fit wins, so dragging a part between two boards lands it
+ * on whichever one it is actually over.
+ */
+function snapPinsToBreadboards(
+  x: number,
+  y: number,
+  pins: Array<{ x: number; y: number }>,
+  boards: readonly BreadboardPlacement[]
+): { x: number; y: number } | null {
+  let best: { x: number; y: number; score: number } | null = null;
+
+  for (const board of boards) {
+    const candidate = snapPinsToBreadboard(x, y, pins, board);
+    if (candidate && (!best || candidate.score < best.score)) {
+      best = candidate;
+    }
+  }
+
+  return best ? { x: best.x, y: best.y } : null;
 }
 
 export function snapToBreadboard(
@@ -443,13 +479,13 @@ export function snapToBreadboard(
   y: number,
   type?: string,
   pins?: Array<{ x: number; y: number }>,
-  breadboardPosition: { x: number; y: number } = DEFAULT_BREADBOARD_POSITION,
+  boards: readonly BreadboardPlacement[] = [],
   transform?: ComponentTransform
 ): { x: number; y: number } {
   const componentType = type && type in SVG_CONFIGS ? (type as ComponentType) : undefined;
   const pinLayout = pins ?? (componentType ? getDefaultPins(componentType) : []);
   const placedPinLayout = getTransformedPins(pinLayout, transform);
-  const snapped = snapPinsToBreadboard(x, y, placedPinLayout, breadboardPosition);
+  const snapped = snapPinsToBreadboards(x, y, placedPinLayout, boards);
 
   if (snapped) {
     return snapped;
@@ -660,7 +696,6 @@ function computeCircuitWarnings(
   components: CircuitComponent[],
   wires: Wire[],
   boardPins: Pin[],
-  breadboardPosition: { x: number; y: number },
   componentStates: SimulationState['componentStates'],
   runtimeError: string | null,
   hardwareError: string | null
@@ -690,7 +725,7 @@ function computeCircuitWarnings(
     }
   }
 
-  for (const issue of getCircuitWiringIssues(components, wires, boardPins, breadboardPosition)) {
+  for (const issue of getCircuitWiringIssues(components, wires, boardPins)) {
     warnings.push(mapWiringIssueToWarning(language, issue, components));
   }
 
@@ -1953,7 +1988,18 @@ const CircuitCanvas: React.FC = () => {
   const code = useCircuitStore((s) => s.code);
   const boardType = useCircuitStore((s) => s.boardType);
   const boardPosition = useCircuitStore((s) => s.boardPosition);
-  const breadboardPosition = useCircuitStore((s) => s.breadboardPosition);
+  /** Every breadboard on the canvas, derived from the parts themselves. */
+  const breadboards = useMemo(() => getBreadboardPlacements(components), [components]);
+
+  /** Boards first: they are the surface everything else sits on. Sorting is
+   *  stable, so parts keep the order they were added in among themselves. */
+  const drawOrder = useMemo(
+    () =>
+      [...components].sort(
+        (a, b) => Number(a.type !== 'breadboard') - Number(b.type !== 'breadboard')
+      ),
+    [components]
+  );
   // Needed by circuitWarnings below, so it's declared here rather than lower
   // down where it's otherwise used (with the rest of the board-rendering
   // values it groups with).
@@ -1972,7 +2018,6 @@ const CircuitCanvas: React.FC = () => {
         components,
         wires,
         boardPins,
-        breadboardPosition,
         simulation.componentStates,
         simulation.runtimeError,
         hardwareError
@@ -1984,7 +2029,6 @@ const CircuitCanvas: React.FC = () => {
       components,
       wires,
       boardPins,
-      breadboardPosition,
       simulation.componentStates,
       simulation.runtimeError,
       hardwareError,
@@ -2014,8 +2058,8 @@ const CircuitCanvas: React.FC = () => {
   /** Legs that a cable reaches or that sit in a breadboard hole — the ones the
    *  selected part is drawn with a solder blob on. */
   const solderedPinKeys = useMemo(
-    () => getSolderedPinKeys(components, wires, breadboardPosition),
-    [components, wires, breadboardPosition]
+    () => getSolderedPinKeys(components, wires),
+    [components, wires]
   );
 
   const [dismissedWarningsKey, setDismissedWarningsKey] = useState<string | null>(null);
@@ -2079,7 +2123,6 @@ const CircuitCanvas: React.FC = () => {
   const setRightTab = useCircuitStore((s) => s.setRightTab);
   const setBoardType = useCircuitStore((s) => s.setBoardType);
   const setBoardPosition = useCircuitStore((s) => s.setBoardPosition);
-  const setBreadboardPosition = useCircuitStore((s) => s.setBreadboardPosition);
   const captureUndoSnapshot = useCircuitStore((s) => s.captureUndoSnapshot);
   const addComponent = useCircuitStore((s) => s.addComponent);
   const selectComponent = useCircuitStore((s) => s.selectComponent);
@@ -2130,13 +2173,15 @@ const CircuitCanvas: React.FC = () => {
         : null;
     }
 
-    if (componentId === BREADBOARD_COMPONENT_ID) {
-      const hole = getBreadboardHoleGlobal(pinId, breadboardPosition);
-      return hole ? { x: hole.x, y: hole.y } : null;
-    }
-
     const component = availableComponents.find((item) => item.id === componentId);
     if (!component) return null;
+
+    // A wire on a hole names the board it is plugged into, so the hole is
+    // looked up against that board's own position.
+    if (component.type === 'breadboard') {
+      const hole = getBreadboardHoleGlobal(pinId, component);
+      return hole ? { x: hole.x, y: hole.y } : null;
+    }
 
     const pinPosition = getComponentPinWorldPosition(component, pinId);
     return pinPosition
@@ -2145,19 +2190,17 @@ const CircuitCanvas: React.FC = () => {
           y: pinPosition.y,
         }
       : null;
-  }, [boardPins, boardPosition, breadboardPosition, components]);
+  }, [boardPins, boardPosition, components]);
 
   const getBreadboardSnapPositionForComponent = useCallback(
-    (
-      component: CircuitComponent,
-      position: { x: number; y: number } = breadboardPosition
-    ) => snapPinsToBreadboard(
-      component.x,
-      component.y,
-      getTransformedPins(component.pins, getComponentTransform(component)),
-      position
-    ),
-    [breadboardPosition]
+    (component: CircuitComponent, boards: readonly BreadboardPlacement[] = breadboards) =>
+      snapPinsToBreadboards(
+        component.x,
+        component.y,
+        getTransformedPins(component.pins, getComponentTransform(component)),
+        boards
+      ),
+    [breadboards]
   );
 
   const resolveMultimeterProbeTargetPosition = useCallback(
@@ -2272,11 +2315,8 @@ const CircuitCanvas: React.FC = () => {
   );
 
   const isComponentMountedOnBreadboard = useCallback(
-    (
-      component: CircuitComponent,
-      position: { x: number; y: number } = breadboardPosition
-    ) => {
-      const snapped = getBreadboardSnapPositionForComponent(component, position);
+    (component: CircuitComponent, boards: readonly BreadboardPlacement[] = breadboards) => {
+      const snapped = getBreadboardSnapPositionForComponent(component, boards);
       if (!snapped) return false;
 
       return (
@@ -2284,7 +2324,7 @@ const CircuitCanvas: React.FC = () => {
         Math.abs(snapped.y - component.y) < 0.75
       );
     },
-    [breadboardPosition, getBreadboardSnapPositionForComponent]
+    [breadboards, getBreadboardSnapPositionForComponent]
   );
 
   useEffect(() => {
@@ -2516,9 +2556,13 @@ const CircuitCanvas: React.FC = () => {
     const x = (e.clientX - rect.left - stagePos.x) / zoom;
     const y = (e.clientY - rect.top - stagePos.y) / zoom;
 
-    const snapped = snapToBreadboard(x, y, type, undefined, breadboardPosition);
+    // A board is placed where it is dropped; everything else looks for a seat.
+    const snapped =
+      type === 'breadboard'
+        ? { x: snapToGrid(x), y: snapToGrid(y) }
+        : snapToBreadboard(x, y, type, undefined, breadboards);
     addComponent(type, snapped.x, snapped.y);
-  }, [zoom, stagePos, addComponent, breadboardPosition]);
+  }, [zoom, stagePos, addComponent, breadboards]);
 
   const getWorldPointerPosition = useCallback(() => {
     const stage = stageRef.current;
@@ -2578,23 +2622,20 @@ const CircuitCanvas: React.FC = () => {
     [selectComponent, selectWire, selectedComponentId, selectedWireId]
   );
 
+  /** The hole under the cursor, and which board it belongs to. */
   const resolveBreadboardHoleAtPointer = useCallback(() => {
     const pointer = getWorldPointerPosition();
-    if (!pointer || !isNearBreadboardArea(pointer.x, pointer.y, breadboardPosition)) {
+    if (!pointer || !isNearAnyBreadboard(pointer.x, pointer.y, breadboards)) {
       return null;
     }
 
-    const nearestHole = getNearestBreadboardHole(
-      pointer.x,
-      pointer.y,
-      breadboardPosition
-    );
-    if (nearestHole.distSq > BREADBOARD_WIRE_SNAP_RADIUS_SQ) {
+    const nearest = getNearestHoleAcrossBreadboards(pointer.x, pointer.y, breadboards);
+    if (!nearest || nearest.distSq > BREADBOARD_WIRE_SNAP_RADIUS_SQ) {
       return null;
     }
 
-    return nearestHole;
-  }, [breadboardPosition, getWorldPointerPosition]);
+    return { breadboardId: nearest.breadboardId, ...nearest.hole };
+  }, [breadboards, getWorldPointerPosition]);
 
   const resolveProbeSnapTargetAtPosition = useCallback(
     (x: number, y: number, sourceComponentId: string): ProbeSnapTarget | null => {
@@ -2624,14 +2665,14 @@ const CircuitCanvas: React.FC = () => {
         }
       };
 
-      if (isNearBreadboardArea(x, y, breadboardPosition)) {
-        const nearestHole = getNearestBreadboardHole(x, y, breadboardPosition);
+      const nearestHole = getNearestHoleAcrossBreadboards(x, y, breadboards);
+      if (nearestHole) {
         considerTarget(
-          BREADBOARD_COMPONENT_ID,
-          nearestHole.id,
-          nearestHole.x,
-          nearestHole.y,
-          nearestHole.label
+          nearestHole.breadboardId,
+          nearestHole.hole.id,
+          nearestHole.hole.x,
+          nearestHole.hole.y,
+          nearestHole.hole.label
         );
       }
 
@@ -2664,7 +2705,7 @@ const CircuitCanvas: React.FC = () => {
 
       return bestTarget;
     },
-    [boardPins, boardPosition, breadboardPosition, components]
+    [boardPins, boardPosition, breadboards, components]
   );
 
   const resetViewport = useCallback(() => {
@@ -3049,20 +3090,24 @@ const CircuitCanvas: React.FC = () => {
     node: Konva.Group,
     options?: { recordHistory?: boolean }
   ) => {
-    const snapped = snapToBreadboard(
-      node.x(),
-      node.y(),
-      comp.type,
-      comp.pins,
-      breadboardPosition,
-      getComponentTransform(comp)
-    );
+    // A board itself is never seated in a board; it just lands on the grid.
+    const snapped =
+      comp.type === 'breadboard'
+        ? { x: snapToGrid(node.x()), y: snapToGrid(node.y()) }
+        : snapToBreadboard(
+            node.x(),
+            node.y(),
+            comp.type,
+            comp.pins,
+            breadboards,
+            getComponentTransform(comp)
+          );
     const newX = snapped.x;
     const newY = snapped.y;
     node.x(newX);
     node.y(newY);
     updateComponent(comp.id, { x: newX, y: newY }, options);
-  }, [breadboardPosition, updateComponent]);
+  }, [breadboards, updateComponent]);
 
   useEffect(() => {
     const win = window;
@@ -3073,11 +3118,11 @@ const CircuitCanvas: React.FC = () => {
       type?: string,
       pins?: Array<{ x: number; y: number }>,
       rotation?: number
-    ) => snapToBreadboard(x, y, type, pins, breadboardPosition, { rotation });
+    ) => snapToBreadboard(x, y, type, pins, breadboards, { rotation });
     return () => {
       delete win.snapToBreadboard;
     };
-  }, [breadboardPosition]);
+  }, [breadboards]);
 
   useEffect(() => {
     const handleExportCanvas = async () => {
@@ -3311,21 +3356,65 @@ const CircuitCanvas: React.FC = () => {
       selectComponent(comp.id);
     }
 
-    const wholeCircuitSelected =
-      components.length > 1 && selectedComponentIds.length === components.length;
-    groupDragRef.current = wholeCircuitSelected
-      ? {
-          origin: { x: comp.x, y: comp.y },
-          others: components
-            .filter((item) => item.id !== comp.id)
-            .map((item) => ({ id: item.id, x: item.x, y: item.y })),
-        }
-      : null;
+    if (comp.type === 'breadboard') {
+      // Moving a board takes everything plugged into it along, the way lifting
+      // a real breadboard would. Reuses the group-drag path, so the parts are
+      // translated by the same vector and land still seated.
+      const thisBoard = [{ id: comp.id, x: comp.x, y: comp.y }];
+      groupDragRef.current = {
+        origin: { x: comp.x, y: comp.y },
+        others: components
+          .filter(
+            (item) =>
+              item.id !== comp.id &&
+              item.type !== 'breadboard' &&
+              isComponentMountedOnBreadboard(item, thisBoard)
+          )
+          .map((item) => ({ id: item.id, x: item.x, y: item.y })),
+      };
+    } else {
+      const wholeCircuitSelected =
+        components.length > 1 && selectedComponentIds.length === components.length;
+      groupDragRef.current = wholeCircuitSelected
+        ? {
+            origin: { x: comp.x, y: comp.y },
+            others: components
+              .filter((item) => item.id !== comp.id)
+              .map((item) => ({ id: item.id, x: item.x, y: item.y })),
+          }
+        : null;
+    }
 
     setRightTab('properties');
-  }, [closeContextMenu, components, selectComponent, selectedComponentIds, setRightTab]);
+  }, [
+    closeContextMenu,
+    components,
+    isComponentMountedOnBreadboard,
+    selectComponent,
+    selectedComponentIds,
+    setRightTab,
+  ]);
 
   const handleDragMove = useCallback((comp: CircuitComponent, e: Konva.KonvaEventObject<DragEvent>) => {
+    if (comp.type === 'breadboard') {
+      // Parts follow the board as it moves rather than catching up when it is
+      // dropped, so the board is never dragged out from under them on screen.
+      const group = groupDragRef.current;
+      if (!group || group.others.length === 0) return;
+
+      const dx = e.target.x() - group.origin.x;
+      const dy = e.target.y() - group.origin.y;
+      const moved = new Map(group.others.map((item) => [item.id, item]));
+
+      useCircuitStore.setState((state) => ({
+        components: state.components.map((component) => {
+          const start = moved.get(component.id);
+          return start ? { ...component, x: start.x + dx, y: start.y + dy } : component;
+        }),
+      }));
+      return;
+    }
+
     if (comp.type !== 'multimeter') return;
 
     const nextPosition = {
@@ -3404,120 +3493,12 @@ const CircuitCanvas: React.FC = () => {
     [setBoardPosition]
   );
 
-  const handleBreadboardDragStart = useCallback(() => {
-    captureUndoSnapshot();
-    closeContextMenu();
-    selectComponent(null);
-    selectWire(null);
-    breadboardDragRef.current = {
-      startPosition: { ...breadboardPosition },
-      attachedComponents: components
-        .filter((component) => isComponentMountedOnBreadboard(component))
-        .map((component) => ({
-          id: component.id,
-          x: component.x,
-          y: component.y,
-        })),
-    };
-  }, [
-    breadboardPosition,
-    captureUndoSnapshot,
-    closeContextMenu,
-    components,
-    isComponentMountedOnBreadboard,
-    selectComponent,
-    selectWire,
-  ]);
+  const activeBreadboardHole = (() => {
+    if (!wiringStart) return null;
 
-  const handleBreadboardDragMove = useCallback(
-    (e: Konva.KonvaEventObject<DragEvent>) => {
-      const nextPosition = { x: e.target.x(), y: e.target.y() };
-      const dragState = breadboardDragRef.current;
-      setBreadboardPosition(nextPosition);
-
-      if (!dragState || dragState.attachedComponents.length === 0) {
-        return;
-      }
-
-      const dx = nextPosition.x - dragState.startPosition.x;
-      const dy = nextPosition.y - dragState.startPosition.y;
-      const attachedMap = new Map(
-        dragState.attachedComponents.map((component) => [component.id, component])
-      );
-
-      useCircuitStore.setState((state) => ({
-        components: state.components.map((component) => {
-          const attached = attachedMap.get(component.id);
-          if (!attached) return component;
-
-          return {
-            ...component,
-            x: attached.x + dx,
-            y: attached.y + dy,
-          };
-        }),
-      }));
-    },
-    [setBreadboardPosition]
-  );
-
-  const handleBreadboardDragEnd = useCallback(
-    (e: Konva.KonvaEventObject<DragEvent>) => {
-      const nextPosition = {
-        x: snapToGrid(e.target.x()),
-        y: snapToGrid(e.target.y()),
-      };
-      const dragState = breadboardDragRef.current;
-      const dx = dragState
-        ? nextPosition.x - dragState.startPosition.x
-        : 0;
-      const dy = dragState
-        ? nextPosition.y - dragState.startPosition.y
-        : 0;
-
-      e.target.x(nextPosition.x);
-      e.target.y(nextPosition.y);
-      setBreadboardPosition(nextPosition);
-
-      if (dragState?.attachedComponents.length) {
-        const attachedMap = new Map(
-          dragState.attachedComponents.map((component) => [component.id, component])
-        );
-
-        useCircuitStore.setState((state) => ({
-          components: state.components.map((component) => {
-            const attached = attachedMap.get(component.id);
-            if (!attached) return component;
-
-            const translated = {
-              x: attached.x + dx,
-              y: attached.y + dy,
-            };
-            const snapped = snapPinsToBreadboard(
-              translated.x,
-              translated.y,
-              getTransformedPins(component.pins, getComponentTransform(component)),
-              nextPosition
-            );
-
-            return {
-              ...component,
-              x: snapped?.x ?? translated.x,
-              y: snapped?.y ?? translated.y,
-            };
-          }),
-        }));
-      }
-
-      breadboardDragRef.current = null;
-    },
-    [setBreadboardPosition]
-  );
-
-  const activeBreadboardHole =
-    wiringStart?.componentId === BREADBOARD_COMPONENT_ID
-      ? getBreadboardHoleGlobal(wiringStart.pinId, breadboardPosition)
-      : null;
+    const board = breadboards.find((item) => item.id === wiringStart.componentId);
+    return board ? getBreadboardHoleGlobal(wiringStart.pinId, board) : null;
+  })();
 
   // One canvas shape instead of 8000 Konva nodes
   const gridDots = useMemo(
@@ -3585,14 +3566,14 @@ const CircuitCanvas: React.FC = () => {
             </button>
             <button className="context-menu-item" onClick={action(() => {
               const nextRotation = (selectedComponent.rotation + 90) % 360;
-              const snapped = snapPinsToBreadboard(
+              const snapped = snapPinsToBreadboards(
                 selectedComponent.x,
                 selectedComponent.y,
                 getTransformedPins(selectedComponent.pins, {
                   ...getComponentTransform(selectedComponent),
                   rotation: nextRotation,
                 }),
-                breadboardPosition
+                breadboards
               );
 
               updateComponent(selectedComponent.id, {
@@ -3839,18 +3820,6 @@ const CircuitCanvas: React.FC = () => {
             ))}
           </Group>
 
-          {/* Breadboard */}
-          <Group
-            x={breadboardPosition.x}
-            y={breadboardPosition.y}
-            draggable={toolMode === 'select' && !middlePanActive}
-            listening={toolMode === 'select'}
-            onDragStart={handleBreadboardDragStart}
-            onDragMove={handleBreadboardDragMove}
-            onDragEnd={handleBreadboardDragEnd}
-          >
-            <Breadboard />
-          </Group>
 
           {toolMode === 'wire' && hoveredBreadboardHole && (
             <Group listening={false}>
@@ -4052,8 +4021,9 @@ const CircuitCanvas: React.FC = () => {
             );
           })()}
 
-          {/* Components */}
-          {components.map((comp) => (
+          {/* Components. Boards first, so the parts plugged into them are drawn
+              on top whatever order they were added in. */}
+          {drawOrder.map((comp) => (
             <Group
               key={comp.id}
               x={comp.x}
@@ -4062,6 +4032,9 @@ const CircuitCanvas: React.FC = () => {
               scaleX={comp.scale ?? 1}
               scaleY={comp.scale ?? 1}
               draggable={toolMode === 'select' && !middlePanActive}
+              // A board stops listening while wiring so a click reaches the
+              // stage, which is what turns a point into the hole under it.
+              listening={comp.type !== 'breadboard' || toolMode === 'select'}
               onMouseDown={(e) => {
                 // Pressing the part is the whole gesture for a momentary
                 // button: it closes here and opens again on the window's mouse
@@ -4095,12 +4068,18 @@ const CircuitCanvas: React.FC = () => {
                 openContextMenu(e.evt, { kind: 'component', componentId: comp.id });
               }}
             >
-              <ComponentShape
-                comp={comp}
-                isSelected={selectedComponentIds.includes(comp.id) || selectedComponentId === comp.id}
-                simulation={simulation}
-                language={language}
-              />
+              {comp.type === 'breadboard' ? (
+                <Breadboard />
+              ) : (
+                <ComponentShape
+                  comp={comp}
+                  isSelected={
+                    selectedComponentIds.includes(comp.id) || selectedComponentId === comp.id
+                  }
+                  simulation={simulation}
+                  language={language}
+                />
+              )}
 
               {/* Solder blobs on the legs that actually took hold. Whether a
                   part is truly connected is the one thing a flat drawing hides,

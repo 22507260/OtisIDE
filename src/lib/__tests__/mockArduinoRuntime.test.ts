@@ -6,7 +6,7 @@ import {
   getCircuitWiringIssues,
 } from '../mockArduinoRuntime';
 import { ARDUINO_COMPONENT_ID } from '../../models/arduinoUno';
-import { BREADBOARD_COMPONENT_ID, HOLE_SP } from '../../models/breadboard';
+import { BB_X, BB_Y, BREADBOARD_COMPONENT_ID, HOLE_SP } from '../../models/breadboard';
 import { getDefaultPins, type CircuitComponent, type Pin, type Wire } from '../../models/types';
 
 const BOARD_PINS: Pin[] = [
@@ -826,6 +826,18 @@ describe('getCircuitWiringIssues', () => {
     const holeX = (column: number) => 80 + (column - 1) * HOLE_SP;
     const ROW_A_Y = 286;
 
+    /** The board itself; it is an ordinary component in the parts list now. */
+    const board = (overrides: Partial<CircuitComponent> = {}): CircuitComponent => ({
+      id: BREADBOARD_COMPONENT_ID,
+      type: 'breadboard',
+      x: BB_X,
+      y: BB_Y,
+      rotation: 0,
+      pins: [],
+      properties: {},
+      ...overrides,
+    });
+
     const seatedResistor = (fromColumn: number, toColumn: number): CircuitComponent => ({
       ...resistor(),
       x: holeX(fromColumn),
@@ -848,7 +860,7 @@ describe('getCircuitWiringIssues', () => {
 
     it('lets a resistor plugged into the board limit the current', () => {
       const issues = getCircuitWiringIssues(
-        [seatedResistor(1, 5), seatedLed(5, 10)],
+        [board(), seatedResistor(1, 5), seatedLed(5, 10)],
         [
           wire('w1', ARDUINO_COMPONENT_ID, 'D9', BREADBOARD_COMPONENT_ID, 'bb-b-1'),
           wire('w2', BREADBOARD_COMPONENT_ID, 'bb-b-10', ARDUINO_COMPONENT_ID, 'GND'),
@@ -860,7 +872,7 @@ describe('getCircuitWiringIssues', () => {
 
     it('flags the LED again once it is lifted off the board', () => {
       const issues = getCircuitWiringIssues(
-        [seatedResistor(1, 5), { ...seatedLed(5, 10), x: 900, y: 900 }],
+        [board(), seatedResistor(1, 5), { ...seatedLed(5, 10), x: 900, y: 900 }],
         [
           wire('w1', ARDUINO_COMPONENT_ID, 'D9', BREADBOARD_COMPONENT_ID, 'bb-b-1'),
           wire('w2', BREADBOARD_COMPONENT_ID, 'bb-b-10', ARDUINO_COMPONENT_ID, 'GND'),
@@ -872,7 +884,7 @@ describe('getCircuitWiringIssues', () => {
 
     it('flags an LED seated straight across the supply with no resistor', () => {
       const issues = getCircuitWiringIssues(
-        [seatedLed(1, 10)],
+        [board(), seatedLed(1, 10)],
         [
           wire('w1', ARDUINO_COMPONENT_ID, 'D9', BREADBOARD_COMPONENT_ID, 'bb-b-1'),
           wire('w2', BREADBOARD_COMPONENT_ID, 'bb-b-10', ARDUINO_COMPONENT_ID, 'GND'),
@@ -915,7 +927,7 @@ describe('getCircuitWiringIssues', () => {
 
     it('conducts through a resistor with one leg in a hole and one leg wired', () => {
       const issues = getCircuitWiringIssues(
-        [halfSeatedResistor(), ledFromRowB()],
+        [board(), halfSeatedResistor(), ledFromRowB()],
         HALF_SEATED_WIRES,
         BOARD_PINS
       );
@@ -934,7 +946,7 @@ void loop() {
   delay(50);
 }
 `,
-        [halfSeatedResistor(), ledFromRowB()],
+        [board(), halfSeatedResistor(), ledFromRowB()],
         HALF_SEATED_WIRES,
         900
       );
@@ -946,20 +958,49 @@ void loop() {
       const moved = { x: 160, y: 340 };
       const shift = (component: CircuitComponent): CircuitComponent => ({
         ...component,
-        x: component.x + (moved.x - 60),
-        y: component.y + (moved.y - 240),
+        x: component.x + (moved.x - BB_X),
+        y: component.y + (moved.y - BB_Y),
       });
 
       const issues = getCircuitWiringIssues(
-        [shift(seatedResistor(1, 5)), shift(seatedLed(5, 10))],
+        [board({ x: moved.x, y: moved.y }), shift(seatedResistor(1, 5)), shift(seatedLed(5, 10))],
         [
           wire('w1', ARDUINO_COMPONENT_ID, 'D9', BREADBOARD_COMPONENT_ID, 'bb-b-1'),
           wire('w2', BREADBOARD_COMPONENT_ID, 'bb-b-10', ARDUINO_COMPONENT_ID, 'GND'),
         ],
-        BOARD_PINS,
-        moved
+        BOARD_PINS
       );
       expect(issues).toEqual([]);
+    });
+
+    it('keeps two boards apart, hole ids and all', () => {
+      // Both boards have a `bb-a-1`; only the parts on the same board should
+      // end up in one circuit.
+      const secondBoard = board({ id: 'board-2', x: BB_X, y: BB_Y + 400 });
+      const drop = (component: CircuitComponent): CircuitComponent => ({
+        ...component,
+        id: `${component.id}-2`,
+        y: component.y + 400,
+      });
+
+      const issues = getCircuitWiringIssues(
+        [
+          board(),
+          secondBoard,
+          seatedResistor(1, 5),
+          seatedLed(5, 10),
+          drop(seatedLed(20, 25)),
+        ],
+        [
+          wire('w1', ARDUINO_COMPONENT_ID, 'D9', BREADBOARD_COMPONENT_ID, 'bb-b-1'),
+          wire('w2', BREADBOARD_COMPONENT_ID, 'bb-b-10', ARDUINO_COMPONENT_ID, 'GND'),
+        ],
+        BOARD_PINS
+      );
+
+      // The LED on the first board is powered through the resistor; the one on
+      // the second board is on its own, however identical its hole ids look.
+      expect(issues).toEqual([{ type: 'floating-part', componentId: 'led-1-2' }]);
     });
   });
 });

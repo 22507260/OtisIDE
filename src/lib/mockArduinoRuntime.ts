@@ -9,6 +9,7 @@ import {
   BREADBOARD_COMPONENT_ID,
   BREADBOARD_HOLES,
   BREADBOARD_STRIP_GROUPS,
+  getBreadboardPlacements,
   DEFAULT_BREADBOARD_POSITION,
 } from '../models/breadboard';
 import { getBreadboardContacts } from './breadboardContacts';
@@ -2640,7 +2641,7 @@ type ConnectivityBuildOptions = {
   bridgeResistors?: boolean;
   bridgePotentiometers?: boolean;
   /** Where the breadboard sits, so seated legs can be found by geometry. */
-  breadboardPosition?: { x: number; y: number };
+
 };
 
 function finalizeConnectivity(
@@ -2683,7 +2684,6 @@ function buildConnectivity(
   const {
     bridgeResistors = true,
     bridgePotentiometers = true,
-    breadboardPosition = DEFAULT_BREADBOARD_POSITION,
   } = options;
   const graph = new Map<string, Set<string>>();
 
@@ -2699,9 +2699,15 @@ function buildConnectivity(
     }
   }
 
-  for (const hole of BREADBOARD_HOLES) {
-    const key = endpointKey(BREADBOARD_COMPONENT_ID, hole.id);
-    if (!graph.has(key)) graph.set(key, new Set<string>());
+  // Every board carries the same hole ids; the component id is what tells two
+  // boards apart, which is exactly what an endpoint key already encodes.
+  const breadboards = getBreadboardPlacements(components);
+
+  for (const board of breadboards) {
+    for (const hole of BREADBOARD_HOLES) {
+      const key = endpointKey(board.id, hole.id);
+      if (!graph.has(key)) graph.set(key, new Set<string>());
+    }
   }
 
   for (const wire of wires) {
@@ -2712,22 +2718,24 @@ function buildConnectivity(
     );
   }
 
-  for (const strip of BREADBOARD_STRIP_GROUPS) {
-    const stripKeys = strip.map((hole) => endpointKey(BREADBOARD_COMPONENT_ID, hole.id));
-    for (let i = 0; i < stripKeys.length; i += 1) {
-      for (let j = i + 1; j < stripKeys.length; j += 1) {
-        addEdge(graph, stripKeys[i], stripKeys[j]);
+  for (const board of breadboards) {
+    for (const strip of BREADBOARD_STRIP_GROUPS) {
+      const stripKeys = strip.map((hole) => endpointKey(board.id, hole.id));
+      for (let i = 0; i < stripKeys.length; i += 1) {
+        for (let j = i + 1; j < stripKeys.length; j += 1) {
+          addEdge(graph, stripKeys[i], stripKeys[j]);
+        }
       }
     }
   }
 
   // A leg pushed into a hole conducts, exactly as it would on a real board —
   // no wire needs to be drawn to it.
-  for (const contact of getBreadboardContacts(components, breadboardPosition)) {
+  for (const contact of getBreadboardContacts(components)) {
     addEdge(
       graph,
       endpointKey(contact.componentId, contact.pinId),
-      endpointKey(BREADBOARD_COMPONENT_ID, contact.holeId)
+      endpointKey(contact.breadboardId, contact.holeId)
     );
   }
 
@@ -2862,7 +2870,6 @@ export function getCircuitWiringIssues(
   components: CircuitComponent[],
   wires: Wire[],
   boardPins: Pin[],
-  breadboardPosition: { x: number; y: number } = DEFAULT_BREADBOARD_POSITION
 ): WiringIssue[] {
   const issues: WiringIssue[] = [];
   const { powerKeys, groundKeys, hotCapableKeys } = collectPowerAndGroundKeys(components, boardPins);
@@ -2873,9 +2880,8 @@ export function getCircuitWiringIssues(
   const strict = buildConnectivity(components, wires, boardPins, {
     bridgeResistors: false,
     bridgePotentiometers: false,
-    breadboardPosition,
   });
-  const relaxed = buildConnectivity(components, wires, boardPins, { breadboardPosition });
+  const relaxed = buildConnectivity(components, wires, boardPins);
 
   for (const [net, endpoints] of strict.netEndpoints) {
     const hasPower = endpoints.some((key) => powerKeys.has(key));
@@ -4631,7 +4637,6 @@ export function startMockArduinoRuntime(
   boardPins: Pin[],
   logicHighVoltage: number,
   callbacks: RuntimeCallbacks,
-  breadboardPosition: { x: number; y: number } = DEFAULT_BREADBOARD_POSITION
 ): void {
   stopMockArduinoRuntime();
 
@@ -4639,11 +4644,10 @@ export function startMockArduinoRuntime(
   const servoInstances = extractServoInstances(code);
   const lcdRuntime = extractLcdInstances(code, variables);
   const { setupStatements, loopStatements, loopBody } = parseSketch(code);
-  const connectivity = buildConnectivity(components, wires, boardPins, { breadboardPosition });
+  const connectivity = buildConnectivity(components, wires, boardPins);
   const measurementConnectivity = buildConnectivity(components, wires, boardPins, {
     bridgeResistors: false,
     bridgePotentiometers: false,
-    breadboardPosition,
   });
   const pinValues = new Map<string, number>();
   const damagedComponents = new Map<string, DamageRecord>();

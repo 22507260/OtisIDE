@@ -30,7 +30,12 @@ export interface ProjectData {
   code: string;
   boardType: ControllerBoardType;
   boardPosition: { x: number; y: number };
-  breadboardPosition: { x: number; y: number };
+  /**
+   * Only ever read, never written now: projects saved before boards became
+   * components carry the position of the single fixture they had, and the store
+   * turns it back into a breadboard component when it loads one of them.
+   */
+  breadboardPosition: { x: number; y: number } | null;
 }
 
 const KNOWN_COMPONENT_TYPES = new Set<string>(
@@ -240,9 +245,9 @@ export function sanitizeProjectData(
       data.boardPosition,
       DEFAULT_CONTROLLER_BOARD_POSITION
     ),
-    breadboardPosition: readPosition(
-      data.breadboardPosition,
-      DEFAULT_BREADBOARD_POSITION
-    ),
+    breadboardPosition:
+      data.breadboardPosition === undefined || data.breadboardPosition === null
+        ? null
+        : readPosition(data.breadboardPosition, DEFAULT_BREADBOARD_POSITION),
   };
 }

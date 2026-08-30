@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { getBreadboardContacts } from '../breadboardContacts';
-import { HOLE_SP } from '../../models/breadboard';
+import { BB_X, BB_Y, BREADBOARD_COMPONENT_ID, HOLE_SP } from '../../models/breadboard';
 import type { CircuitComponent } from '../../models/types';
 
 // Hole positions the default breadboard actually has, worked out from
@@ -24,18 +24,38 @@ const part = (overrides: Partial<CircuitComponent> = {}): CircuitComponent => ({
   ...overrides,
 });
 
+/** The board the parts are plugged into; it is a component like any other. */
+const board = (overrides: Partial<CircuitComponent> = {}): CircuitComponent => ({
+  id: BREADBOARD_COMPONENT_ID,
+  type: 'breadboard',
+  x: BB_X,
+  y: BB_Y,
+  rotation: 0,
+  pins: [],
+  properties: {},
+  ...overrides,
+});
+
+/** What a contact on the default board looks like. */
+const on = (pinId: string, holeId: string, componentId = 'resistor-1') => ({
+  componentId,
+  pinId,
+  breadboardId: BREADBOARD_COMPONENT_ID,
+  holeId,
+});
+
 describe('getBreadboardContacts', () => {
   it('seats legs that land on holes', () => {
-    expect(getBreadboardContacts([part()])).toEqual([
-      { componentId: 'resistor-1', pinId: 'pin1', holeId: 'bb-a-1' },
-      { componentId: 'resistor-1', pinId: 'pin2', holeId: 'bb-a-5' },
+    expect(getBreadboardContacts([board(), part()])).toEqual([
+      on('pin1', 'bb-a-1', 'resistor-1'),
+      on('pin2', 'bb-a-5', 'resistor-1'),
     ]);
   });
 
   it('leaves a part sunk into the gutter between two rows unseated', () => {
     // Rows E and F are two pitches apart; parked midway, neither leg is in
     // any hole's share of the grid.
-    const contacts = getBreadboardContacts([
+    const contacts = getBreadboardContacts([board(), 
       part({ y: 286 + 4 * HOLE_SP + HOLE_SP }),
     ]);
     expect(contacts).toEqual([]);
@@ -51,14 +71,14 @@ describe('getBreadboardContacts', () => {
       ],
     });
 
-    expect(getBreadboardContacts([awkward])).toEqual([
-      { componentId: 'resistor-1', pinId: 'pin1', holeId: 'bb-a-1' },
-      { componentId: 'resistor-1', pinId: 'pin2', holeId: 'bb-a-8' },
+    expect(getBreadboardContacts([board(), awkward])).toEqual([
+      on('pin1', 'bb-a-1', 'resistor-1'),
+      on('pin2', 'bb-a-8', 'resistor-1'),
     ]);
   });
 
   it('finds nothing for a part sitting away from the board', () => {
-    expect(getBreadboardContacts([part({ x: 900, y: 900 })])).toEqual([]);
+    expect(getBreadboardContacts([board(), part({ x: 900, y: 900 })])).toEqual([]);
   });
 
   it('follows a part through a rotation', () => {
@@ -74,9 +94,9 @@ describe('getBreadboardContacts', () => {
       ],
     });
 
-    expect(getBreadboardContacts([turned])).toEqual([
-      { componentId: 'resistor-1', pinId: 'pin1', holeId: 'bb-a-5' },
-      { componentId: 'resistor-1', pinId: 'pin2', holeId: 'bb-a-1' },
+    expect(getBreadboardContacts([board(), turned])).toEqual([
+      on('pin1', 'bb-a-5', 'resistor-1'),
+      on('pin2', 'bb-a-1', 'resistor-1'),
     ]);
   });
 
@@ -90,9 +110,9 @@ describe('getBreadboardContacts', () => {
       ],
     });
 
-    expect(getBreadboardContacts([straddling])).toEqual([
-      { componentId: 'resistor-1', pinId: 'pin1', holeId: 'bb-a-5' },
-      { componentId: 'resistor-1', pinId: 'pin2', holeId: 'bb-e-5' },
+    expect(getBreadboardContacts([board(), straddling])).toEqual([
+      on('pin1', 'bb-a-5', 'resistor-1'),
+      on('pin2', 'bb-e-5', 'resistor-1'),
     ]);
   });
 
@@ -106,28 +126,67 @@ describe('getBreadboardContacts', () => {
       ],
     });
 
-    expect(getBreadboardContacts([crowded])).toEqual([
-      { componentId: 'resistor-1', pinId: 'pin1', holeId: 'bb-a-1' },
+    expect(getBreadboardContacts([board(), crowded])).toEqual([
+      on('pin1', 'bb-a-1', 'resistor-1'),
     ]);
   });
 
   it('never seats a multimeter, which reaches the board through its probes', () => {
     const meter = part({ id: 'meter-1', type: 'multimeter' });
-    expect(getBreadboardContacts([meter])).toEqual([]);
+    expect(getBreadboardContacts([board(), meter])).toEqual([]);
   });
 
   it('moves with the breadboard', () => {
     const moved = { x: 160, y: 340 };
+    const movedBoard = board({ x: moved.x, y: moved.y });
     const shifted = part({
-      x: A1.x + (moved.x - 60),
-      y: A1.y + (moved.y - 240),
+      x: A1.x + (moved.x - BB_X),
+      y: A1.y + (moved.y - BB_Y),
     });
 
-    expect(getBreadboardContacts([shifted], moved)).toEqual([
-      { componentId: 'resistor-1', pinId: 'pin1', holeId: 'bb-a-1' },
-      { componentId: 'resistor-1', pinId: 'pin2', holeId: 'bb-a-5' },
+    expect(getBreadboardContacts([movedBoard, shifted])).toEqual([
+      on('pin1', 'bb-a-1'),
+      on('pin2', 'bb-a-5'),
     ]);
     // …and the same part at its old spot no longer reaches the moved board.
-    expect(getBreadboardContacts([part()], moved)).toEqual([]);
+    expect(getBreadboardContacts([movedBoard, part()])).toEqual([]);
+  });
+
+  it('finds nothing at all when the canvas has no board', () => {
+    expect(getBreadboardContacts([part()])).toEqual([]);
+  });
+
+  describe('with more than one board', () => {
+    const secondBoard = board({ id: 'board-2', x: BB_X, y: BB_Y + 400 });
+
+    /** The same part, seated on whichever board it is sitting over. */
+    const partOnSecond = part({ y: A1.y + 400 });
+
+    it('seats each part on the board it is over', () => {
+      const contacts = getBreadboardContacts([board(), secondBoard, part(), partOnSecond]);
+
+      expect(contacts).toContainEqual(on('pin1', 'bb-a-1'));
+      expect(contacts).toContainEqual({
+        componentId: 'resistor-1',
+        pinId: 'pin1',
+        breadboardId: 'board-2',
+        holeId: 'bb-a-1',
+      });
+    });
+
+    it('keeps the two boards' + String.fromCharCode(39) + ' identical hole ids apart', () => {
+      const first = getBreadboardContacts([board(), part()]);
+      const second = getBreadboardContacts([secondBoard, partOnSecond]);
+
+      // Same hole id, different board — which is exactly why the contact
+      // carries the board it belongs to.
+      expect(first[0].holeId).toBe(second[0].holeId);
+      expect(first[0].breadboardId).not.toBe(second[0].breadboardId);
+    });
+
+    it('never treats a board as a part plugged into another board', () => {
+      const contacts = getBreadboardContacts([board(), board({ id: 'board-2' })]);
+      expect(contacts).toEqual([]);
+    });
   });
 });

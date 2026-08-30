@@ -111,6 +111,7 @@ const UI_STRINGS = {
     sensor: 'Sensor',
     display: 'Display',
     batteries: 'Batteries',
+    boardCategory: 'Board',
     other: 'Other',
     red: 'Red',
     green: 'Green',
@@ -396,6 +397,7 @@ const UI_STRINGS = {
     sensor: 'Sensör',
     display: 'Ekran',
     batteries: 'Piller',
+    boardCategory: 'Tahta',
     other: 'Diğer',
     red: 'Kırmızı',
     green: 'Yeşil',
@@ -585,6 +587,7 @@ export type TranslationKey = keyof typeof UI_STRINGS.en;
 
 /** Exported so a test can prove every catalog part has a Turkish name. */
 export const COMPONENT_NAME_TR: Partial<Record<ComponentType, string>> = {
+  breadboard: 'Breadboard',
   led: 'LED',
   resistor: 'Direnç',
   capacitor: 'Kondansatör',
@@ -666,6 +669,7 @@ const CATEGORY_NAME_TR: Record<string, string> = {
   Sensor: UI_STRINGS.tr.sensor,
   Display: UI_STRINGS.tr.display,
   Battery: UI_STRINGS.tr.batteries,
+  Board: UI_STRINGS.tr.boardCategory,
   Other: UI_STRINGS.tr.other,
 };
 

@@ -258,7 +258,9 @@ const AIPanel: React.FC = () => {
   const setCode = useCircuitStore((s) => s.setCode);
   const boardType = useCircuitStore((s) => s.boardType);
   const boardPosition = useCircuitStore((s) => s.boardPosition);
-  const breadboardPosition = useCircuitStore((s) => s.breadboardPosition);
+  /** The assistant addresses "breadboard" by name, so it means the first one. */
+  const breadboards = components.filter((component) => component.type === 'breadboard');
+  const primaryBreadboard = breadboards[0] ?? null;
   const setBoardType = useCircuitStore((s) => s.setBoardType);
   const language = useCircuitStore((s) => s.language);
 
@@ -473,13 +475,12 @@ const AIPanel: React.FC = () => {
     }
 
     if (isBreadboardReference(endpointRef.component)) {
-      const breadboardHole = getBreadboardHoleGlobal(
-        endpointRef.pin,
-        breadboardPosition
-      );
+      if (!primaryBreadboard) return null;
+
+      const breadboardHole = getBreadboardHoleGlobal(endpointRef.pin, primaryBreadboard);
       if (!breadboardHole) return null;
       return {
-        componentId: BREADBOARD_COMPONENT_ID,
+        componentId: primaryBreadboard.id,
         pinId: breadboardHole.id,
         x: breadboardHole.x,
         y: breadboardHole.y,
@@ -538,14 +539,12 @@ const AIPanel: React.FC = () => {
 
     const wireList = wires
       .map((wire) => {
-        const startBreadboardHole = getBreadboardHoleGlobal(
-          wire.startPinId,
-          breadboardPosition
-        );
-        const endBreadboardHole = getBreadboardHoleGlobal(
-          wire.endPinId,
-          breadboardPosition
-        );
+        const startBreadboardHole = primaryBreadboard
+          ? getBreadboardHoleGlobal(wire.startPinId, primaryBreadboard)
+          : null;
+        const endBreadboardHole = primaryBreadboard
+          ? getBreadboardHoleGlobal(wire.endPinId, primaryBreadboard)
+          : null;
         const startComp = components.find((item) => item.id === wire.startComponentId);
         const endComp = components.find((item) => item.id === wire.endComponentId);
         const startInfo = COMPONENT_CATALOG.find((item) => item.type === startComp?.type);
@@ -673,7 +672,7 @@ const AIPanel: React.FC = () => {
     const snapPosition =
       window.snapToBreadboard ??
       ((x: number, y: number, type?: string) =>
-        snapToBreadboard(x, y, type, undefined, breadboardPosition));
+        snapToBreadboard(x, y, type, undefined, breadboards));
 
     const circuitItems = extractTypedJsonArray(
       assistantMessage,

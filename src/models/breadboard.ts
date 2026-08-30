@@ -198,3 +198,61 @@ export function getNearestBreadboardHole(
     distSq: bestDistSq,
   };
 }
+
+// ===== More than one board =====
+//
+// A breadboard is an ordinary component now, so a project can hold as many as
+// it likes. Hole ids stay local to a board — every board has its own `bb-a-1` —
+// because an endpoint is already written as `componentId:pinId`, and the
+// component id is what tells two boards apart. That keeps every wire, contact
+// and strip that was ever saved working exactly as before.
+
+/** One breadboard on the canvas: where it is, and which one it is. */
+export type BreadboardPlacement = { id: string; x: number; y: number };
+
+export type BreadboardComponentLike = {
+  id: string;
+  type: string;
+  x: number;
+  y: number;
+};
+
+export function getBreadboardPlacements(
+  components: readonly BreadboardComponentLike[]
+): BreadboardPlacement[] {
+  return components
+    .filter((component) => component.type === 'breadboard')
+    .map((component) => ({ id: component.id, x: component.x, y: component.y }));
+}
+
+export type NearestBreadboardHole = {
+  breadboardId: string;
+  hole: BreadboardHole;
+  distSq: number;
+};
+
+/** The closest hole on any board — null when the canvas has no board at all. */
+export function getNearestHoleAcrossBreadboards(
+  x: number,
+  y: number,
+  boards: readonly BreadboardPlacement[]
+): NearestBreadboardHole | null {
+  let best: NearestBreadboardHole | null = null;
+
+  for (const board of boards) {
+    const { distSq, ...hole } = getNearestBreadboardHole(x, y, board);
+    if (!best || distSq < best.distSq) {
+      best = { breadboardId: board.id, hole, distSq };
+    }
+  }
+
+  return best;
+}
+
+/** One named hole on one board, in world coordinates. */
+export function getBreadboardHoleOn(
+  board: BreadboardPlacement,
+  pinId: string
+): BreadboardHole | null {
+  return getBreadboardHoleGlobal(pinId, board);
+}

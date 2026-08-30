@@ -96,7 +96,6 @@ const PropertiesPanel: React.FC = () => {
   const selectedWireId = useCircuitStore((s) => s.selectedWireId);
   const wires = useCircuitStore((s) => s.wires);
   const boardType = useCircuitStore((s) => s.boardType);
-  const breadboardPosition = useCircuitStore((s) => s.breadboardPosition);
   const setWireColorById = useCircuitStore((s) => s.setWireColorById);
   const thickenWire = useCircuitStore((s) => s.thickenWire);
   const thinWire = useCircuitStore((s) => s.thinWire);
@@ -118,13 +117,19 @@ const PropertiesPanel: React.FC = () => {
 
     const endpointLabel = (componentId: string, pinId: string) => {
       if (componentId === ARDUINO_COMPONENT_ID) return `${board.shortName} · ${pinId}`;
-      if (componentId === BREADBOARD_COMPONENT_ID) {
-        const hole = getBreadboardHoleGlobal(pinId, breadboardPosition);
-        return `Breadboard · ${hole?.label ?? pinId}`;
-      }
 
       const component = components.find((item) => item.id === componentId);
       if (!component) return pinId;
+
+      // Hole ids repeat from board to board, so a project with more than one
+      // says which board this end is plugged into.
+      if (component.type === 'breadboard') {
+        const hole = getBreadboardHoleGlobal(pinId, component);
+        const boards = components.filter((item) => item.type === 'breadboard');
+        const name =
+          boards.length > 1 ? `Breadboard ${boards.indexOf(component) + 1}` : 'Breadboard';
+        return `${name} · ${hole?.label ?? pinId}`;
+      }
 
       const info = COMPONENT_CATALOG.find((item) => item.type === component.type);
       const name = info
