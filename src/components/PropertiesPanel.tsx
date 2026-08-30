@@ -25,6 +25,89 @@ import {
   MAX_COMPONENT_SCALE,
   MIN_COMPONENT_SCALE,
 } from '../lib/componentTransform';
+import {
+  RESISTANCE_UNITS,
+  fromOhms,
+  getResistanceUnitSymbol,
+  normalizeResistanceUnit,
+  pickResistanceUnit,
+  toOhms,
+  type ResistanceUnit,
+} from '../lib/resistanceUnits';
+
+/** The parts whose resistance is a value the user picks rather than one the
+ *  simulation reports back, so it is worth a unit to type it in. */
+const UNIT_AWARE_RESISTANCE_TYPES = new Set(['resistor', 'potentiometer']);
+
+/**
+ * Resistance with the unit it is entered in.
+ *
+ * The stored value stays in ohms, so switching kΩ to Ω only changes how the
+ * same resistor is written — 4700 becomes 4.7 and the circuit does not move.
+ *
+ * The number is held as text while it is being typed. A number input reports an
+ * empty value for a half-written decimal like "4.", which would collapse the
+ * resistance to zero mid-keystroke — unavoidable once the natural way to write
+ * a resistor is 4.7k rather than 4700.
+ */
+const ResistanceRow: React.FC<{
+  label: string;
+  ohms: number;
+  unit: ResistanceUnit;
+  onCommit: (ohms: number) => void;
+  onUnitChange: (unit: ResistanceUnit) => void;
+  onFocus: () => void;
+}> = ({ label, ohms, unit, onCommit, onUnitChange, onFocus }) => {
+  const [draft, setDraft] = React.useState<string | null>(null);
+  const shown = draft ?? String(fromOhms(ohms, unit));
+
+  return (
+    <div className="property-row">
+      <span className="property-label">{label}</span>
+      <span style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+        <input
+          className="property-input"
+          type="text"
+          inputMode="decimal"
+          value={shown}
+          style={{ minWidth: 0 }}
+          onFocus={() => {
+            onFocus();
+            setDraft(String(fromOhms(ohms, unit)));
+          }}
+          onChange={(event) => {
+            const next = event.target.value;
+            setDraft(next);
+
+            const parsed = Number(next);
+            if (next.trim() !== '' && Number.isFinite(parsed)) {
+              onCommit(toOhms(parsed, unit));
+            }
+          }}
+          onBlur={() => setDraft(null)}
+        />
+        <select
+          className="property-select"
+          value={unit}
+          style={{ width: 'auto', flex: '0 0 auto' }}
+          onChange={(event) => {
+            // The resistance itself is untouched: only the way it is written
+            // changes, so the draft has to be dropped or it would keep showing
+            // the number in the unit that is no longer selected.
+            setDraft(null);
+            onUnitChange(normalizeResistanceUnit(event.target.value));
+          }}
+        >
+          {RESISTANCE_UNITS.map((option) => (
+            <option key={option} value={option}>
+              {getResistanceUnitSymbol(option)}
+            </option>
+          ))}
+        </select>
+      </span>
+    </div>
+  );
+};
 
 const PropertiesPanel: React.FC = () => {
   const selectedComponentId = useCircuitStore((s) => s.selectedComponentId);
@@ -204,6 +287,15 @@ const PropertiesPanel: React.FC = () => {
         }
       : selectedComp;
 
+  const unitAwareResistance = UNIT_AWARE_RESISTANCE_TYPES.has(displayComp.type);
+  const resistanceOhms = Number(displayComp.properties.resistance);
+  // Older projects were saved before the unit could be chosen, so a missing one
+  // falls back to whatever writes the stored value most readably.
+  const resistanceUnit: ResistanceUnit =
+    typeof selectedComp.properties.unit === 'string'
+      ? normalizeResistanceUnit(selectedComp.properties.unit)
+      : pickResistanceUnit(Number.isFinite(resistanceOhms) ? resistanceOhms : 0);
+
   return (
     <div className="properties-content">
       {selectedComponentIds.length > 1 && (
@@ -370,7 +462,30 @@ const PropertiesPanel: React.FC = () => {
           .filter(([key]) =>
             displayComp.type === 'multimeter' ? !multimeterHiddenKeys.has(key) : true
           )
-          .map(([key, value]) => (
+          // The unit is shown beside the resistance instead of on a row of its own.
+          .filter(([key]) => !(unitAwareResistance && key === 'unit'))
+          .map(([key, value]) => {
+          if (unitAwareResistance && key === 'resistance') {
+            return (
+              <ResistanceRow
+                key={key}
+                label={getPropertyDisplayName(language, key)}
+                ohms={Number.isFinite(resistanceOhms) ? resistanceOhms : 0}
+                unit={resistanceUnit}
+                onFocus={captureUndoSnapshot}
+                onCommit={(ohms) =>
+                  updateComponentProperty(selectedComp.id, 'resistance', ohms, {
+                    recordHistory: false,
+                  })
+                }
+                onUnitChange={(unit) =>
+                  updateComponentProperty(selectedComp.id, 'unit', unit)
+                }
+              />
+            );
+          }
+
+          return (
           <div className="property-row" key={key}>
             <span className="property-label">
               {getPropertyDisplayName(language, key)}
@@ -458,7 +573,8 @@ const PropertiesPanel: React.FC = () => {
               />
             )}
           </div>
-        ))}
+          );
+        })}
       </div>
 
       <div className="property-group">

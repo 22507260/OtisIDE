@@ -65,6 +65,8 @@ import {
   transformPoint,
   type ComponentTransform,
 } from '../lib/componentTransform';
+import { isTextEntryTarget } from '../lib/keyboardTarget';
+import { getSolderedPinKeys, pinKey } from '../lib/solderedPins';
 import multimeterProbeRedSvg from '../assets/components/multimeter-probe-red.svg';
 import multimeterProbeBlackSvg from '../assets/components/multimeter-probe-black.svg';
 
@@ -87,6 +89,8 @@ const PROBE_IMAGE_WIDTH = 24;
 const PROBE_IMAGE_HEIGHT = 72;
 /** How far the pointer must travel before a click becomes a selection box. */
 const MARQUEE_THRESHOLD = 4;
+/** Big enough to read as a bead on the leg, small enough not to hide the pin. */
+const SOLDER_BLOB_RADIUS = 3.6;
 
 /** The two corners of a selection box, in world coordinates. */
 type MarqueeRect = { x1: number; y1: number; x2: number; y2: number };
@@ -1985,9 +1989,22 @@ const CircuitCanvas: React.FC = () => {
   /** The selection rectangle being dragged across empty space in select mode. */
   const [marquee, setMarquee] = useState<MarqueeRect | null>(null);
   const marqueeStartRef = useRef<{ x: number; y: number } | null>(null);
-  /** True once a marquee has grown past the click threshold, so the click that
-   *  ends the drag does not immediately clear what the marquee just selected. */
+  /** True once the current drag has grown past the click threshold. */
   const marqueeMovedRef = useRef(false);
+  /** The live rectangle. Kept beside the state because the release can arrive
+   *  before React has committed the last mouse move, and the selection has to
+   *  be made from where the box actually is, not where it was a frame ago. */
+  const marqueeRectRef = useRef<MarqueeRect | null>(null);
+  /** Set when a marquee has just made a selection, so the click that ends the
+   *  same gesture does not narrow it straight back down. */
+  const suppressClickRef = useRef(false);
+
+  /** Legs that a cable reaches or that sit in a breadboard hole — the ones the
+   *  selected part is drawn with a solder blob on. */
+  const solderedPinKeys = useMemo(
+    () => getSolderedPinKeys(components, wires, breadboardPosition),
+    [components, wires, breadboardPosition]
+  );
 
   const [dismissedWarningsKey, setDismissedWarningsKey] = useState<string | null>(null);
 
@@ -2054,7 +2071,6 @@ const CircuitCanvas: React.FC = () => {
   const captureUndoSnapshot = useCircuitStore((s) => s.captureUndoSnapshot);
   const addComponent = useCircuitStore((s) => s.addComponent);
   const selectComponent = useCircuitStore((s) => s.selectComponent);
-  const selectComponents = useCircuitStore((s) => s.selectComponents);
   const selectedComponentIds = useCircuitStore((s) => s.selectedComponentIds);
   const toggleComponentSelection = useCircuitStore((s) => s.toggleComponentSelection);
   const updateComponent = useCircuitStore((s) => s.updateComponent);
@@ -2340,7 +2356,12 @@ const CircuitCanvas: React.FC = () => {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.target as HTMLElement).tagName === 'INPUT' || (e.target as HTMLElement).tagName === 'TEXTAREA') return;
+      // Whatever the user is typing into keeps its own keys. This has to ask the
+      // target rather than match a tag name: Monaco's input is a plain <div>
+      // once the EditContext API is in play, and matching on tag alone let
+      // Ctrl+V paste parts instead of text and Backspace delete the selected
+      // part while the user was writing code.
+      if (isTextEntryTarget(e.target)) return;
 
       if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'z') {
         e.preventDefault();
@@ -2712,8 +2733,8 @@ const CircuitCanvas: React.FC = () => {
 
     // A selection box released over a part would otherwise end as a click on
     // it, narrowing the whole selection back down to that one part.
-    if (marqueeMovedRef.current) {
-      marqueeMovedRef.current = false;
+    if (suppressClickRef.current) {
+      suppressClickRef.current = false;
       return;
     }
 
@@ -2809,8 +2830,8 @@ const CircuitCanvas: React.FC = () => {
   const handleStageClick = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
     // A selection box ends with a click on the background; letting it through
     // would clear the selection the box had just made.
-    if (marqueeMovedRef.current) {
-      marqueeMovedRef.current = false;
+    if (suppressClickRef.current) {
+      suppressClickRef.current = false;
       return;
     }
 
@@ -2858,7 +2879,9 @@ const CircuitCanvas: React.FC = () => {
           marqueeMovedRef.current = true;
         }
         if (marqueeMovedRef.current) {
-          setMarquee({ x1: marqueeStart.x, y1: marqueeStart.y, x2: pointer.x, y2: pointer.y });
+          const rect = { x1: marqueeStart.x, y1: marqueeStart.y, x2: pointer.x, y2: pointer.y };
+          marqueeRectRef.current = rect;
+          setMarquee(rect);
         }
       }
       return;
@@ -3108,32 +3131,54 @@ const CircuitCanvas: React.FC = () => {
 
   // Closing the selection box. Bound to the window rather than the stage so a
   // drag that ends off-canvas still selects instead of leaving the box behind.
+  //
+  // In the capture phase, and that is not a detail: Konva listens for mouseup on
+  // the stage's own content div, which the event reaches first on the way up, and
+  // synthesises its click from there. Released on empty space — the ordinary way
+  // to finish a selection box — the press and the release are both on the
+  // background rect, so Konva does fire that click, handleStageClick eats the
+  // gesture, and a listener sitting in the bubble phase would run afterwards with
+  // nothing left to do. Capture on the window runs before any of it.
   useEffect(() => {
     const finishMarquee = () => {
       const start = marqueeStartRef.current;
+      const rect = marqueeRectRef.current;
+      const moved = marqueeMovedRef.current;
+
       marqueeStartRef.current = null;
+      marqueeRectRef.current = null;
+      marqueeMovedRef.current = false;
+
       if (!start) return;
 
-      if (marqueeMovedRef.current && marquee) {
-        selectComponents(getComponentsInMarquee(components, marquee));
+      if (moved && rect) {
+        const { components: current, selectComponents: select } = useCircuitStore.getState();
+        select(getComponentsInMarquee(current, rect));
+        // Konva only fires its click when the press and the release land on the
+        // same shape, so this flag cannot rely on being consumed — it is cleared
+        // again on the next mouse down.
+        suppressClickRef.current = true;
       }
+
       setMarquee(null);
     };
 
     const cancelMarquee = () => {
       marqueeStartRef.current = null;
+      marqueeRectRef.current = null;
       marqueeMovedRef.current = false;
+      suppressClickRef.current = false;
       setMarquee(null);
     };
 
-    window.addEventListener('mouseup', finishMarquee);
+    window.addEventListener('mouseup', finishMarquee, true);
     window.addEventListener('blur', cancelMarquee);
 
     return () => {
-      window.removeEventListener('mouseup', finishMarquee);
+      window.removeEventListener('mouseup', finishMarquee, true);
       window.removeEventListener('blur', cancelMarquee);
     };
-  }, [components, marquee, selectComponents]);
+  }, []);
 
   useEffect(() => {
     clearTransientCanvasState();
@@ -3165,6 +3210,10 @@ const CircuitCanvas: React.FC = () => {
   }, [contextMenu]);
 
   const handleStageMouseDown = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
+    // A suppression the last selection box left behind must never reach a fresh
+    // gesture and swallow an ordinary click.
+    suppressClickRef.current = false;
+
     if (e.evt.button !== 2) {
       setContextMenu(null);
     }
@@ -3177,6 +3226,7 @@ const CircuitCanvas: React.FC = () => {
         if (pointer) {
           marqueeStartRef.current = pointer;
           marqueeMovedRef.current = false;
+          marqueeRectRef.current = null;
         }
       }
       return;
@@ -3980,6 +4030,42 @@ const CircuitCanvas: React.FC = () => {
                 simulation={simulation}
                 language={language}
               />
+
+              {/* Solder blobs on the legs that actually took hold. Whether a
+                  part is truly connected is the one thing a flat drawing hides,
+                  so selecting it in the select tool shows exactly which of its
+                  legs a cable reaches or a breadboard hole holds. Drawn inside
+                  the part's own group, so they follow it through rotation,
+                  mirroring and scale. */}
+              {toolMode === 'select' &&
+                (selectedComponentIds.includes(comp.id) || selectedComponentId === comp.id) &&
+                getMirroredPins(comp.pins, comp.flipX)
+                  .filter((pin) => solderedPinKeys.has(pinKey(comp.id, pin.id)))
+                  .map((pin) => (
+                    <Circle
+                      key={`solder-${pin.id}`}
+                      x={pin.x}
+                      y={pin.y}
+                      radius={SOLDER_BLOB_RADIUS}
+                      fillRadialGradientStartPoint={{ x: -1.3, y: -1.3 }}
+                      fillRadialGradientStartRadius={0}
+                      fillRadialGradientEndPoint={{ x: 0, y: 0 }}
+                      fillRadialGradientEndRadius={SOLDER_BLOB_RADIUS}
+                      fillRadialGradientColorStops={[
+                        0, '#f4f8fc',
+                        0.45, '#b9c6d4',
+                        1, '#6b7a8a',
+                      ]}
+                      stroke="#39434e"
+                      strokeWidth={0.4}
+                      shadowColor="#000"
+                      shadowBlur={2}
+                      shadowOpacity={0.45}
+                      shadowOffsetY={0.6}
+                      listening={false}
+                    />
+                  ))}
+
               {/* Clickable pin areas (for wiring) */}
               {toolMode === 'wire' && (() => {
                 const mirroredPins = getMirroredPins(comp.pins, comp.flipX);
