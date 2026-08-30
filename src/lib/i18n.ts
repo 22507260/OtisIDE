@@ -608,6 +608,7 @@ export type TranslationKey = keyof typeof UI_STRINGS.en;
 /** Exported so a test can prove every catalog part has a Turkish name. */
 export const COMPONENT_NAME_TR: Partial<Record<ComponentType, string>> = {
   breadboard: 'Breadboard',
+  'breadboard-mini': 'Mini Breadboard',
   led: 'LED',
   resistor: 'Direnç',
   capacitor: 'Kondansatör',

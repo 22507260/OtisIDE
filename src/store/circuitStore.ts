@@ -31,7 +31,11 @@ import {
   getControllerBoardDefinition,
   getControllerBoardPins,
 } from '../models/arduinoUno';
-import { BREADBOARD_COMPONENT_ID, DEFAULT_BREADBOARD_POSITION } from '../models/breadboard';
+import {
+  BREADBOARD_COMPONENT_ID,
+  DEFAULT_BREADBOARD_POSITION,
+  isBreadboardType,
+} from '../models/breadboard';
 import { sanitizeProjectData, type ProjectData } from '../lib/projectFile';
 import { readStorage, removeStorage, writeStorage } from '../lib/storage';
 import { v4 as uuidv4 } from 'uuid';
@@ -246,7 +250,7 @@ function withMigratedBreadboard(
   components: CircuitComponent[],
   legacyPosition: { x: number; y: number } | null | undefined
 ): CircuitComponent[] {
-  if (components.some((component) => component.type === 'breadboard')) return components;
+  if (components.some((component) => isBreadboardType(component.type))) return components;
   if (!legacyPosition) return components;
 
   return [createDefaultBreadboard(legacyPosition), ...components];

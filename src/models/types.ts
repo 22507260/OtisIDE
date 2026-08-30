@@ -75,7 +75,8 @@ export type ComponentType =
   | 'multimeter'
   | 'oscilloscope'
   | 'motor-driver'
-  | 'breadboard';
+  | 'breadboard'
+  | 'breadboard-mini';
 
 export type PinType = 'digital' | 'analog' | 'power' | 'ground' | 'pwm' | 'passive';
 
@@ -1163,6 +1164,7 @@ export interface ComponentInfo {
 export const COMPONENT_CATALOG: ComponentInfo[] = [
   // Board — first, because it is what everything else gets plugged into.
   { type: 'breadboard', name: 'Breadboard', category: 'Board', icon: 'BB' },
+  { type: 'breadboard-mini', name: 'Mini Breadboard', category: 'Board', icon: 'BB-' },
   // Passive
   { type: 'led', name: 'LED', category: 'Passive', icon: 'LED' },
   { type: 'resistor', name: 'Resistor', category: 'Passive', icon: 'R' },

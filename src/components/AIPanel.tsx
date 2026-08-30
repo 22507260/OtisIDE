@@ -11,6 +11,7 @@ import {
 import {
   BREADBOARD_COMPONENT_ID,
   getBreadboardHoleGlobal,
+  getBreadboardPlacements,
   isBreadboardReference,
 } from '../models/breadboard';
 import {
@@ -259,7 +260,7 @@ const AIPanel: React.FC = () => {
   const boardType = useCircuitStore((s) => s.boardType);
   const boardPosition = useCircuitStore((s) => s.boardPosition);
   /** The assistant addresses "breadboard" by name, so it means the first one. */
-  const breadboards = components.filter((component) => component.type === 'breadboard');
+  const breadboards = getBreadboardPlacements(components);
   const primaryBreadboard = breadboards[0] ?? null;
   const setBoardType = useCircuitStore((s) => s.setBoardType);
   const language = useCircuitStore((s) => s.language);
@@ -477,7 +478,11 @@ const AIPanel: React.FC = () => {
     if (isBreadboardReference(endpointRef.component)) {
       if (!primaryBreadboard) return null;
 
-      const breadboardHole = getBreadboardHoleGlobal(endpointRef.pin, primaryBreadboard);
+      const breadboardHole = getBreadboardHoleGlobal(
+        endpointRef.pin,
+        primaryBreadboard,
+        primaryBreadboard.variant
+      );
       if (!breadboardHole) return null;
       return {
         componentId: primaryBreadboard.id,
@@ -540,10 +545,10 @@ const AIPanel: React.FC = () => {
     const wireList = wires
       .map((wire) => {
         const startBreadboardHole = primaryBreadboard
-          ? getBreadboardHoleGlobal(wire.startPinId, primaryBreadboard)
+          ? getBreadboardHoleGlobal(wire.startPinId, primaryBreadboard, primaryBreadboard.variant)
           : null;
         const endBreadboardHole = primaryBreadboard
-          ? getBreadboardHoleGlobal(wire.endPinId, primaryBreadboard)
+          ? getBreadboardHoleGlobal(wire.endPinId, primaryBreadboard, primaryBreadboard.variant)
           : null;
         const startComp = components.find((item) => item.id === wire.startComponentId);
         const endComp = components.find((item) => item.id === wire.endComponentId);

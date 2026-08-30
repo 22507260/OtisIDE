@@ -12,6 +12,7 @@ import {
   HOLE_SP,
   getBreadboardPlacements,
   getNearestHoleAcrossBreadboards,
+  isBreadboardType,
 } from '../models/breadboard';
 import type { CircuitComponent } from '../models/types';
 import { getComponentTransform, transformPoint } from './componentTransform';
@@ -59,7 +60,7 @@ export function getBreadboardContacts(components: CircuitComponent[]): Breadboar
   for (const component of components) {
     if (NON_SEATING_TYPES.has(component.type)) continue;
     // A board is not plugged into another board.
-    if (component.type === 'breadboard') continue;
+    if (isBreadboardType(component.type)) continue;
 
     const transform = getComponentTransform(component);
     // One hole holds one leg. Parts whose legs sit closer together than the

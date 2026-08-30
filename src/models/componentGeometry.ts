@@ -345,6 +345,9 @@ export const SVG_CONFIGS: Record<ComponentType, SvgConfig> = {
   // top-left corner, hence the zero offsets. Size mirrors BB_BOARD_W and
   // BB_TOTAL_H in models/breadboard.ts — imported by value would make a cycle.
   breadboard:     { url: '',               raw: '',                  width: 764.5, height: 242.5, offsetX: 0, offsetY: 0 },
+  // The 170 tie-point board: seventeen columns, rows A-J, no rails.
+  // 17 * 11.5 + 40 wide, and 16 + 10 * 11.5 + 16 tall.
+  'breadboard-mini': { url: '',            raw: '',                  width: 235.5, height: 147,   offsetX: 0, offsetY: 0 },
 };
 
 function getViewBox(raw: string): { minX: number; minY: number; width: number; height: number } | null {

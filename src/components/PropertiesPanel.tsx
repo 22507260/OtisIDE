@@ -8,7 +8,11 @@ import {
   WIRE_MAX_WIDTH,
 } from '../models/types';
 import { ARDUINO_COMPONENT_ID, getControllerBoardDefinition } from '../models/arduinoUno';
-import { BREADBOARD_COMPONENT_ID, getBreadboardHoleGlobal } from '../models/breadboard';
+import {
+  getBreadboardHoleGlobal,
+  getBreadboardVariantForType,
+  isBreadboardType,
+} from '../models/breadboard';
 import {
   getWireColorDisplayName,
   getComponentDisplayName,
@@ -123,9 +127,13 @@ const PropertiesPanel: React.FC = () => {
 
       // Hole ids repeat from board to board, so a project with more than one
       // says which board this end is plugged into.
-      if (component.type === 'breadboard') {
-        const hole = getBreadboardHoleGlobal(pinId, component);
-        const boards = components.filter((item) => item.type === 'breadboard');
+      if (isBreadboardType(component.type)) {
+        const hole = getBreadboardHoleGlobal(
+          pinId,
+          component,
+          getBreadboardVariantForType(component.type)
+        );
+        const boards = components.filter((item) => isBreadboardType(item.type));
         const name =
           boards.length > 1 ? `Breadboard ${boards.indexOf(component) + 1}` : 'Breadboard';
         return `${name} · ${hole?.label ?? pinId}`;

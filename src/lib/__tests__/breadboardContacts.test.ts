@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { getBreadboardContacts } from '../breadboardContacts';
-import { BB_X, BB_Y, BREADBOARD_COMPONENT_ID, HOLE_SP } from '../../models/breadboard';
+import {
+  BB_X,
+  BB_Y,
+  BREADBOARD_COMPONENT_ID,
+  HOLE_SP,
+  getBreadboardSpec,
+} from '../../models/breadboard';
 import type { CircuitComponent } from '../../models/types';
 
 // Hole positions the default breadboard actually has, worked out from
@@ -188,5 +194,70 @@ describe('getBreadboardContacts', () => {
       const contacts = getBreadboardContacts([board(), board({ id: 'board-2' })]);
       expect(contacts).toEqual([]);
     });
+  });
+});
+
+describe('the mini board', () => {
+  const miniBoard = (overrides: Partial<CircuitComponent> = {}): CircuitComponent => ({
+    ...board(),
+    id: 'mini-1',
+    type: 'breadboard-mini',
+    ...overrides,
+  });
+
+  it('has seventeen columns of A-J and no rails', () => {
+    const spec = getBreadboardSpec('mini');
+
+    expect(spec.cols).toBe(17);
+    expect(spec.hasRails).toBe(false);
+    // Ten rows, seventeen columns: the 170 tie points the part is named for.
+    expect(spec.holes).toHaveLength(170);
+    expect(spec.holes.some((hole) => hole.rowLabel.startsWith('T'))).toBe(false);
+    expect(spec.holes.filter((hole) => hole.rowLabel === 'A')).toHaveLength(17);
+  });
+
+  it('keeps a column on one strip, five holes at a time', () => {
+    const spec = getBreadboardSpec('mini');
+    const upper = spec.stripGroups.find((group) => group[0].stripId === 'upper-strip-1');
+    const lower = spec.stripGroups.find((group) => group[0].stripId === 'lower-strip-1');
+
+    expect(upper).toHaveLength(5);
+    expect(lower).toHaveLength(5);
+    // A and F share a column but not a strip — the channel runs between them.
+    expect(upper?.map((hole) => hole.rowLabel)).toEqual(['A', 'B', 'C', 'D', 'E']);
+    expect(lower?.map((hole) => hole.rowLabel)).toEqual(['F', 'G', 'H', 'I', 'J']);
+  });
+
+  it('seats parts on its own holes', () => {
+    // Row A of the mini sits at the same place as the full board's row A only
+    // because both are measured from the board's own corner; the mini simply
+    // has no rails above it.
+    const spec = getBreadboardSpec('mini');
+    const a1 = spec.holes.find((hole) => hole.id === 'bb-a-1');
+    expect(a1).toBeDefined();
+
+    const seated = part({ x: a1!.x, y: a1!.y });
+    const contacts = getBreadboardContacts([miniBoard(), seated]);
+
+    expect(contacts).toContainEqual({
+      componentId: 'resistor-1',
+      pinId: 'pin1',
+      breadboardId: 'mini-1',
+      holeId: 'bb-a-1',
+    });
+  });
+
+  it('has no column 18, however far a leg reaches', () => {
+    const spec = getBreadboardSpec('mini');
+    expect(spec.holes.some((hole) => hole.id === 'bb-a-18')).toBe(false);
+    expect(getBreadboardSpec('full').holes.some((hole) => hole.id === 'bb-a-18')).toBe(true);
+  });
+
+  it('is narrower and shorter than the full board', () => {
+    const mini = getBreadboardSpec('mini');
+    const full = getBreadboardSpec('full');
+
+    expect(mini.width).toBeLessThan(full.width);
+    expect(mini.height).toBeLessThan(full.height);
   });
 });

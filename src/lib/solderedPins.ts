@@ -14,6 +14,7 @@
  */
 
 import { ARDUINO_COMPONENT_ID } from '../models/arduinoUno';
+import { isBreadboardType } from '../models/breadboard';
 import type { CircuitComponent, Wire } from '../models/types';
 import { getBreadboardContacts } from './breadboardContacts';
 
@@ -33,7 +34,7 @@ export function getSolderedPinKeys(
    * belong on the legs of parts.
    */
   const boardIds = new Set(
-    components.filter((component) => component.type === 'breadboard').map((component) => component.id)
+    components.filter((component) => isBreadboardType(component.type)).map((component) => component.id)
   );
 
   const add = (componentId: string, pinId: string) => {

@@ -23,7 +23,11 @@ import {
 import {
   BREADBOARD_COMPONENT_ID,
   getBreadboardPlacements,
+  getBreadboardSpec,
+  getBreadboardVariantForType,
   getNearestHoleAcrossBreadboards,
+  isBreadboardType,
+  type BreadboardVariant,
   type BreadboardPlacement,
   DEFAULT_BREADBOARD_POSITION,
   type BreadboardHole,
@@ -380,9 +384,10 @@ function getComponentPinWorldPosition(
 function isNearBreadboardArea(
   x: number,
   y: number,
-  breadboardPosition: { x: number; y: number } = DEFAULT_BREADBOARD_POSITION
+  breadboardPosition: { x: number; y: number } = DEFAULT_BREADBOARD_POSITION,
+  variant: BreadboardVariant = 'full'
 ): boolean {
-  const bounds = getBreadboardBounds(breadboardPosition);
+  const bounds = getBreadboardBounds(breadboardPosition, variant);
   return (
     x >= bounds.x - 24 &&
     x <= bounds.right + 24 &&
@@ -397,14 +402,14 @@ function isNearAnyBreadboard(
   y: number,
   boards: readonly BreadboardPlacement[]
 ): boolean {
-  return boards.some((board) => isNearBreadboardArea(x, y, board));
+  return boards.some((board) => isNearBreadboardArea(x, y, board, board.variant));
 }
 
 function snapPinsToBreadboard(
   x: number,
   y: number,
   pins: Array<{ x: number; y: number }>,
-  breadboardPosition: { x: number; y: number } = DEFAULT_BREADBOARD_POSITION
+  board: BreadboardPlacement
 ): { x: number; y: number; score: number } | null {
   if (pins.length === 0) return null;
 
@@ -416,11 +421,12 @@ function snapPinsToBreadboard(
     const nearestHole = getNearestBreadboardHole(
       anchorGlobalX,
       anchorGlobalY,
-      breadboardPosition
+      board,
+      board.variant
     );
 
     if (
-      !isNearBreadboardArea(anchorGlobalX, anchorGlobalY, breadboardPosition) &&
+      !isNearBreadboardArea(anchorGlobalX, anchorGlobalY, board, board.variant) &&
       nearestHole.distSq > SNAP_RADIUS_SQ
     ) {
       continue;
@@ -436,11 +442,12 @@ function snapPinsToBreadboard(
       const snappedHole = getNearestBreadboardHole(
         pinGlobalX,
         pinGlobalY,
-        breadboardPosition
+        board,
+        board.variant
       );
 
       score += snappedHole.distSq;
-      if (!isNearBreadboardArea(pinGlobalX, pinGlobalY, breadboardPosition)) {
+      if (!isNearBreadboardArea(pinGlobalX, pinGlobalY, board, board.variant)) {
         score += SNAP_RADIUS_SQ;
       }
     }
@@ -1699,91 +1706,108 @@ const ComponentShape: React.FC<{
 
 
 // ===== Breadboard â€” Tinkercad-style =====
-const Breadboard: React.FC = React.memo(() => {
-  const boardW = BB_COLS * HOLE_SP + 40;
-  const mainH = 10 * HOLE_SP + HOLE_SP + 50; // 10 rows + center gap + padding
-  const railH = 18;
-  const totalH = mainH + railH * 2 + 30;
+const Breadboard: React.FC<{ variant?: BreadboardVariant }> = React.memo(
+  ({ variant = 'full' }) => {
+    const spec = getBreadboardSpec(variant);
+    const boardW = spec.width;
+    const totalH = spec.height;
+    const railH = spec.hasRails ? RAIL_H : 0;
+    const mainStartY = spec.mainOffsetY;
 
-  const holes = useMemo(() => {
-    const els: React.ReactElement[] = [];
+    const holes = useMemo(() => {
+      const els: React.ReactElement[] = [];
 
-    // â”€â”€ Power rails (top & bottom) â”€â”€
-    for (let rail = 0; rail < 2; rail++) {
-      const ry = rail === 0 ? 14 : totalH - 28;
-      // Red / blue rail stripes
-      els.push(
-        <Rect key={`rs-r-${rail}`} x={18} y={ry - 1} width={boardW - 36} height={1.2} fill="#e74c3c" opacity={0.5} />,
-        <Rect key={`rs-b-${rail}`} x={18} y={ry + HOLE_SP + 1} width={boardW - 36} height={1.2} fill="#3498db" opacity={0.5} />
-      );
-      for (let col = 0; col < BB_COLS; col++) {
-        const hx = 20 + col * HOLE_SP;
-        for (let r = 0; r < 2; r++) {
-          const hy = ry + r * HOLE_SP;
+      // ── Power rails (top & bottom), on the full-size board only ──
+      if (spec.hasRails) {
+        for (let rail = 0; rail < 2; rail++) {
+          const ry = rail === 0 ? 14 : totalH - 28;
           els.push(
-            <Circle key={`pr-${rail}-${col}-${r}`} x={hx} y={hy} radius={HOLE_R + 0.5} fill="#999" />,
-            <Circle key={`prh-${rail}-${col}-${r}`} x={hx} y={hy} radius={HOLE_R} fill="#1a1a1a" />
+            <Rect key={`rs-r-${rail}`} x={18} y={ry - 1} width={boardW - 36} height={1.2} fill="#e74c3c" opacity={0.5} />,
+            <Rect key={`rs-b-${rail}`} x={18} y={ry + HOLE_SP + 1} width={boardW - 36} height={1.2} fill="#3498db" opacity={0.5} />
+          );
+          for (let col = 0; col < spec.cols; col++) {
+            const hx = 20 + col * HOLE_SP;
+            for (let r = 0; r < 2; r++) {
+              const hy = ry + r * HOLE_SP;
+              els.push(
+                <Circle key={`pr-${rail}-${col}-${r}`} x={hx} y={hy} radius={HOLE_R + 0.5} fill="#999" />,
+                <Circle key={`prh-${rail}-${col}-${r}`} x={hx} y={hy} radius={HOLE_R} fill="#1a1a1a" />
+              );
+            }
+          }
+          els.push(
+            <Text key={`rl+${rail}`} x={6} y={ry - 5} text="+" fill="#e74c3c" fontSize={10} fontStyle="bold" />,
+            <Text key={`rl-${rail}`} x={6} y={ry + HOLE_SP - 5} text="−" fill="#3498db" fontSize={10} fontStyle="bold" />
           );
         }
       }
-      // +/âˆ’ labels
-      els.push(
-        <Text key={`rl+${rail}`} x={6} y={ry - 5} text="+" fill="#e74c3c" fontSize={10} fontStyle="bold" />,
-        <Text key={`rl-${rail}`} x={6} y={ry + HOLE_SP - 5} text="âˆ’" fill="#3498db" fontSize={10} fontStyle="bold" />
-      );
-    }
 
-    // â”€â”€ Main hole area (rows A-E, F-J) â”€â”€
-    const mainStartY = railH + 28;
-    for (let section = 0; section < 2; section++) {
-      for (let row = 0; row < 5; row++) {
-        const label = String.fromCharCode(65 + section * 5 + row);
-        const hy = mainStartY + (section * 6 + row) * HOLE_SP;
+      // ── Main hole area (rows A-E, F-J) ──
+      for (let section = 0; section < 2; section++) {
+        for (let row = 0; row < 5; row++) {
+          const label = String.fromCharCode(65 + section * 5 + row);
+          const hy = mainStartY + (section * 6 + row) * HOLE_SP;
+          els.push(
+            <Text key={`lb-${label}`} x={5} y={hy - 4} text={label} fill="#aaa" fontSize={7} fontFamily="monospace" />
+          );
+          for (let col = 0; col < spec.cols; col++) {
+            const hx = 20 + col * HOLE_SP;
+            els.push(
+              <Circle key={`h-${section}-${row}-${col}`} x={hx} y={hy} radius={HOLE_R + 0.5} fill="#999" />,
+              <Circle key={`hi-${section}-${row}-${col}`} x={hx} y={hy} radius={HOLE_R} fill="#1a1a1a" />
+            );
+          }
+        }
+      }
+
+      // ── Column numbers ──
+      //
+      // Every column on a mini board, every fifth on a full-size one. A mini is
+      // short enough that all seventeen fit, and its strips are only five holes
+      // long, so knowing exactly which column a leg is in is the whole game.
+      const numberStep = spec.hasRails ? 5 : 1;
+      for (let col = 0; col < spec.cols; col += numberStep) {
+        const text = String(col + 1);
+        // Two-digit numbers need pulling left to stay over their column.
+        const x = 20 + col * HOLE_SP - (text.length > 1 ? 3.4 : 1.6);
         els.push(
-          <Text key={`lb-${label}`} x={5} y={hy - 4} text={label} fill="#aaa" fontSize={7} fontFamily="monospace" />
+          <Text key={`cn-t-${col}`} x={x} y={mainStartY - 12} text={text} fill="#aaa" fontSize={6} fontFamily="monospace" />
         );
-        for (let col = 0; col < BB_COLS; col++) {
-          const hx = 20 + col * HOLE_SP;
+        if (!spec.hasRails) {
+          // Repeated under the board so a leg in rows F-J can be read off too.
           els.push(
-            <Circle key={`h-${section}-${row}-${col}`} x={hx} y={hy} radius={HOLE_R + 0.5} fill="#999" />,
-            <Circle key={`hi-${section}-${row}-${col}`} x={hx} y={hy} radius={HOLE_R} fill="#1a1a1a" />
+            <Text key={`cn-b-${col}`} x={x} y={mainStartY + 10 * HOLE_SP + 4} text={text} fill="#aaa" fontSize={6} fontFamily="monospace" />
           );
         }
       }
-    }
 
-    // â”€â”€ Column numbers every 5 â”€â”€
-    for (let col = 0; col < BB_COLS; col += 5) {
-      els.push(
-        <Text key={`cn-${col}`} x={17 + col * HOLE_SP} y={mainStartY - 14} text={String(col + 1)} fill="#aaa" fontSize={6} fontFamily="monospace" />
-      );
-    }
+      return els;
+    }, [boardW, mainStartY, spec, totalH]);
 
-    return els;
-  }, []);
+    const gapY = mainStartY + 4.5 * HOLE_SP;
 
-  const mainStartY = railH + 28;
-  const gapY = mainStartY + 4.5 * HOLE_SP;
-
-  return (
-    <Group>
-      {/* Shadow */}
-      <Rect x={3} y={3} width={boardW} height={totalH} fill="#000" opacity={0.25} cornerRadius={6} />
-      {/* Board body */}
-      <Rect x={0} y={0} width={boardW} height={totalH} fill="#f8f8f5" cornerRadius={5} />
-      {/* Top highlight */}
-      <Rect x={1} y={1} width={boardW - 2} height={totalH * 0.3} fill="#fff" opacity={0.15} cornerRadius={[5, 5, 0, 0]} />
-      {/* Edge lip */}
-      <Rect x={0} y={0} width={boardW} height={totalH} stroke="#d0d0cc" strokeWidth={1.5} fill="transparent" cornerRadius={5} />
-      {/* Center channel */}
-      <Rect x={8} y={gapY - 3} width={boardW - 16} height={HOLE_SP + 2} fill="#e8e8e4" cornerRadius={2} />
-      <Rect x={10} y={gapY - 1} width={boardW - 20} height={HOLE_SP - 2} fill="#d8d8d4" cornerRadius={1} />
-      {/* Branding */}
-      <Text x={boardW / 2 - 30} y={gapY} text="AI DEVRE" fontSize={8} fill="#c0c0b8" fontStyle="bold" letterSpacing={3} />
-      {holes}
-    </Group>
-  );
-});
+    return (
+      <Group>
+        {/* Shadow */}
+        <Rect x={3} y={3} width={boardW} height={totalH} fill="#000" opacity={0.25} cornerRadius={6} />
+        {/* Board body */}
+        <Rect x={0} y={0} width={boardW} height={totalH} fill="#f8f8f5" cornerRadius={5} />
+        {/* Top highlight */}
+        <Rect x={1} y={1} width={boardW - 2} height={totalH * 0.3} fill="#fff" opacity={0.15} cornerRadius={[5, 5, 0, 0]} />
+        {/* Edge lip */}
+        <Rect x={0} y={0} width={boardW} height={totalH} stroke="#d0d0cc" strokeWidth={1.5} fill="transparent" cornerRadius={5} />
+        {/* Center channel */}
+        <Rect x={8} y={gapY - 3} width={boardW - 16} height={HOLE_SP + 2} fill="#e8e8e4" cornerRadius={2} />
+        <Rect x={10} y={gapY - 1} width={boardW - 20} height={HOLE_SP - 2} fill="#d8d8d4" cornerRadius={1} />
+        {/* Branding, only where there is room for it */}
+        {spec.hasRails && (
+          <Text x={boardW / 2 - 30} y={gapY} text="AI DEVRE" fontSize={8} fill="#c0c0b8" fontStyle="bold" letterSpacing={3} />
+        )}
+        {holes}
+      </Group>
+    );
+  }
+);
 
 // ===== Controller Board =====
 const useBoardImage = (imageUrl: string) => {
@@ -2016,15 +2040,6 @@ const CircuitCanvas: React.FC = () => {
   /** Every breadboard on the canvas, derived from the parts themselves. */
   const breadboards = useMemo(() => getBreadboardPlacements(components), [components]);
 
-  /** Boards first: they are the surface everything else sits on. Sorting is
-   *  stable, so parts keep the order they were added in among themselves. */
-  const drawOrder = useMemo(
-    () =>
-      [...components].sort(
-        (a, b) => Number(a.type !== 'breadboard') - Number(b.type !== 'breadboard')
-      ),
-    [components]
-  );
   // Needed by circuitWarnings below, so it's declared here rather than lower
   // down where it's otherwise used (with the rest of the board-rendering
   // values it groups with).
@@ -2203,7 +2218,7 @@ const CircuitCanvas: React.FC = () => {
 
     // A wire on a hole names the board it is plugged into, so the hole is
     // looked up against that board's own position.
-    if (component.type === 'breadboard') {
+    if (isBreadboardType(component.type)) {
       const hole = getBreadboardHoleGlobal(pinId, component);
       return hole ? { x: hole.x, y: hole.y } : null;
     }
@@ -2584,7 +2599,7 @@ const CircuitCanvas: React.FC = () => {
 
     // A board is placed where it is dropped; everything else looks for a seat.
     const snapped =
-      type === 'breadboard'
+      isBreadboardType(type ?? '')
         ? { x: snapToGrid(x), y: snapToGrid(y) }
         : snapToBreadboard(x, y, type, undefined, breadboards);
     addComponent(type, snapped.x, snapped.y);
@@ -3155,7 +3170,7 @@ const CircuitCanvas: React.FC = () => {
   ) => {
     // A board itself is never seated in a board; it just lands on the grid.
     const snapped =
-      comp.type === 'breadboard'
+      isBreadboardType(comp.type)
         ? { x: snapToGrid(node.x()), y: snapToGrid(node.y()) }
         : snapToBreadboard(
             node.x(),
@@ -3419,18 +3434,18 @@ const CircuitCanvas: React.FC = () => {
       selectComponent(comp.id);
     }
 
-    if (comp.type === 'breadboard') {
+    if (isBreadboardType(comp.type)) {
       // Moving a board takes everything plugged into it along, the way lifting
       // a real breadboard would. Reuses the group-drag path, so the parts are
       // translated by the same vector and land still seated.
-      const thisBoard = [{ id: comp.id, x: comp.x, y: comp.y }];
+      const thisBoard = getBreadboardPlacements([comp]);
       groupDragRef.current = {
         origin: { x: comp.x, y: comp.y },
         others: components
           .filter(
             (item) =>
               item.id !== comp.id &&
-              item.type !== 'breadboard' &&
+              !isBreadboardType(item.type) &&
               isComponentMountedOnBreadboard(item, thisBoard)
           )
           .map((item) => ({ id: item.id, x: item.x, y: item.y })),
@@ -3459,7 +3474,7 @@ const CircuitCanvas: React.FC = () => {
   ]);
 
   const handleDragMove = useCallback((comp: CircuitComponent, e: Konva.KonvaEventObject<DragEvent>) => {
-    if (comp.type === 'breadboard') {
+    if (isBreadboardType(comp.type)) {
       // Parts follow the board as it moves rather than catching up when it is
       // dropped, so the board is never dragged out from under them on screen.
       const group = groupDragRef.current;
@@ -3750,6 +3765,213 @@ const CircuitCanvas: React.FC = () => {
     }
   };
 
+  /**
+   * One part, drawn where it sits.
+   *
+   * Called twice below: once for the boards and once for everything else,
+   * because a cable run to a board has to lie on top of it. Drawing every
+   * part in one pass put the boards over the wiring and hid it.
+   */
+  const renderComponent = (comp: CircuitComponent) => (
+            <Group
+              key={comp.id}
+              x={comp.x}
+              y={comp.y}
+              rotation={comp.rotation}
+              scaleX={comp.scale ?? 1}
+              scaleY={comp.scale ?? 1}
+              draggable={toolMode === 'select' && !middlePanActive}
+              // A board stops listening while wiring so a click reaches the
+              // stage, which is what turns a point into the hole under it.
+              listening={!isBreadboardType(comp.type) || toolMode === 'select'}
+              onMouseDown={(e) => {
+                // Pressing the part is the whole gesture for a momentary
+                // button: it closes here and opens again on the window's mouse
+                // up. Deliberately not cancelling the bubble — the stage still
+                // needs this event to clear its own click suppression.
+                if (e.evt.button !== 0 || toolMode !== 'select') return;
+                if (!isMomentaryButton(comp)) return;
+
+                heldButtonRef.current = comp.id;
+                updateComponentProperty(comp.id, 'pressed', true, { recordHistory: false });
+              }}
+              onDragStart={(e) => handleDragStart(comp, e)}
+              onDragMove={(e) => handleDragMove(comp, e)}
+              onDragEnd={(e) => handleDragEnd(comp, e)}
+              onClick={(e) => handleComponentClick(comp, e)}
+              onTap={(e) => handleComponentClick(comp, e)}
+              onDblClick={(e) => handleComponentDoubleClick(comp, e)}
+              onDblTap={(e) => handleComponentDoubleClick(comp, e)}
+              onMouseEnter={() => {
+                // Hovering mid-pan would re-render and yank the view back, so
+                // labels stay quiet until the background is let go of.
+                if (stageDragging) return;
+                setHoveredComponentId(comp.id);
+              }}
+              onMouseLeave={() =>
+                setHoveredComponentId((current) => (current === comp.id ? null : current))
+              }
+              onContextMenu={(e) => {
+                e.evt.preventDefault();
+                e.cancelBubble = true;
+                openContextMenu(e.evt, { kind: 'component', componentId: comp.id });
+              }}
+            >
+              {isBreadboardType(comp.type) ? (
+                <Breadboard variant={getBreadboardVariantForType(comp.type)} />
+              ) : (
+                <ComponentShape
+                  comp={comp}
+                  isSelected={
+                    selectedComponentIds.includes(comp.id) || selectedComponentId === comp.id
+                  }
+                  simulation={simulation}
+                  language={language}
+                />
+              )}
+
+              {/* Solder blobs on the legs that actually took hold. Whether a
+                  part is truly connected is the one thing a flat drawing hides,
+                  so every leg a cable reaches or a breadboard hole holds wears
+                  one, all the time — the question is worth answering at a
+                  glance, not only for whatever happens to be selected. Drawn
+                  inside the part's own group, so they follow it through
+                  rotation, mirroring and scale. */}
+              {getMirroredPins(comp.pins, comp.flipX)
+                  .filter((pin) => solderedPinKeys.has(pinKey(comp.id, pin.id)))
+                  .map((pin) => (
+                    <Circle
+                      key={`solder-${pin.id}`}
+                      x={pin.x}
+                      y={pin.y}
+                      radius={SOLDER_BLOB_RADIUS}
+                      fillRadialGradientStartPoint={{ x: -1.3, y: -1.3 }}
+                      fillRadialGradientStartRadius={0}
+                      fillRadialGradientEndPoint={{ x: 0, y: 0 }}
+                      fillRadialGradientEndRadius={SOLDER_BLOB_RADIUS}
+                      fillRadialGradientColorStops={[
+                        0, '#f4f8fc',
+                        0.45, '#b9c6d4',
+                        1, '#6b7a8a',
+                      ]}
+                      stroke="#39434e"
+                      strokeWidth={0.4}
+                      shadowColor="#000"
+                      shadowBlur={2}
+                      shadowOpacity={0.45}
+                      shadowOffsetY={0.6}
+                      listening={false}
+                    />
+                  ))}
+
+              {/* Clickable pin areas (for wiring) */}
+              {toolMode === 'wire' && (() => {
+                const mirroredPins = getMirroredPins(comp.pins, comp.flipX);
+                const { radius: pinRadius, hitStrokeWidth } = getWirePinTargetSize(mirroredPins);
+
+                return getWirePinHandles(mirroredPins).map((handle) => {
+                  const isSelectedPin =
+                    wiringStart?.componentId === comp.id &&
+                    wiringStart?.pinId === handle.pin.id;
+                  const isHoveredPin =
+                    hoveredPin?.componentId === comp.id && hoveredPin?.pinId === handle.pin.id;
+                  const pinWorldPosition = getComponentPinWorldPosition(
+                    comp,
+                    handle.pin.id
+                  );
+                  const connect = (e: Konva.KonvaEventObject<Event>) => {
+                    e.cancelBubble = true;
+                    if (!pinWorldPosition) return;
+                    handlePinClick(
+                      comp.id,
+                      handle.pin.id,
+                      pinWorldPosition.x,
+                      pinWorldPosition.y
+                    );
+                  };
+
+                  return (
+                    <Group key={handle.pin.id}>
+                      <Circle
+                        x={handle.targetX}
+                        y={handle.targetY}
+                        radius={isHoveredPin ? pinRadius * 1.35 : pinRadius}
+                        fill={
+                          isSelectedPin
+                            ? 'rgba(255, 255, 255, 0.28)'
+                            : isHoveredPin
+                              ? 'rgba(78, 204, 163, 0.45)'
+                              : 'rgba(78, 204, 163, 0.2)'
+                        }
+                        stroke={isSelectedPin || isHoveredPin ? '#fff' : '#4ecca3'}
+                        strokeWidth={isSelectedPin || isHoveredPin ? 1.8 : 1.2}
+                        hitStrokeWidth={hitStrokeWidth}
+                        onMouseEnter={() =>
+                          setHoveredPin({ componentId: comp.id, pinId: handle.pin.id })
+                        }
+                        onMouseLeave={() =>
+                          setHoveredPin((current) =>
+                            current?.componentId === comp.id && current?.pinId === handle.pin.id
+                              ? null
+                              : current
+                          )
+                        }
+                        onClick={connect}
+                        onTap={connect}
+                      />
+                      {/* Which leg the click will actually take, spelled out —
+                          on a part with legs this close together the circles
+                          alone are too small to tell apart. Sits on its own
+                          plate so it stays readable over the artwork. */}
+                      {isHoveredPin && (
+                        <>
+                          <Rect
+                            x={handle.targetX - 30}
+                            y={handle.targetY - pinRadius - 16}
+                            width={60}
+                            height={13}
+                            cornerRadius={3}
+                            fill="rgba(8, 20, 16, 0.88)"
+                            stroke="#4ecca3"
+                            strokeWidth={0.6}
+                            listening={false}
+                          />
+                          <Text
+                            text={handle.pin.name || handle.pin.id}
+                            x={handle.targetX - 30}
+                            y={handle.targetY - pinRadius - 13}
+                            width={60}
+                            align="center"
+                            fontSize={8.5}
+                            fontStyle="bold"
+                            fill="#eaf6f1"
+                            listening={false}
+                          />
+                        </>
+                      )}
+                    </Group>
+                  );
+                });
+              })()}
+
+              {/* Component name label — only while hovered, so it doesn't clutter a
+                  full canvas; the selected component's name already shows in the
+                  properties panel, so selection alone no longer reveals it here */}
+              {hoveredComponentId === comp.id && (
+                <Text
+                  text={getCanvasComponentLabel(language, comp)}
+                  x={-32}
+                  y={Math.max(25, componentArtworkBottom(comp.type) + 3)}
+                  width={64}
+                  align="center"
+                  fontSize={7}
+                  fill="#666"
+                  listening={false}
+                />
+              )}
+            </Group>
+  );
+
   return (
     <div
       ref={containerRef}
@@ -3917,6 +4139,11 @@ const CircuitCanvas: React.FC = () => {
               listening={false}
             />
           )}
+
+          {/* Boards, under the wiring: a cable run across one lies on it. */}
+          {components
+            .filter((comp) => isBreadboardType(comp.type))
+            .map(renderComponent)}
 
           {/* Wires - 3D style */}
           {wires.map((wire) => {
@@ -4112,207 +4339,10 @@ const CircuitCanvas: React.FC = () => {
             );
           })()}
 
-          {/* Components. Boards first, so the parts plugged into them are drawn
-              on top whatever order they were added in. */}
-          {drawOrder.map((comp) => (
-            <Group
-              key={comp.id}
-              x={comp.x}
-              y={comp.y}
-              rotation={comp.rotation}
-              scaleX={comp.scale ?? 1}
-              scaleY={comp.scale ?? 1}
-              draggable={toolMode === 'select' && !middlePanActive}
-              // A board stops listening while wiring so a click reaches the
-              // stage, which is what turns a point into the hole under it.
-              listening={comp.type !== 'breadboard' || toolMode === 'select'}
-              onMouseDown={(e) => {
-                // Pressing the part is the whole gesture for a momentary
-                // button: it closes here and opens again on the window's mouse
-                // up. Deliberately not cancelling the bubble — the stage still
-                // needs this event to clear its own click suppression.
-                if (e.evt.button !== 0 || toolMode !== 'select') return;
-                if (!isMomentaryButton(comp)) return;
-
-                heldButtonRef.current = comp.id;
-                updateComponentProperty(comp.id, 'pressed', true, { recordHistory: false });
-              }}
-              onDragStart={(e) => handleDragStart(comp, e)}
-              onDragMove={(e) => handleDragMove(comp, e)}
-              onDragEnd={(e) => handleDragEnd(comp, e)}
-              onClick={(e) => handleComponentClick(comp, e)}
-              onTap={(e) => handleComponentClick(comp, e)}
-              onDblClick={(e) => handleComponentDoubleClick(comp, e)}
-              onDblTap={(e) => handleComponentDoubleClick(comp, e)}
-              onMouseEnter={() => {
-                // Hovering mid-pan would re-render and yank the view back, so
-                // labels stay quiet until the background is let go of.
-                if (stageDragging) return;
-                setHoveredComponentId(comp.id);
-              }}
-              onMouseLeave={() =>
-                setHoveredComponentId((current) => (current === comp.id ? null : current))
-              }
-              onContextMenu={(e) => {
-                e.evt.preventDefault();
-                e.cancelBubble = true;
-                openContextMenu(e.evt, { kind: 'component', componentId: comp.id });
-              }}
-            >
-              {comp.type === 'breadboard' ? (
-                <Breadboard />
-              ) : (
-                <ComponentShape
-                  comp={comp}
-                  isSelected={
-                    selectedComponentIds.includes(comp.id) || selectedComponentId === comp.id
-                  }
-                  simulation={simulation}
-                  language={language}
-                />
-              )}
-
-              {/* Solder blobs on the legs that actually took hold. Whether a
-                  part is truly connected is the one thing a flat drawing hides,
-                  so every leg a cable reaches or a breadboard hole holds wears
-                  one, all the time — the question is worth answering at a
-                  glance, not only for whatever happens to be selected. Drawn
-                  inside the part's own group, so they follow it through
-                  rotation, mirroring and scale. */}
-              {getMirroredPins(comp.pins, comp.flipX)
-                  .filter((pin) => solderedPinKeys.has(pinKey(comp.id, pin.id)))
-                  .map((pin) => (
-                    <Circle
-                      key={`solder-${pin.id}`}
-                      x={pin.x}
-                      y={pin.y}
-                      radius={SOLDER_BLOB_RADIUS}
-                      fillRadialGradientStartPoint={{ x: -1.3, y: -1.3 }}
-                      fillRadialGradientStartRadius={0}
-                      fillRadialGradientEndPoint={{ x: 0, y: 0 }}
-                      fillRadialGradientEndRadius={SOLDER_BLOB_RADIUS}
-                      fillRadialGradientColorStops={[
-                        0, '#f4f8fc',
-                        0.45, '#b9c6d4',
-                        1, '#6b7a8a',
-                      ]}
-                      stroke="#39434e"
-                      strokeWidth={0.4}
-                      shadowColor="#000"
-                      shadowBlur={2}
-                      shadowOpacity={0.45}
-                      shadowOffsetY={0.6}
-                      listening={false}
-                    />
-                  ))}
-
-              {/* Clickable pin areas (for wiring) */}
-              {toolMode === 'wire' && (() => {
-                const mirroredPins = getMirroredPins(comp.pins, comp.flipX);
-                const { radius: pinRadius, hitStrokeWidth } = getWirePinTargetSize(mirroredPins);
-
-                return getWirePinHandles(mirroredPins).map((handle) => {
-                  const isSelectedPin =
-                    wiringStart?.componentId === comp.id &&
-                    wiringStart?.pinId === handle.pin.id;
-                  const isHoveredPin =
-                    hoveredPin?.componentId === comp.id && hoveredPin?.pinId === handle.pin.id;
-                  const pinWorldPosition = getComponentPinWorldPosition(
-                    comp,
-                    handle.pin.id
-                  );
-                  const connect = (e: Konva.KonvaEventObject<Event>) => {
-                    e.cancelBubble = true;
-                    if (!pinWorldPosition) return;
-                    handlePinClick(
-                      comp.id,
-                      handle.pin.id,
-                      pinWorldPosition.x,
-                      pinWorldPosition.y
-                    );
-                  };
-
-                  return (
-                    <Group key={handle.pin.id}>
-                      <Circle
-                        x={handle.targetX}
-                        y={handle.targetY}
-                        radius={isHoveredPin ? pinRadius * 1.35 : pinRadius}
-                        fill={
-                          isSelectedPin
-                            ? 'rgba(255, 255, 255, 0.28)'
-                            : isHoveredPin
-                              ? 'rgba(78, 204, 163, 0.45)'
-                              : 'rgba(78, 204, 163, 0.2)'
-                        }
-                        stroke={isSelectedPin || isHoveredPin ? '#fff' : '#4ecca3'}
-                        strokeWidth={isSelectedPin || isHoveredPin ? 1.8 : 1.2}
-                        hitStrokeWidth={hitStrokeWidth}
-                        onMouseEnter={() =>
-                          setHoveredPin({ componentId: comp.id, pinId: handle.pin.id })
-                        }
-                        onMouseLeave={() =>
-                          setHoveredPin((current) =>
-                            current?.componentId === comp.id && current?.pinId === handle.pin.id
-                              ? null
-                              : current
-                          )
-                        }
-                        onClick={connect}
-                        onTap={connect}
-                      />
-                      {/* Which leg the click will actually take, spelled out —
-                          on a part with legs this close together the circles
-                          alone are too small to tell apart. Sits on its own
-                          plate so it stays readable over the artwork. */}
-                      {isHoveredPin && (
-                        <>
-                          <Rect
-                            x={handle.targetX - 30}
-                            y={handle.targetY - pinRadius - 16}
-                            width={60}
-                            height={13}
-                            cornerRadius={3}
-                            fill="rgba(8, 20, 16, 0.88)"
-                            stroke="#4ecca3"
-                            strokeWidth={0.6}
-                            listening={false}
-                          />
-                          <Text
-                            text={handle.pin.name || handle.pin.id}
-                            x={handle.targetX - 30}
-                            y={handle.targetY - pinRadius - 13}
-                            width={60}
-                            align="center"
-                            fontSize={8.5}
-                            fontStyle="bold"
-                            fill="#eaf6f1"
-                            listening={false}
-                          />
-                        </>
-                      )}
-                    </Group>
-                  );
-                });
-              })()}
-
-              {/* Component name label — only while hovered, so it doesn't clutter a
-                  full canvas; the selected component's name already shows in the
-                  properties panel, so selection alone no longer reveals it here */}
-              {hoveredComponentId === comp.id && (
-                <Text
-                  text={getCanvasComponentLabel(language, comp)}
-                  x={-32}
-                  y={Math.max(25, componentArtworkBottom(comp.type) + 3)}
-                  width={64}
-                  align="center"
-                  fontSize={7}
-                  fill="#666"
-                  listening={false}
-                />
-              )}
-            </Group>
-          ))}
+          {/* The parts themselves, over the wiring they are joined by. */}
+          {components
+            .filter((comp) => !isBreadboardType(comp.type))
+            .map(renderComponent)}
 
           {components
             .filter((comp) => comp.type === 'multimeter')
