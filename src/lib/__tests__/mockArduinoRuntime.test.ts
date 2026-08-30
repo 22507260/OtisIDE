@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
   startMockArduinoRuntime,
   stopMockArduinoRuntime,
+  updateMockArduinoCircuit,
   findSketchCompileError,
   getCircuitWiringIssues,
 } from '../mockArduinoRuntime';
@@ -295,6 +296,89 @@ const btsSketch = (rpwm: string, lpwm: string, enable = 'HIGH') => `
 const motorSpeeds = (recording: Recording) =>
   statesOf(recording, 'motor-1').map((state) => Number(state.rpm));
 
+describe('the series resistor decides whether the LED survives', () => {
+  const DRIVE = `
+void setup() {
+  pinMode(9, OUTPUT);
+}
+
+void loop() {
+  digitalWrite(9, HIGH);
+  delay(50);
+}
+`;
+
+  const ledOnPin = (ohms: number | null) => {
+    const led: CircuitComponent = {
+      id: 'led-1',
+      type: 'led',
+      x: 200,
+      y: 200,
+      rotation: 0,
+      pins: [
+        { id: 'anode', name: 'Anode (+)', type: 'passive', x: 5, y: 0 },
+        { id: 'cathode', name: 'Cathode (-)', type: 'passive', x: -5, y: 0 },
+      ],
+      properties: { color: 'red', forwardVoltage: 2 },
+    };
+
+    if (ohms === null) {
+      return {
+        components: [led],
+        wires: [
+          wire('w1', ARDUINO_COMPONENT_ID, 'D9', 'led-1', 'anode'),
+          wire('w2', 'led-1', 'cathode', ARDUINO_COMPONENT_ID, 'GND'),
+        ],
+      };
+    }
+
+    const res: CircuitComponent = {
+      id: 'res-1',
+      type: 'resistor',
+      x: 150,
+      y: 200,
+      rotation: 0,
+      pins: [
+        { id: 'pin1', name: 'Pin 1', type: 'passive', x: -25, y: 0 },
+        { id: 'pin2', name: 'Pin 2', type: 'passive', x: 25, y: 0 },
+      ],
+      properties: { resistance: ohms, unit: 'ohm' },
+    };
+
+    return {
+      components: [res, led],
+      wires: [
+        wire('w1', ARDUINO_COMPONENT_ID, 'D9', 'res-1', 'pin1'),
+        wire('w2', 'res-1', 'pin2', 'led-1', 'anode'),
+        wire('w3', 'led-1', 'cathode', ARDUINO_COMPONENT_ID, 'GND'),
+      ],
+    };
+  };
+
+  const burned = async (ohms: number | null) => {
+    const { components, wires } = ledOnPin(ohms);
+    const recording = await run(DRIVE, components, wires, 900);
+    const states = recording.componentStates.filter((entry) => entry.id === 'led-1');
+    return states.some((entry) => entry.state.damaged === true);
+  };
+
+  it('burns the LED wired to a pin with nothing to limit it', async () => {
+    expect(await burned(null)).toBe(true);
+  });
+
+  it('burns it through a resistor far too small to help', async () => {
+    expect(await burned(10)).toBe(true);
+  });
+
+  it('saves it with the resistor everyone actually uses', async () => {
+    expect(await burned(220)).toBe(false);
+  });
+
+  it('saves it with a large one too', async () => {
+    expect(await burned(10000)).toBe(false);
+  });
+});
+
 describe('LEDs in series', () => {
   const secondLed = (): CircuitComponent => ({
     ...led(),
@@ -361,8 +445,11 @@ void loop() {
       900
     );
 
-    expect(peakBrightness(recording, 'led-1')).toBe(0);
-    expect(peakBrightness(recording, 'led-2')).toBe(0);
+    // Solved as a linear branch a diode leaves a whisper of arithmetic dust
+    // behind, so the claim is that neither LED lights, not that the number is
+    // exactly zero.
+    expect(peakBrightness(recording, 'led-1')).toBeLessThan(0.05);
+    expect(peakBrightness(recording, 'led-2')).toBeLessThan(0.05);
   });
 });
 
@@ -459,7 +546,98 @@ describe('BTS7960 half bridge driver', () => {
   });
 });
 
+describe('editing the circuit while it runs', () => {
+  const COUNTING_SKETCH = `
+int runs = 0;
+
+void setup() {
+  pinMode(9, OUTPUT);
+  digitalWrite(9, HIGH);
+  runs = runs + 1;
+  Serial.begin(9600);
+  Serial.println("setup");
+}
+
+void loop() {
+  delay(50);
+}
+`;
+
+  it('does not send the sketch back to setup when a value changes', async () => {
+    const recording = await new Promise<Recording>((resolve) => {
+      const captured: Recording = {
+        pinStates: [],
+        serial: [],
+        led: [],
+        ledById: [],
+        componentStates: [],
+      };
+
+      startMockArduinoRuntime(
+        COUNTING_SKETCH,
+        [resistor(), led()],
+        [
+          wire('w1', ARDUINO_COMPONENT_ID, 'D9', 'resistor-1', 'pin1'),
+          wire('w2', 'resistor-1', 'pin2', 'led-1', 'anode'),
+          wire('w3', 'led-1', 'cathode', ARDUINO_COMPONENT_ID, 'GND'),
+        ],
+        BOARD_PINS,
+        5,
+        {
+          addSerialOutput: (text) => captured.serial.push(text),
+          pushOscilloscopeSample: () => {},
+          setLedState: (id, on, brightness) => {
+            captured.led.push({ on, brightness });
+            captured.ledById.push({ id, on, brightness });
+          },
+          clearLedStates: () => {},
+          setComponentState: (id, state) =>
+            captured.componentStates.push({ id, state: { ...state } }),
+          clearComponentStates: () => {},
+          setPinStates: (states) => captured.pinStates.push({ ...states }),
+        }
+      );
+
+      setTimeout(() => {
+        // The kind of edit the properties panel makes: same circuit, new value.
+        updateMockArduinoCircuit(
+          [{ ...resistor(), properties: { resistance: 10000, unit: 'ohm' } }, led()],
+          [
+            wire('w1', ARDUINO_COMPONENT_ID, 'D9', 'resistor-1', 'pin1'),
+            wire('w2', 'resistor-1', 'pin2', 'led-1', 'anode'),
+            wire('w3', 'led-1', 'cathode', ARDUINO_COMPONENT_ID, 'GND'),
+          ],
+          BOARD_PINS
+        );
+      }, 400);
+
+      setTimeout(() => {
+        stopMockArduinoRuntime();
+        resolve(captured);
+      }, 900);
+    });
+
+    // setup() ran once and only once: the change did not restart anything.
+    expect(recording.serial.filter((line) => line.includes('setup'))).toHaveLength(1);
+  });
+
+  it('reports nothing to update once the run has stopped', () => {
+    stopMockArduinoRuntime();
+    expect(updateMockArduinoCircuit([], [], BOARD_PINS)).toBe(false);
+  });
+});
+
 describe('RGB LED', () => {
+  /**
+   * Each channel gets its own series resistor, the way the datasheet asks for
+   * one. Driven straight off a pin an LED now draws far more than it survives,
+   * so a resistor is the difference between a lit channel and a dead part.
+   */
+  const channelResistor = (id: string): CircuitComponent => ({
+    ...resistor(),
+    id,
+  });
+
   const REDONLY_SKETCH = `
     void setup() {
       pinMode(9, OUTPUT);
@@ -471,10 +649,11 @@ describe('RGB LED', () => {
   it('lights only the red channel when only its pin is driven, common cathode', async () => {
     const recording = await run(
       REDONLY_SKETCH,
-      [rgbLed('cathode')],
+      [rgbLed('cathode'), channelResistor('res-red')],
       [
-        wire('w1', ARDUINO_COMPONENT_ID, 'D9', 'rgb-1', 'red'),
-        wire('w2', 'rgb-1', 'common', ARDUINO_COMPONENT_ID, 'GND'),
+        wire('w1', ARDUINO_COMPONENT_ID, 'D9', 'res-red', 'pin1'),
+        wire('w2', 'res-red', 'pin2', 'rgb-1', 'red'),
+        wire('w3', 'rgb-1', 'common', ARDUINO_COMPONENT_ID, 'GND'),
       ],
       600
     );
@@ -490,10 +669,11 @@ describe('RGB LED', () => {
   it('lights the red channel when it is pulled low against a high common, common anode', async () => {
     const recording = await run(
       `void setup() { pinMode(9, OUTPUT); digitalWrite(9, LOW); } void loop() { delay(50); }`,
-      [rgbLed('anode')],
+      [rgbLed('anode'), channelResistor('res-red')],
       [
-        wire('w1', ARDUINO_COMPONENT_ID, 'D9', 'rgb-1', 'red'),
-        wire('w2', 'rgb-1', 'common', ARDUINO_COMPONENT_ID, '5V'),
+        wire('w1', ARDUINO_COMPONENT_ID, 'D9', 'res-red', 'pin1'),
+        wire('w2', 'res-red', 'pin2', 'rgb-1', 'red'),
+        wire('w3', 'rgb-1', 'common', ARDUINO_COMPONENT_ID, '5V'),
       ],
       600
     );
@@ -530,11 +710,13 @@ describe('RGB LED', () => {
          digitalWrite(9, HIGH); digitalWrite(5, HIGH);
        }
        void loop() { delay(50); }`,
-      [rgbLed('cathode')],
+      [rgbLed('cathode'), channelResistor('res-red'), channelResistor('res-green')],
       [
-        wire('w1', ARDUINO_COMPONENT_ID, 'D9', 'rgb-1', 'red'),
-        wire('w2', ARDUINO_COMPONENT_ID, 'D5', 'rgb-1', 'green'),
-        wire('w3', 'rgb-1', 'common', ARDUINO_COMPONENT_ID, 'GND'),
+        wire('w1', ARDUINO_COMPONENT_ID, 'D9', 'res-red', 'pin1'),
+        wire('w2', 'res-red', 'pin2', 'rgb-1', 'red'),
+        wire('w3', ARDUINO_COMPONENT_ID, 'D5', 'res-green', 'pin1'),
+        wire('w4', 'res-green', 'pin2', 'rgb-1', 'green'),
+        wire('w5', 'rgb-1', 'common', ARDUINO_COMPONENT_ID, 'GND'),
       ],
       600
     );

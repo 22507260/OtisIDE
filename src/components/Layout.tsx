@@ -7,6 +7,7 @@ import PropertiesPanel from './PropertiesPanel';
 import BottomPanel from './BottomPanel';
 import UpdateNotice from './UpdateNotice';
 import { ErrorDialog } from './ErrorDialog';
+import { SaveChangesDialog } from './SaveChangesDialog';
 import { useCircuitStore } from '../store/circuitStore';
 import { t } from '../lib/i18n';
 
@@ -17,6 +18,7 @@ const Layout: React.FC = () => {
     <div className="app-shell">
       <UpdateNotice />
       <ErrorDialog />
+      <SaveChangesDialog />
       <DesktopTitleBar />
       <div className="app-container">
         <Toolbar />

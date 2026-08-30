@@ -171,10 +171,21 @@ describe('over current and over voltage damage', () => {
     const ledStates = burned.led.filter((entry) => entry.id === 'led-1');
     expect(ledStates[ledStates.length - 1]?.on).toBe(false);
 
-    // A new run builds a new circuit, so nothing carries over.
+    // A new run builds a new circuit, so nothing carries over — and this one
+    // is built properly, with a resistor doing the limiting. Straight across
+    // even a single cell there is nothing to limit the current, and the LED
+    // would go the same way as the one above.
     const rebuilt = await run(
-      [part('bat-1', 'li-ion-battery', { cells: 1 }), part('led-1', 'led')],
-      wires
+      [
+        part('bat-1', 'li-ion-battery', { cells: 1 }),
+        part('res-1', 'resistor', { resistance: 220 }),
+        part('led-1', 'led'),
+      ],
+      [
+        wire('w1', 'bat-1', 'positive', 'res-1', 'pin1'),
+        wire('w2', 'res-1', 'pin2', 'led-1', 'anode'),
+        wire('w3', 'led-1', 'cathode', 'bat-1', 'negative'),
+      ]
     );
     expect(stateOf(rebuilt, 'led-1')?.damaged).toBeUndefined();
   });

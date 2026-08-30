@@ -151,6 +151,13 @@ type ResistiveEdge = {
   fromNet: number;
   toNet: number;
   resistance: number;
+  /**
+   * Volts the part swallows before it conducts at all, measured from `fromNet`
+   * to `toNet`. A diode is not a resistor: it drops roughly a fixed amount and
+   * then gets out of the way, which is exactly why the series resistor is what
+   * decides the current — and why leaving one out burns the part.
+   */
+  forwardDrop?: number;
   componentId: string;
   componentType: CircuitComponent['type'];
   pinIds: [string, string];
@@ -301,10 +308,29 @@ type DamageLimits = {
  * can be measured this way, so only they are listed; everything else is judged
  * on its supply pin instead.
  */
+/**
+ * What a diode looks like once it is conducting: a fixed drop first, and only
+ * then a resistance — which is why the series resistor, not the part, decides
+ * the current.
+ *
+ * The ohm figures are a lumped stand-in for the junction's own slope plus the
+ * source and wiring the circuit does not draw: batteries here are ideal, so
+ * without something in this position a coin cell would deliver amps. Tuned so
+ * the range people actually try behaves like the bench does — a 5 V pin with
+ * no resistor or a very small one kills the LED, 100 ohm and up is safe, and a
+ * 1.5 V cell cannot light it at all.
+ */
+const LED_FORWARD_VOLTAGE = 2;
+/** What a plain indicator LED draws when it is fully lit. */
+const LED_FULL_BRIGHTNESS_CURRENT = 0.02;
+const LED_DYNAMIC_RESISTANCE = 68;
+const DIODE_FORWARD_VOLTAGE = 0.7;
+const DIODE_DYNAMIC_RESISTANCE = 30;
+
 const DAMAGE_LIMITS: Partial<Record<CircuitComponent['type'], DamageLimits>> = {
-  // Current alone decides for LEDs. A pin driving one without a resistor is
-  // sloppy but survivable at 5 V, exactly as on a real board; a battery pushes
-  // far more through the same part and kills it.
+  // Current alone decides for LEDs, and with the part modelled as a diode the
+  // series resistor is what sets it: 220 ohm and up is safe on 5 V, a much
+  // smaller one is not, and nothing at all kills the part either way.
   led: { maxCurrent: 0.03 },
   'rgb-led': { maxCurrent: 0.03 },
   diode: { maxCurrent: 1 },
@@ -376,7 +402,16 @@ function computeComponentDamage(
     if (fromVoltage === undefined || toVoltage === undefined) continue;
 
     const volts = Math.abs(fromVoltage - toVoltage);
-    const amps = volts / Math.max(edge.resistance, 0.0001);
+    const forwardDrop = edge.forwardDrop ?? 0;
+    // A diode passes current one way only, and only once its own drop is paid
+    // for. Reading the bare voltage instead would burn a properly limited LED
+    // (its whole 2 V across a few ohms) and a reversed one (which conducts
+    // nothing at all), so the direction and the drop both have to count.
+    const driving =
+      forwardDrop > 0
+        ? Math.max(0, fromVoltage - toVoltage - forwardDrop)
+        : volts;
+    const amps = driving / Math.max(edge.resistance, 0.0001);
     const watts = volts * amps;
 
     if (limits.maxCurrent !== undefined && amps > limits.maxCurrent) {
@@ -487,6 +522,10 @@ const BATTERY_TYPES = new Set<CircuitComponent['type']>([
 const MIN_LOOP_INTERVAL_MS = 4;
 
 let activeStop: (() => void) | null = null;
+/** Swaps a changed circuit into the running sketch; null when nothing runs. */
+let activeCircuitUpdate:
+  | ((components: CircuitComponent[], wires: Wire[], boardPins: Pin[]) => void)
+  | null = null;
 const SUPPORTED_RUNTIME_BUILTINS = new Set([
   'F',
   'STRING',
@@ -3285,6 +3324,7 @@ function computeLedStates(
   damaged: Map<string, DamageRecord>,
   measurementConnectivity: Connectivity,
   measurementVoltages: Map<number, number>,
+  measurementEdges: ResistiveEdge[],
   logicHighVoltage: number
 ): void {
   /**
@@ -3318,8 +3358,23 @@ function computeLedStates(
     const toVoltage = measurementVoltages.get(toNet);
     if (fromVoltage === undefined || toVoltage === undefined) return 0;
 
-    const supply = Math.max(logicHighVoltage, 0.001);
-    return clamp(((fromVoltage - toVoltage) / supply) * 255, 0, 255);
+    // Brightness from current, not from the voltage across the part. A diode
+    // solved as a linear branch keeps showing its forward drop even when no
+    // current flows at all — a chain with no path to ground, or an LED wired
+    // backwards — and reading that voltage as light lit them both.
+    const edge = measurementEdges.find(
+      (item) =>
+        item.componentId === componentId &&
+        item.pinIds[0] === fromPin &&
+        item.pinIds[1] === toPin
+    );
+    if (!edge) return 0;
+
+    const driving = fromVoltage - toVoltage - (edge.forwardDrop ?? 0);
+    if (driving <= 0) return 0;
+
+    const amps = driving / Math.max(edge.resistance, 0.0001);
+    return clamp((amps / LED_FULL_BRIGHTNESS_CURRENT) * 255, 0, 255);
   };
 
   for (const led of connectivity.components.filter((component) => component.type === 'led')) {
@@ -3515,7 +3570,8 @@ function addResistiveEdge(
   component: CircuitComponent,
   fromPinId: string,
   toPinId: string,
-  resistance: number
+  resistance: number,
+  forwardDrop?: number
 ): void {
   const fromNet = getEndpointNet(connectivity, component.id, fromPinId);
   const toNet = getEndpointNet(connectivity, component.id, toPinId);
@@ -3534,6 +3590,7 @@ function addResistiveEdge(
     fromNet,
     toNet,
     resistance,
+    forwardDrop,
     componentId: component.id,
     componentType: component.type,
     pinIds: [fromPinId, toPinId],
@@ -3576,16 +3633,46 @@ function buildResistiveEdges(connectivity: Connectivity): ResistiveEdge[] {
         );
         break;
       }
-      case 'led':
-        addResistiveEdge(edges, connectivity, component, 'anode', 'cathode', 180);
+      case 'led': {
+        // A lit LED is a ~2 V drop and very little else. Modelling it as a
+        // plain 180 ohm resistor capped the current at V/180 no matter how the
+        // circuit was built, so no series resistor ever mattered and the part
+        // could not be blown by leaving one out. It can now.
+        const forwardVoltage = getNumericProperty(component, 'forwardVoltage', LED_FORWARD_VOLTAGE);
+        addResistiveEdge(
+          edges,
+          connectivity,
+          component,
+          'anode',
+          'cathode',
+          LED_DYNAMIC_RESISTANCE,
+          forwardVoltage
+        );
         break;
+      }
       case 'rgb-led':
-        addResistiveEdge(edges, connectivity, component, 'red', 'common', 180);
-        addResistiveEdge(edges, connectivity, component, 'green', 'common', 180);
-        addResistiveEdge(edges, connectivity, component, 'blue', 'common', 180);
+        for (const channel of ['red', 'green', 'blue']) {
+          addResistiveEdge(
+            edges,
+            connectivity,
+            component,
+            channel,
+            'common',
+            LED_DYNAMIC_RESISTANCE,
+            LED_FORWARD_VOLTAGE
+          );
+        }
         break;
       case 'diode':
-        addResistiveEdge(edges, connectivity, component, 'anode', 'cathode', 220);
+        addResistiveEdge(
+          edges,
+          connectivity,
+          component,
+          'anode',
+          'cathode',
+          DIODE_DYNAMIC_RESISTANCE,
+          getNumericProperty(component, 'forwardVoltage', DIODE_FORWARD_VOLTAGE)
+        );
         break;
       case 'buzzer':
         addResistiveEdge(edges, connectivity, component, 'positive', 'negative', 32);
@@ -3718,9 +3805,15 @@ function solveMeasurementVoltages(
       const toIndex = unknownIndex.get(edge.toNet);
       const fromVoltage = voltages.get(edge.fromNet);
       const toVoltage = voltages.get(edge.toNet);
+      // A part with a forward drop is a resistor in series with a battery, so
+      // the current through it is (Vfrom - Vto - drop) / R. The conductance
+      // stamps are unchanged; the drop is a constant, and constants belong on
+      // the right-hand side.
+      const dropCurrent = (edge.forwardDrop ?? 0) * conductance;
 
       if (fromIndex !== undefined) {
         matrix[fromIndex][fromIndex] += conductance;
+        vector[fromIndex] += dropCurrent;
         if (toIndex !== undefined) {
           matrix[fromIndex][toIndex] -= conductance;
         } else if (toVoltage !== undefined) {
@@ -3730,6 +3823,7 @@ function solveMeasurementVoltages(
 
       if (toIndex !== undefined) {
         matrix[toIndex][toIndex] += conductance;
+        vector[toIndex] -= dropCurrent;
         if (fromIndex !== undefined) {
           matrix[toIndex][fromIndex] -= conductance;
         } else if (fromVoltage !== undefined) {
@@ -4300,6 +4394,7 @@ function updateActuatorStates(
     damaged,
     measurementConnectivity,
     voltages,
+    resistiveEdges,
     logicHighVoltage
   );
   computeServoStates(connectivity, servoRuntime, netState, callbacks);
@@ -4314,6 +4409,7 @@ function updateActuatorStates(
 export function stopMockArduinoRuntime(): void {
   activeStop?.();
   activeStop = null;
+  activeCircuitUpdate = null;
 }
 
 function parseSketch(code: string): {
@@ -4353,13 +4449,32 @@ export function findSketchCompileError(code: string): CompileError | null {
 export type SketchDiagnosticKind =
   | 'undeclared-variable'
   | 'type-mismatch'
-  | 'unknown-function';
+  | 'unknown-function'
+  | 'unknown-member';
+
+/**
+ * How sure the checker is.
+ *
+ * `error` is reserved for things that cannot compile and that this checker can
+ * prove: calling a member a known class does not have. Those stop the run, the
+ * way the Arduino IDE refuses to build.
+ *
+ * `warning` is everything the checker only suspects — a name it has never seen
+ * could easily belong to a library it does not know, and a sketch that works
+ * must not be held hostage to that.
+ */
+export type SketchDiagnosticSeverity = 'error' | 'warning';
 
 export type SketchDiagnostic = {
   kind: SketchDiagnosticKind;
+  severity: SketchDiagnosticSeverity;
   line: number;
   /** The offending name or assignment, quoted back to the user as-is. */
   detail: string;
+  /** The object the member was read from, for `unknown-member`. */
+  object?: string;
+  /** The nearest real name, when there is an obvious one. */
+  suggestion?: string;
 };
 
 /** C/Arduino words that are never a variable being read. */
@@ -4527,10 +4642,154 @@ function collectDefinedSketchFunctions(code: string): Set<string> {
  * advisory — unlike a syntax error they never block Start, because a
  * false positive here would otherwise make a perfectly good sketch unrunnable.
  */
+/**
+ * What each class the checker knows about can actually be asked to do.
+ *
+ * Deliberately a short list. A member call is only ever reported when the
+ * object's class is one of these — anything from a library the checker has
+ * never heard of is left alone, because guessing there would flag working
+ * sketches. Names keep their real casing so a suggestion can be quoted back.
+ */
+const SKETCH_CLASS_MEMBERS: Record<string, string[]> = {
+  SERIAL: [
+    'begin', 'end', 'available', 'availableForWrite', 'read', 'readBytes',
+    'readBytesUntil', 'readString', 'readStringUntil', 'peek', 'flush', 'print',
+    'println', 'write', 'setTimeout', 'parseInt', 'parseFloat', 'find', 'findUntil',
+  ],
+  STRING: [
+    'length', 'charAt', 'substring', 'indexOf', 'lastIndexOf', 'equals',
+    'equalsIgnoreCase', 'toUpperCase', 'toLowerCase', 'trim', 'toInt', 'toFloat',
+    'toDouble', 'c_str', 'startsWith', 'endsWith', 'replace', 'concat', 'compareTo',
+    'remove', 'reserve', 'setCharAt', 'getBytes',
+  ],
+  SERVO: [
+    'attach', 'attached', 'detach', 'write', 'writeMicroseconds', 'read',
+    'readMicroseconds',
+  ],
+  LIQUIDCRYSTAL: [
+    'begin', 'clear', 'home', 'setCursor', 'print', 'write', 'display', 'noDisplay',
+    'cursor', 'noCursor', 'blink', 'noBlink', 'scrollDisplayLeft', 'scrollDisplayRight',
+    'autoscroll', 'noAutoscroll', 'leftToRight', 'rightToLeft', 'createChar',
+  ],
+  WIRE: [
+    'begin', 'end', 'beginTransmission', 'endTransmission', 'requestFrom', 'write',
+    'read', 'available', 'setClock', 'onReceive', 'onRequest',
+  ],
+  SPI: [
+    'begin', 'end', 'transfer', 'transfer16', 'beginTransaction', 'endTransaction',
+    'setBitOrder', 'setDataMode', 'setClockDivider',
+  ],
+  EEPROM: ['read', 'write', 'update', 'get', 'put', 'length'],
+};
+
+/** Objects the board hands the sketch without it declaring anything. */
+const SKETCH_BUILTIN_OBJECTS: Record<string, string> = {
+  SERIAL: 'SERIAL',
+  SERIAL1: 'SERIAL',
+  SERIAL2: 'SERIAL',
+  SERIAL3: 'SERIAL',
+  WIRE: 'WIRE',
+  SPI: 'SPI',
+  EEPROM: 'EEPROM',
+};
+
+/** Classes that behave like Serial when a sketch makes one of its own. */
+const SKETCH_CLASS_ALIASES: Record<string, string> = {
+  SOFTWARESERIAL: 'SERIAL',
+  HARDWARESERIAL: 'SERIAL',
+};
+
+/**
+ * Which class each object in the sketch belongs to, so a member call can be
+ * checked against the right list. Built from the same `ClassName instanceName`
+ * shape collectDeclaredSketchNames already recognises.
+ */
+function collectSketchInstanceClasses(code: string): Map<string, string> {
+  const classes = new Map<string, string>(Object.entries(SKETCH_BUILTIN_OBJECTS));
+
+  for (const match of code.matchAll(/\b([A-Z][A-Za-z0-9_]*)\s+([A-Za-z_]\w*)\s*[;(=]/g)) {
+    const className = normalizeVariableName(match[1]);
+    if (SKETCH_TYPE_WORDS.has(className)) continue;
+
+    const resolved = SKETCH_CLASS_ALIASES[className] ?? className;
+    if (!SKETCH_CLASS_MEMBERS[resolved]) continue;
+
+    classes.set(normalizeVariableName(match[2]), resolved);
+  }
+
+  // `String greeting = "hi";` declares a String, whose type word does live in
+  // SKETCH_TYPE_WORDS and so is skipped by the loop above.
+  for (const match of code.matchAll(/\bString\s+([A-Za-z_]\w*)\s*[;(=]/g)) {
+    classes.set(normalizeVariableName(match[1]), 'STRING');
+  }
+
+  return classes;
+}
+
+/** Straight Levenshtein distance, enough to tell a typo from a different word. */
+function editDistance(a: string, b: string): number {
+  const cols = b.length + 1;
+  let previous = Array.from({ length: cols }, (_, index) => index);
+
+  for (let row = 1; row <= a.length; row += 1) {
+    const current = [row];
+    for (let col = 1; col < cols; col += 1) {
+      const cost = a[row - 1] === b[col - 1] ? 0 : 1;
+      current[col] = Math.min(
+        previous[col] + 1,
+        current[col - 1] + 1,
+        previous[col - 1] + cost
+      );
+    }
+    previous = current;
+  }
+
+  return previous[cols - 1];
+}
+
+/**
+ * The name the user most likely meant, or nothing.
+ *
+ * A pure case difference wins outright — `Println` against `println` is not a
+ * guess, and mistyped capitals are far and away the most common way an Arduino
+ * sketch fails to build.
+ */
+function closestName(target: string, candidates: string[]): string | undefined {
+  const lower = target.toLowerCase();
+
+  const sameLetters = candidates.find((candidate) => candidate.toLowerCase() === lower);
+  if (sameLetters) return sameLetters;
+
+  const limit = Math.max(2, Math.floor(target.length / 3));
+  let best: { name: string; distance: number } | null = null;
+
+  for (const candidate of candidates) {
+    const distance = editDistance(lower, candidate.toLowerCase());
+    if (distance > limit) continue;
+    if (!best || distance < best.distance) best = { name: candidate, distance };
+  }
+
+  return best?.name;
+}
+
+/**
+ * Whether the sketch is too broken to run.
+ *
+ * Structural damage the parser trips over, plus the findings the checker can
+ * prove — a member a known class does not have will never compile, so pressing
+ * Start on it would only reset the board and die. Suspicions stay out of this:
+ * a name from a library nobody here recognises must not stop a working sketch.
+ */
+export function hasBlockingSketchError(code: string): boolean {
+  if (findSketchCompileError(code)) return true;
+  return findSketchDiagnostics(code).some((diagnostic) => diagnostic.severity === 'error');
+}
+
 export function findSketchDiagnostics(code: string): SketchDiagnostic[] {
   const scanned = blankSketchLiterals(stripRuntimeComments(code));
   const declared = collectDeclaredSketchNames(scanned);
   const definedFunctions = collectDefinedSketchFunctions(scanned);
+  const instanceClasses = collectSketchInstanceClasses(scanned);
   const diagnostics: SketchDiagnostic[] = [];
   const reported = new Set<string>();
 
@@ -4542,9 +4801,36 @@ export function findSketchDiagnostics(code: string): SketchDiagnostic[] {
     const before = scanned.slice(0, start);
     const after = scanned.slice(start + raw.length);
 
-    // A member, or the object one is read from — telling those apart needs a
-    // real symbol table, so neither is judged here.
+    // The object a member is read from. Whether the name itself is known is
+    // settled by the member check below, which knows what class it is.
     if (/^\s*\./.test(after)) continue;
+
+    // A member. Checked only when the object's class is one this file lists —
+    // `Serial.Writeln` is provably wrong, `lora.beginPacket()` is simply
+    // unknown territory and is left alone.
+    const memberOwner = /([A-Za-z_]\w*)\s*(?:\.|->)\s*$/.exec(before);
+    if (memberOwner) {
+      const className = instanceClasses.get(normalizeVariableName(memberOwner[1]));
+      const members = className ? SKETCH_CLASS_MEMBERS[className] : undefined;
+      if (!members) continue;
+
+      if (members.some((member) => member === raw)) continue;
+
+      const memberKey = `${memberOwner[1]}.${raw}`;
+      if (reported.has(memberKey)) continue;
+      reported.add(memberKey);
+
+      diagnostics.push({
+        kind: 'unknown-member',
+        severity: 'error',
+        line: lineNumberAt(scanned, start),
+        detail: raw,
+        object: memberOwner[1],
+        suggestion: closestName(raw, members),
+      });
+      continue;
+    }
+
     if (/[.>]\s*$/.test(before)) continue;
     // `#include <Servo.h>` and friends.
     if (/#\s*\w*\s*[<"]?[\w./]*$/.test(before.slice(-40))) continue;
@@ -4571,6 +4857,7 @@ export function findSketchDiagnostics(code: string): SketchDiagnostic[] {
       reported.add(normalized);
       diagnostics.push({
         kind: 'unknown-function',
+        severity: 'warning',
         line: lineNumberAt(scanned, start),
         detail: raw,
       });
@@ -4593,6 +4880,7 @@ export function findSketchDiagnostics(code: string): SketchDiagnostic[] {
     reported.add(normalized);
     diagnostics.push({
       kind: 'undeclared-variable',
+      severity: 'warning',
       line: lineNumberAt(scanned, start),
       detail: raw,
     });
@@ -4615,12 +4903,14 @@ export function findSketchDiagnostics(code: string): SketchDiagnostic[] {
     if (NUMERIC_TYPE_WORDS.has(type) && isStringLiteral) {
       diagnostics.push({
         kind: 'type-mismatch',
+        severity: 'warning',
         line: lineNumberAt(withLiterals, match.index ?? 0),
         detail: `${match[1]} ${name} = ${value}`,
       });
     } else if (type === 'STRING' && isNumberLiteral) {
       diagnostics.push({
         kind: 'type-mismatch',
+        severity: 'warning',
         line: lineNumberAt(withLiterals, match.index ?? 0),
         detail: `${match[1]} ${name} = ${value}`,
       });
@@ -4644,8 +4934,10 @@ export function startMockArduinoRuntime(
   const servoInstances = extractServoInstances(code);
   const lcdRuntime = extractLcdInstances(code, variables);
   const { setupStatements, loopStatements, loopBody } = parseSketch(code);
-  const connectivity = buildConnectivity(components, wires, boardPins);
-  const measurementConnectivity = buildConnectivity(components, wires, boardPins, {
+  // Rebuilt in place when the circuit is edited mid-run, so turning a
+  // resistor's value up does not throw the sketch back to setup().
+  let connectivity = buildConnectivity(components, wires, boardPins);
+  let measurementConnectivity = buildConnectivity(components, wires, boardPins, {
     bridgeResistors: false,
     bridgePotentiometers: false,
   });
@@ -4748,4 +5040,35 @@ export function startMockArduinoRuntime(
     }
     timers.clear();
   };
+
+  activeCircuitUpdate = (nextComponents, nextWires, nextBoardPins) => {
+    if (cancelled) return;
+
+    connectivity = buildConnectivity(nextComponents, nextWires, nextBoardPins);
+    measurementConnectivity = buildConnectivity(nextComponents, nextWires, nextBoardPins, {
+      bridgeResistors: false,
+      bridgePotentiometers: false,
+    });
+    boardPins = nextBoardPins;
+  };
+}
+
+/**
+ * Hands the running sketch a changed circuit without restarting it.
+ *
+ * Editing a part used to stop and re-launch the runtime, which threw the sketch
+ * back to its first line — so turning a resistor up mid-run reset everything
+ * that had happened. The connectivity is simply rebuilt instead, and the tick
+ * after picks it up. Damage already recorded stays recorded: a part burned out
+ * by the change does not come back because the value moved again.
+ */
+export function updateMockArduinoCircuit(
+  components: CircuitComponent[],
+  wires: Wire[],
+  boardPins: Pin[]
+): boolean {
+  if (!activeCircuitUpdate) return false;
+
+  activeCircuitUpdate(components, wires, boardPins);
+  return true;
 }

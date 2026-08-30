@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { askToSaveChanges } from './SaveChangesDialog';
 import { useCircuitStore } from '../store/circuitStore';
 import { useHardwareStore } from '../store/hardwareStore';
 import { WIRE_COLORS } from '../models/types';
@@ -45,7 +46,10 @@ const Toolbar: React.FC = () => {
 
   // The path of the file this project was last saved to or opened from, so a
   // plain "Save" overwrites it instead of asking where to put it every time.
-  const [currentFilePath, setCurrentFilePath] = useState<string | null>(null);
+  // It lives in the store because the title bar shows the name too.
+  const currentFilePath = useCircuitStore((s) => s.projectFilePath);
+  const markProjectSaved = useCircuitStore((s) => s.markProjectSaved);
+  const projectDirty = useCircuitStore((s) => s.projectDirty);
 
   const notifyInvalidProject = () => {
     window.alert(t(language, 'invalidProjectFile'));
@@ -63,7 +67,7 @@ const Toolbar: React.FC = () => {
         },
         currentFilePath
       );
-      if (savedPath) setCurrentFilePath(savedPath);
+      if (savedPath) markProjectSaved(savedPath);
       return;
     }
 
@@ -96,7 +100,7 @@ const Toolbar: React.FC = () => {
         notifyInvalidProject();
         return;
       }
-      setCurrentFilePath(result.filePath);
+      markProjectSaved(result.filePath);
       return;
     }
 
@@ -128,9 +132,30 @@ const Toolbar: React.FC = () => {
     window.dispatchEvent(new CustomEvent('export-canvas-png'));
   };
 
-  const handleNewProject = () => {
+  const handleNewProject = async () => {
+    // Throwing away unsaved work is the one thing here that cannot be undone
+    // by pressing the button again, so it asks first.
+    if (!(await confirmDiscardingChanges())) return;
     clearProject();
-    setCurrentFilePath(null);
+  };
+
+  /**
+   * Offers to save before something drops the current project.
+   *
+   * Returns false when the user backs out, so the caller can leave everything
+   * where it is.
+   */
+  const confirmDiscardingChanges = async (): Promise<boolean> => {
+    if (!projectDirty) return true;
+
+    const answer = await askToSaveChanges();
+    if (answer === 'cancel') return false;
+    if (answer === 'discard') return true;
+
+    await handleSave();
+    // Saving can be cancelled from the file dialog, in which case the work is
+    // still unsaved and the project must stay put.
+    return !useCircuitStore.getState().projectDirty;
   };
 
   // Ctrl+S / Ctrl+O are handled globally in CircuitCanvas (so they work no

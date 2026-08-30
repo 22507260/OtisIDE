@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { findSketchDiagnostics } from '../mockArduinoRuntime';
+import { findSketchDiagnostics, hasBlockingSketchError } from '../mockArduinoRuntime';
 
 /** The sketch every new project opens with — it must never be flagged. */
 const DEFAULT_SKETCH = `// Arduino sketch
@@ -220,5 +220,122 @@ describe('findSketchDiagnostics — real problems', () => {
     const code = ['void setup() {}', 'void loop() {', '  int x = missingThing;', '}'].join('\n');
     const [first] = findSketchDiagnostics(code);
     expect(first.line).toBe(3);
+  });
+});
+
+describe('member calls on classes the checker knows', () => {
+  const only = (code: string) => {
+    const found = findSketchDiagnostics(code);
+    expect(found).toHaveLength(1);
+    return found[0];
+  };
+
+  it('catches the Serial method that does not exist', () => {
+    // The exact thing the user hit: Writeln is not a member of HardwareSerial,
+    // so the real compiler refuses the sketch and so does this.
+    const found = only(`
+      void setup() { Serial.begin(9600); }
+      void loop() { Serial.Writeln("Led Blink"); }
+    `);
+
+    expect(found.kind).toBe('unknown-member');
+    expect(found.severity).toBe('error');
+    expect(found.object).toBe('Serial');
+    expect(found.detail).toBe('Writeln');
+  });
+
+  it('suggests the member that was meant', () => {
+    const found = only('void setup() { Serial.Println("hi"); }');
+    // A pure difference in capitals is not a guess.
+    expect(found.suggestion).toBe('println');
+  });
+
+  it('reports the line the call is on', () => {
+    const code = [
+      'void setup() {',
+      '  Serial.begin(9600);',
+      '}',
+      'void loop() {',
+      '  Serial.Writeln("x");',
+      '}',
+    ].join('\n');
+
+    expect(only(code).line).toBe(5);
+  });
+
+  it('leaves the real Serial API alone', () => {
+    const code = `
+      void setup() {
+        Serial.begin(9600);
+        Serial.setTimeout(50);
+      }
+      void loop() {
+        Serial.print("a");
+        Serial.println(1);
+        Serial.write(65);
+        if (Serial.available() > 0) { int c = Serial.read(); }
+      }
+    `;
+    expect(findSketchDiagnostics(code)).toEqual([]);
+  });
+
+  it('checks a class the sketch made itself', () => {
+    const good = `
+      Servo myServo;
+      void setup() { myServo.attach(9); }
+      void loop() { myServo.write(90); }
+    `;
+    expect(findSketchDiagnostics(good)).toEqual([]);
+
+    const typo = `
+      Servo myServo;
+      void setup() { myServo.atach(9); }
+      void loop() {}
+    `;
+    const found = only(typo);
+    expect(found.kind).toBe('unknown-member');
+    expect(found.object).toBe('myServo');
+    expect(found.suggestion).toBe('attach');
+  });
+
+  it('says nothing about a library it has never heard of', () => {
+    // Guessing here would flag sketches that build perfectly well.
+    const code = `
+      LoRaClass lora;
+      void setup() { lora.beginPacket(); lora.endPacket(); }
+      void loop() {}
+    `;
+    expect(findSketchDiagnostics(code)).toEqual([]);
+  });
+
+  it('reports one bad member once, however often it is called', () => {
+    const code = `
+      void setup() { Serial.Writeln("a"); }
+      void loop() { Serial.Writeln("b"); }
+    `;
+    expect(findSketchDiagnostics(code)).toHaveLength(1);
+  });
+
+  it('keeps the older findings as warnings', () => {
+    const code = 'void setup() {} void loop() { pinModeXXX(9, OUTPUT); }';
+    const [found] = findSketchDiagnostics(code);
+    expect(found.kind).toBe('unknown-function');
+    expect(found.severity).toBe('warning');
+  });
+});
+
+describe('hasBlockingSketchError', () => {
+  it('stops a sketch with a member that cannot compile', () => {
+    expect(hasBlockingSketchError('void setup() { Serial.Writeln("x"); }')).toBe(true);
+  });
+
+  it('lets a merely suspicious sketch run', () => {
+    // An unknown free function could belong to a library; refusing to run it
+    // would hold a working sketch hostage.
+    expect(hasBlockingSketchError('void setup() {} void loop() { doTheThing(); }')).toBe(false);
+  });
+
+  it('lets the default sketch run', () => {
+    expect(hasBlockingSketchError(DEFAULT_SKETCH)).toBe(false);
   });
 });

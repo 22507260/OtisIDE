@@ -232,6 +232,11 @@ export const CONNECTOR_ORDERS: Partial<Record<ComponentType, number[]>> = {
   diode: [1, 0],
   // The artwork prints "-" next to the first connector and "+" next to the second.
   buzzer: [1, 0],
+  // A TO-92 transistor wears its base on the middle leg. The artwork lays the
+  // three legs out left to right, so the pins are dealt out C-B-E the way a
+  // BC547 is marked rather than in the order they happen to be listed.
+  'transistor-npn': [1, 0, 2],
+  'transistor-pnp': [1, 0, 2],
   // The breakout draws every pad of the sensor and its passives; the header
   // itself is connectors 10 to 16, labelled VIN, 2v8, GND, GPIO, SHDN, SCL
   // and SDA from left to right.
@@ -842,10 +847,13 @@ export function getDefaultPins(type: ComponentType): Pin[] {
       ]);
     case 'transistor-npn':
     case 'transistor-pnp':
+      // Three legs in a row with the base in the middle, as the package has
+      // them. The artwork's own connectors take over in the browser; these are
+      // the fallback, and they say the same thing.
       return withSvgLayout([
-        { id: 'base', name: 'Base', type: 'passive', x: -18, y: 0 },
-        { id: 'collector', name: 'Collector', type: 'passive', x: 10, y: -15 },
-        { id: 'emitter', name: 'Emitter', type: 'passive', x: 10, y: 15 },
+        { id: 'base', name: 'Base', type: 'passive', x: 0, y: 8 },
+        { id: 'collector', name: 'Collector', type: 'passive', x: -9.5, y: 8 },
+        { id: 'emitter', name: 'Emitter', type: 'passive', x: 9.5, y: 8 },
       ]);
     case 'motor-driver':
       return withSvgLayout([

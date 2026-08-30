@@ -38,7 +38,8 @@ import { v4 as uuidv4 } from 'uuid';
 import {
   startMockArduinoRuntime,
   stopMockArduinoRuntime,
-  findSketchCompileError,
+  updateMockArduinoCircuit,
+  hasBlockingSketchError,
 } from '../lib/mockArduinoRuntime';
 
 interface CircuitStore {
@@ -181,6 +182,13 @@ interface CircuitStore {
   // Project
   clearProject: () => void;
   loadProject: (data: unknown) => boolean;
+  /** Where this project lives on disk, once it has been saved or opened. */
+  projectFilePath: string | null;
+  setProjectFilePath: (path: string | null) => void;
+  /** True while there are changes that have not been written to that file. */
+  projectDirty: boolean;
+  /** Called after a save or an open: what is on disk now matches what is here. */
+  markProjectSaved: (path: string | null) => void;
   getProjectData: () => {
     components: CircuitComponent[];
     wires: Wire[];
@@ -577,10 +585,33 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
     }
   };
 
+  /** Restarts the sketch from its first line. For changes to the sketch itself. */
   const syncRuntimeIfRunning = () => {
     if (!get().simulation.running) return;
     stopMockArduinoRuntime();
     startRuntime();
+  };
+
+  /**
+   * Hands the running sketch the edited circuit and lets it carry on.
+   *
+   * Changing a part used to restart the runtime, so nudging a resistor's value
+   * threw the sketch back to setup() and everything it had counted or timed
+   * started over. The circuit is only wiring: the sketch does not need to know
+   * it changed, it just needs to see the new one on its next tick.
+   */
+  const syncCircuitIfRunning = () => {
+    if (!get().simulation.running) return;
+
+    const state = get();
+    const applied = updateMockArduinoCircuit(
+      state.components,
+      state.wires,
+      getControllerBoardPins(state.boardType)
+    );
+
+    // No runtime took it — nothing is actually up, so bring one up.
+    if (!applied) syncRuntimeIfRunning();
   };
 
   const restoreSnapshot = (snapshot: ProjectSnapshot) => {
@@ -729,7 +760,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
       selectedComponentIds: [comp.id],
       toolMode: 'select',
     }));
-    syncRuntimeIfRunning();
+    syncCircuitIfRunning();
   },
 
   removeComponent: (id) => {
@@ -743,7 +774,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
       selectedComponentId: s.selectedComponentId === id ? null : s.selectedComponentId,
       selectedComponentIds: s.selectedComponentIds.filter((selected) => selected !== id),
     }));
-    syncRuntimeIfRunning();
+    syncCircuitIfRunning();
   },
 
   updateComponent: (id, updates, options) => {
@@ -754,7 +785,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
         c.id === id ? { ...c, ...updates } : c
       ),
     }));
-    syncRuntimeIfRunning();
+    syncCircuitIfRunning();
   },
 
   selectComponent: (id) =>
@@ -863,7 +894,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
       toolMode: 'select',
       rightTab: 'properties',
     }));
-    syncRuntimeIfRunning();
+    syncCircuitIfRunning();
 
     return components.length;
   },
@@ -886,7 +917,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
       selectedWireId: null,
       rightTab: 'properties',
     }));
-    syncRuntimeIfRunning();
+    syncCircuitIfRunning();
   },
 
   selectComponents: (ids) =>
@@ -909,7 +940,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
           : c
       ),
     }));
-    syncRuntimeIfRunning();
+    syncCircuitIfRunning();
   },
 
   // Wire actions
@@ -917,7 +948,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
     pushUndoSnapshot();
     const newWire = { ...wire, id: uuidv4() };
     set((s) => ({ wires: [...s.wires, newWire] }));
-    syncRuntimeIfRunning();
+    syncCircuitIfRunning();
   },
 
   updateWirePoints: (id, points) => {
@@ -977,7 +1008,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
         };
       }),
     }));
-    syncRuntimeIfRunning();
+    syncCircuitIfRunning();
   },
 
   setWireColorById: (id, color) => {
@@ -1020,7 +1051,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
       wires: s.wires.filter((w) => w.id !== id),
       selectedWireId: s.selectedWireId === id ? null : s.selectedWireId,
     }));
-    syncRuntimeIfRunning();
+    syncCircuitIfRunning();
   },
 
   selectWire: (id) =>
@@ -1052,7 +1083,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
     // A broken sketch can't run — its error is already visible in the
     // warning banner, so flipping into "running" here would just reset the
     // board state and immediately die. Refuse the click instead.
-    if (findSketchCompileError(get().code)) return;
+    if (hasBlockingSketchError(get().code)) return;
 
     set((s) => {
       stopMockArduinoRuntime();
@@ -1249,6 +1280,11 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
   setAIBaseUrl: (url) => { writeStorage('ai_baseUrl', url); set({ aiBaseUrl: url }); },
 
   // Project
+  projectFilePath: null,
+  setProjectFilePath: (projectFilePath) => set({ projectFilePath }),
+  projectDirty: false,
+  markProjectSaved: (projectFilePath) => set({ projectFilePath, projectDirty: false }),
+
   clearProject: () => {
     if (
       get().components.length > 0 ||
@@ -1280,6 +1316,11 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
         runtimeError: null,
       },
     });
+
+    // A second set, because the subscription that marks the project dirty runs
+    // inside the first one. A fresh project belongs to no file and has nothing
+    // unsaved in it.
+    set({ projectFilePath: null, projectDirty: false });
   },
 
   loadProject: (data) => {
@@ -1307,6 +1348,8 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
         runtimeError: null,
       },
     });
+
+    set({ projectDirty: false });
 
     return true;
   },
@@ -1354,5 +1397,14 @@ useCircuitStore.subscribe((state, previous) => {
     state.boardType !== previous.boardType ||
     state.boardPosition !== previous.boardPosition;
 
-  if (changed) scheduleProjectDraftSave();
+  if (!changed) return;
+
+  scheduleProjectDraftSave();
+
+  // The same edits that are worth writing to the draft are the ones that make
+  // the saved file out of date. Marking it here rather than in every action
+  // means nothing can quietly change the project without saying so.
+  if (!state.projectDirty) {
+    useCircuitStore.setState({ projectDirty: true });
+  }
 });

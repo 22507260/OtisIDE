@@ -92,6 +92,8 @@ const PROBE_IMAGE_WIDTH = 24;
 const PROBE_IMAGE_HEIGHT = 72;
 /** How far the pointer must travel before a click becomes a selection box. */
 const MARQUEE_THRESHOLD = 4;
+/** How near a wire has to be to level before it is pulled straight. */
+const WIRE_STRAIGHTEN_TOLERANCE = 6;
 /** Big enough to read as a bead on the leg, small enough not to hide the pin. */
 const SOLDER_BLOB_RADIUS = 3.6;
 
@@ -681,6 +683,23 @@ function getSketchDiagnosticText(
       name: diagnostic.detail,
       line: diagnostic.line,
     });
+  }
+
+  if (diagnostic.kind === 'unknown-member') {
+    // The suggestion is the useful half of the message, so it gets its own
+    // sentence — but only when the checker actually found a near miss.
+    return diagnostic.suggestion
+      ? t(language, 'circuitErrorUnknownMemberSuggestion', {
+          object: diagnostic.object ?? '',
+          name: diagnostic.detail,
+          line: diagnostic.line,
+          suggestion: diagnostic.suggestion,
+        })
+      : t(language, 'circuitErrorUnknownMember', {
+          object: diagnostic.object ?? '',
+          name: diagnostic.detail,
+          line: diagnostic.line,
+        });
   }
 
   return t(language, 'circuitWarningTypeMismatch', {
@@ -1959,6 +1978,12 @@ const CircuitCanvas: React.FC = () => {
   const [middlePanActive, setMiddlePanActive] = useState(false);
   const [wiringStart, setWiringStart] = useState<{ componentId: string; pinId: string; x: number; y: number } | null>(null);
   const [wiringMouse, setWiringMouse] = useState<{ x: number; y: number } | null>(null);
+  /** The axis the cable has snapped to, so a guide can be drawn along it. */
+  const [wireGuide, setWireGuide] = useState<{
+    axis: 'horizontal' | 'vertical';
+    from: { x: number; y: number };
+    to: { x: number; y: number };
+  } | null>(null);
   /** Bend points placed since the wire was started, as a flat x,y list. */
   const [wiringPath, setWiringPath] = useState<number[]>([]);
   /** Mirror of the wiring state so the keyboard handler can read it. */
@@ -2338,6 +2363,7 @@ const CircuitCanvas: React.FC = () => {
     setWiringStart(null);
     setWiringMouse(null);
     setWiringPath([]);
+    setWireGuide(null);
     setHoveredBreadboardHole(null);
     setContextMenu(null);
   }, []);
@@ -2921,9 +2947,12 @@ const CircuitCanvas: React.FC = () => {
         // Wiring in progress: the click bends the cable here instead of
         // dropping it, the way Tinkercad routes wires.
         if (wiringStart) {
-          const pointer = getWorldPointerPosition();
-          if (pointer) {
-            setWiringPath((current) => [...current, pointer.x, pointer.y]);
+          // Where the preview is drawn, so a bend lands on the straightened
+          // line rather than a pixel off it.
+          const bend = wiringMouse ?? getWorldPointerPosition();
+          if (bend) {
+            setWiringPath((current) => [...current, bend.x, bend.y]);
+            setWireGuide(null);
             return;
           }
         }
@@ -2968,17 +2997,51 @@ const CircuitCanvas: React.FC = () => {
       setHoveredBreadboardHole(hoveredHole);
 
       if (wiringStart && pointer) {
-        setWiringMouse(
-          hoveredHole
-            ? { x: hoveredHole.x, y: hoveredHole.y }
-            : pointer
-        );
+        if (hoveredHole) {
+          // Landing in the right hole beats looking tidy.
+          setWiringMouse({ x: hoveredHole.x, y: hoveredHole.y });
+          setWireGuide(null);
+          return;
+        }
+
+        // Where this segment starts: the last bend placed, or the pin the
+        // cable came from.
+        const anchor =
+          wiringPath.length >= 2
+            ? { x: wiringPath[wiringPath.length - 2], y: wiringPath[wiringPath.length - 1] }
+            : { x: wiringStart.x, y: wiringStart.y };
+
+        const offY = Math.abs(pointer.y - anchor.y);
+        const offX = Math.abs(pointer.x - anchor.x);
+
+        if (offY <= WIRE_STRAIGHTEN_TOLERANCE && offY <= offX) {
+          const snapped = { x: pointer.x, y: anchor.y };
+          setWiringMouse(snapped);
+          setWireGuide({ axis: 'horizontal', from: anchor, to: snapped });
+          return;
+        }
+
+        if (offX <= WIRE_STRAIGHTEN_TOLERANCE) {
+          const snapped = { x: anchor.x, y: pointer.y };
+          setWiringMouse(snapped);
+          setWireGuide({ axis: 'vertical', from: anchor, to: snapped });
+          return;
+        }
+
+        setWiringMouse(pointer);
+        setWireGuide(null);
       }
       return;
     }
 
     setHoveredBreadboardHole(null);
-  }, [toolMode, wiringStart, getWorldPointerPosition, resolveBreadboardHoleAtPointer]);
+  }, [
+    toolMode,
+    wiringStart,
+    wiringPath,
+    getWorldPointerPosition,
+    resolveBreadboardHoleAtPointer,
+  ]);
 
   const handleWireBendDrag = useCallback(
     (wireId: string, pointIndex: number, x: number, y: number) => {
@@ -4002,6 +4065,34 @@ const CircuitCanvas: React.FC = () => {
             ];
             return (
               <Group listening={false}>
+                {/* The line that says "this run is level" — the same cue
+                    Tinkercad gives, drawn along the axis the cable snapped to
+                    and stretched a little past both ends so it reads as a
+                    guide rather than as part of the wire. */}
+                {wireGuide && (
+                  <Line
+                    points={
+                      wireGuide.axis === 'horizontal'
+                        ? [
+                            Math.min(wireGuide.from.x, wireGuide.to.x) - 26,
+                            wireGuide.from.y,
+                            Math.max(wireGuide.from.x, wireGuide.to.x) + 26,
+                            wireGuide.from.y,
+                          ]
+                        : [
+                            wireGuide.from.x,
+                            Math.min(wireGuide.from.y, wireGuide.to.y) - 26,
+                            wireGuide.from.x,
+                            Math.max(wireGuide.from.y, wireGuide.to.y) + 26,
+                          ]
+                    }
+                    stroke="#4aa3ff"
+                    strokeWidth={1}
+                    dash={[5, 4]}
+                    opacity={0.9}
+                    listening={false}
+                  />
+                )}
                 <Line points={previewPoints} stroke="#000" strokeWidth={4} opacity={0.15} lineCap="round" lineJoin="miter" listening={false} />
                 <Line points={previewPoints} stroke={wireColor} strokeWidth={2.5} dash={[6, 4]} lineCap="round" lineJoin="miter" listening={false} />
                 {/* Bends placed so far */}
@@ -4238,6 +4329,30 @@ const CircuitCanvas: React.FC = () => {
               const redRotation =
                 (Math.atan2(redTip.y - redAnchor.y, redTip.x - redAnchor.x) * 180) / Math.PI - 90;
 
+              /**
+               * Where the lead actually joins the probe: the boot at the back of
+               * the handle, not the needle. The probe artwork is drawn tip-first
+               * at the touch point and turned to face it, so its back sits one
+               * probe-length up that same line.
+               */
+              const cableEnd = (
+                tip: { x: number; y: number },
+                anchor: { x: number; y: number }
+              ) => {
+                const dx = tip.x - anchor.x;
+                const dy = tip.y - anchor.y;
+                const length = Math.hypot(dx, dy);
+                if (length < 1) return tip;
+
+                // A docked probe sits close to the meter; the lead cannot reach
+                // further back than the meter itself.
+                const back = Math.min(PROBE_IMAGE_HEIGHT - 4, length * 0.6);
+                return { x: tip.x - (dx / length) * back, y: tip.y - (dy / length) * back };
+              };
+
+              const blackCable = cableEnd(blackTip, blackAnchor);
+              const redCable = cableEnd(redTip, redAnchor);
+
               return (
                 <Group key={`${comp.id}-multimeter-probes`}>
                   <Line
@@ -4246,10 +4361,10 @@ const CircuitCanvas: React.FC = () => {
                       blackAnchor.y,
                       blackAnchor.x - 26,
                       blackAnchor.y + 12,
-                      blackTip.x - 12,
-                      blackTip.y - 28,
-                      blackTip.x,
-                      blackTip.y,
+                      blackCable.x - 12,
+                      blackCable.y - 28,
+                      blackCable.x,
+                      blackCable.y,
                     ]}
                     stroke="#05070a"
                     strokeWidth={4.4}
@@ -4264,10 +4379,10 @@ const CircuitCanvas: React.FC = () => {
                       blackAnchor.y,
                       blackAnchor.x - 24,
                       blackAnchor.y + 10,
-                      blackTip.x - 10,
-                      blackTip.y - 30,
-                      blackTip.x,
-                      blackTip.y,
+                      blackCable.x - 10,
+                      blackCable.y - 30,
+                      blackCable.x,
+                      blackCable.y,
                     ]}
                     stroke="#10161d"
                     strokeWidth={2.6}
@@ -4281,10 +4396,10 @@ const CircuitCanvas: React.FC = () => {
                       redAnchor.y,
                       redAnchor.x + (mode === 'current' ? -18 : 18),
                       redAnchor.y + 10,
-                      redTip.x + 10,
-                      redTip.y - 30,
-                      redTip.x,
-                      redTip.y,
+                      redCable.x + 10,
+                      redCable.y - 30,
+                      redCable.x,
+                      redCable.y,
                     ]}
                     stroke="#140406"
                     strokeWidth={4.4}
@@ -4299,10 +4414,10 @@ const CircuitCanvas: React.FC = () => {
                       redAnchor.y,
                       redAnchor.x + (mode === 'current' ? -16 : 16),
                       redAnchor.y + 8,
-                      redTip.x + 8,
-                      redTip.y - 30,
-                      redTip.x,
-                      redTip.y,
+                      redCable.x + 8,
+                      redCable.y - 30,
+                      redCable.x,
+                      redCable.y,
                     ]}
                     stroke="#c94457"
                     strokeWidth={2.6}

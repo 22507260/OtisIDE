@@ -3,16 +3,22 @@ import { useCircuitStore } from '../store/circuitStore';
 import { useUpdateStore } from '../store/updateStore';
 import { getControllerBoardDefinition } from '../models/arduinoUno';
 import { t } from '../lib/i18n';
+import { askToSaveChanges } from './SaveChangesDialog';
 
 const DesktopTitleBar: React.FC = () => {
   const language = useCircuitStore((s) => s.language);
   const boardType = useCircuitStore((s) => s.boardType);
   const simulationRunning = useCircuitStore((s) => s.simulation.running);
+  const projectFilePath = useCircuitStore((s) => s.projectFilePath);
+  const projectDirty = useCircuitStore((s) => s.projectDirty);
   const updateSupported = useUpdateStore((s) => s.supported);
   const appVersion = useUpdateStore((s) => s.appVersion);
   const updateState = useUpdateStore((s) => s.status?.state);
   const checkNow = useUpdateStore((s) => s.checkNow);
   const isCustomWindowChrome = Boolean(window.electronAPI?.isCustomWindowChrome);
+  const projectName = projectFilePath
+    ? (projectFilePath.split(/[\\/]/).pop() ?? '').replace(/\.json$/i, '')
+    : null;
   const board = getControllerBoardDefinition(boardType);
   const isChecking = updateState === 'checking';
   const hasUpdate =
@@ -28,6 +34,22 @@ const DesktopTitleBar: React.FC = () => {
     void window.electronAPI?.toggleMaximizeWindow?.();
   };
 
+  /** Closing is the last chance to keep unsaved work, so it asks first. */
+  const handleClose = async () => {
+    if (projectDirty) {
+      const choice = await askToSaveChanges();
+      if (choice === 'cancel') return;
+      if (choice === 'save') {
+        window.dispatchEvent(new CustomEvent('trigger-save'));
+        // The save runs through the file dialog, so the window stays open and
+        // the user closes it again once the writing is done.
+        return;
+      }
+    }
+
+    void window.electronAPI?.closeWindow?.();
+  };
+
   return (
     <div className="desktop-titlebar">
       <div
@@ -38,7 +60,15 @@ const DesktopTitleBar: React.FC = () => {
           <div className="desktop-brand-mark" aria-hidden="true" />
           <div className="desktop-brand-copy">
             <strong>{t(language, 'appTitle')}</strong>
-            <span>{language === 'tr' ? 'Masaüstü çalışma alanı' : 'Desktop workspace'}</span>
+            <span>
+              {/* The saved file's name, so it is clear which project is open —
+                  with a dot in front of it while there is unsaved work. */}
+              {projectName
+                ? `${projectDirty ? '● ' : ''}${projectName}`
+                : language === 'tr'
+                  ? 'Masaüstü çalışma alanı'
+                  : 'Desktop workspace'}
+            </span>
           </div>
         </div>
 
@@ -100,7 +130,7 @@ const DesktopTitleBar: React.FC = () => {
         <button
           className="desktop-window-btn close"
           type="button"
-          onClick={() => void window.electronAPI?.closeWindow?.()}
+          onClick={() => void handleClose()}
           title={language === 'tr' ? 'Kapat' : 'Close'}
           aria-label={language === 'tr' ? 'Kapat' : 'Close'}
         >
