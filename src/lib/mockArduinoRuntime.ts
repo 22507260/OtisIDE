@@ -3276,19 +3276,53 @@ function computeLedStates(
   connectivity: Connectivity,
   netState: NetState,
   callbacks: RuntimeCallbacks,
-  damaged: Map<string, DamageRecord>
+  damaged: Map<string, DamageRecord>,
+  measurementConnectivity: Connectivity,
+  measurementVoltages: Map<number, number>,
+  logicHighVoltage: number
 ): void {
+  /**
+   * How hard the LED is driven, as a 0-255 level.
+   *
+   * A net only carries a level when something drives it directly — a board pin,
+   * a supply rail, a battery. That covers an LED wired straight between a pin
+   * and ground, and it is still the answer wherever it applies.
+   *
+   * It says nothing about a node in the middle of a chain, though: put two LEDs
+   * in series and the junction between them is driven by nobody, so both ends
+   * read null and both LEDs stayed dark however the circuit was wired. The
+   * solved node voltages do know that node, because the resistive network is
+   * solved across the whole thing — so they answer when levels cannot. The nets
+   * are numbered per graph, so those voltages have to be looked up in the graph
+   * they were solved in.
+   */
+  const levelAcross = (componentId: string, fromPin: string, toPin: string): number => {
+    const fromLevel = getNetLevel(netState, getEndpointNet(connectivity, componentId, fromPin));
+    const toLevel = getNetLevel(netState, getEndpointNet(connectivity, componentId, toPin));
+
+    if (fromLevel !== null && toLevel !== null) {
+      return clamp(fromLevel - toLevel, 0, 255);
+    }
+
+    const fromNet = getEndpointNet(measurementConnectivity, componentId, fromPin);
+    const toNet = getEndpointNet(measurementConnectivity, componentId, toPin);
+    if (fromNet === undefined || toNet === undefined) return 0;
+
+    const fromVoltage = measurementVoltages.get(fromNet);
+    const toVoltage = measurementVoltages.get(toNet);
+    if (fromVoltage === undefined || toVoltage === undefined) return 0;
+
+    const supply = Math.max(logicHighVoltage, 0.001);
+    return clamp(((fromVoltage - toVoltage) / supply) * 255, 0, 255);
+  };
+
   for (const led of connectivity.components.filter((component) => component.type === 'led')) {
     if (damaged.has(led.id)) {
       callbacks.setLedState(led.id, false, 0);
       continue;
     }
 
-    const anodeLevel = getNetLevel(netState, getEndpointNet(connectivity, led.id, 'anode'));
-    const cathodeLevel = getNetLevel(netState, getEndpointNet(connectivity, led.id, 'cathode'));
-    const delta =
-      anodeLevel === null || cathodeLevel === null ? 0 : clamp(anodeLevel - cathodeLevel, 0, 255);
-    const brightness = delta / 255;
+    const brightness = levelAcross(led.id, 'anode', 'cathode') / 255;
 
     callbacks.setLedState(led.id, brightness > 0.05, brightness);
   }
@@ -4237,11 +4271,10 @@ function updateActuatorStates(
 
   const netState = buildBaseNetState(connectivity, pinValues, boardPins, logicHighVoltage);
   computeDriverStates(connectivity, netState, callbacks, damaged);
-  computeLedStates(connectivity, netState, callbacks, damaged);
-  computeServoStates(connectivity, servoRuntime, netState, callbacks);
-  computeLcdStates(connectivity, lcdRuntime, netState, callbacks);
-  computeDcMotorStates(connectivity, netState, callbacks, damaged);
 
+  // Solved before the parts are lit, not after: an LED in the middle of a chain
+  // sits on a node no pin drives, and these voltages are the only thing that
+  // knows what is across it.
   const measurementNetState = buildBaseNetState(
     measurementConnectivity,
     pinValues,
@@ -4253,6 +4286,20 @@ function updateActuatorStates(
     measurementConnectivity,
     measurementNetState
   );
+
+  computeLedStates(
+    connectivity,
+    netState,
+    callbacks,
+    damaged,
+    measurementConnectivity,
+    voltages,
+    logicHighVoltage
+  );
+  computeServoStates(connectivity, servoRuntime, netState, callbacks);
+  computeLcdStates(connectivity, lcdRuntime, netState, callbacks);
+  computeDcMotorStates(connectivity, netState, callbacks, damaged);
+
   computeComponentDamage(measurementConnectivity, voltages, resistiveEdges, damaged, callbacks);
   computeProbeDrivenMultimeterStates(measurementConnectivity, voltages, resistiveEdges, callbacks);
   computeOscilloscopeStates(measurementConnectivity, voltages, callbacks, clockMs);

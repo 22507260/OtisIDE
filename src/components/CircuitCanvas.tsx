@@ -65,7 +65,7 @@ import {
   transformPoint,
   type ComponentTransform,
 } from '../lib/componentTransform';
-import { isTextEntryTarget } from '../lib/keyboardTarget';
+import { isCircuitScreenTarget, isTextEntryTarget } from '../lib/keyboardTarget';
 import { getSolderedPinKeys, pinKey } from '../lib/solderedPins';
 import multimeterProbeRedSvg from '../assets/components/multimeter-probe-red.svg';
 import multimeterProbeBlackSvg from '../assets/components/multimeter-probe-black.svg';
@@ -91,6 +91,15 @@ const PROBE_IMAGE_HEIGHT = 72;
 const MARQUEE_THRESHOLD = 4;
 /** Big enough to read as a bead on the leg, small enough not to hide the pin. */
 const SOLDER_BLOB_RADIUS = 3.6;
+
+/**
+ * A pushbutton is held down, not switched. Only the latching kind toggles on a
+ * click; the ordinary momentary one closes while the mouse is down and opens
+ * again the moment it is let go, the way pressing the real part works.
+ */
+function isMomentaryButton(comp: CircuitComponent): boolean {
+  return comp.type === 'button' && String(comp.properties.type ?? 'momentary') === 'momentary';
+}
 
 /** The two corners of a selection box, in world coordinates. */
 type MarqueeRect = { x1: number; y1: number; x2: number; y2: number };
@@ -1998,6 +2007,9 @@ const CircuitCanvas: React.FC = () => {
   /** Set when a marquee has just made a selection, so the click that ends the
    *  same gesture does not narrow it straight back down. */
   const suppressClickRef = useRef(false);
+  /** The momentary button currently held down, so it is released wherever the
+   *  mouse happens to come up — including off the part, or off the window. */
+  const heldButtonRef = useRef<string | null>(null);
 
   /** Legs that a cable reaches or that sit in a breadboard hole — the ones the
    *  selected part is drawn with a solder blob on. */
@@ -2363,6 +2375,10 @@ const CircuitCanvas: React.FC = () => {
       // part while the user was writing code.
       if (isTextEntryTarget(e.target)) return;
 
+      // …and the rest belong to the circuit screen alone. Browsing the palette
+      // or reading the serial monitor should not be able to delete a part.
+      if (!isCircuitScreenTarget(e.target, containerRef.current)) return;
+
       if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'z') {
         e.preventDefault();
         if (useCircuitStore.getState().canUndo()) {
@@ -2380,7 +2396,11 @@ const CircuitCanvas: React.FC = () => {
 
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') {
         e.preventDefault();
-        useCircuitStore.getState().pasteClipboard();
+        // Paste where the user is looking. With the pointer off the canvas
+        // there is no such place, so the copy steps away from the original
+        // instead.
+        const at = pointerInsideRef.current ? worldPointerRef.current() : null;
+        useCircuitStore.getState().pasteClipboard(at ?? undefined);
         clearTransientCanvasState();
         return;
       }
@@ -2512,6 +2532,17 @@ const CircuitCanvas: React.FC = () => {
       y: (pointer.y - stagePos.y) / zoom,
     };
   }, [stagePos, zoom]);
+
+  /** Latest pointer reader, so the window key handler can use it without being
+   *  torn down and rebuilt every time the view is panned or zoomed. */
+  const worldPointerRef = useRef(getWorldPointerPosition);
+  useEffect(() => {
+    worldPointerRef.current = getWorldPointerPosition;
+  }, [getWorldPointerPosition]);
+
+  /** Whether the pointer is over the canvas at all; Konva keeps reporting the
+   *  last position it saw once the mouse has left. */
+  const pointerInsideRef = useRef(false);
 
   const closeContextMenu = useCallback(() => {
     setContextMenu(null);
@@ -2756,8 +2787,9 @@ const CircuitCanvas: React.FC = () => {
     }
 
     if (toolMode === 'select') {
-      // Toggle button press on click during simulation
-      if (comp.type === 'button' && simulation.running) {
+      // A momentary button is pressed and held instead — see the group's
+      // onMouseDown below. Only a latching one flips on a click.
+      if (comp.type === 'button' && !isMomentaryButton(comp)) {
         updateComponentProperty(comp.id, 'pressed', !comp.properties.pressed);
       }
       if (comp.type === 'switch') {
@@ -2868,6 +2900,8 @@ const CircuitCanvas: React.FC = () => {
 
   // Mouse move for wiring preview
   const handleMouseMove = useCallback((_e: Konva.KonvaEventObject<MouseEvent>) => {
+    pointerInsideRef.current = true;
+
     const marqueeStart = marqueeStartRef.current;
     if (marqueeStart) {
       const pointer = getWorldPointerPosition();
@@ -3177,6 +3211,29 @@ const CircuitCanvas: React.FC = () => {
     return () => {
       window.removeEventListener('mouseup', finishMarquee, true);
       window.removeEventListener('blur', cancelMarquee);
+    };
+  }, []);
+
+  // Letting go of a held button. On the window because the mouse is often no
+  // longer over the part by the time it comes up — and a button left stuck down
+  // would keep the circuit closed with nothing on screen to say why.
+  useEffect(() => {
+    const release = () => {
+      const held = heldButtonRef.current;
+      if (!held) return;
+
+      heldButtonRef.current = null;
+      useCircuitStore
+        .getState()
+        .updateComponentProperty(held, 'pressed', false, { recordHistory: false });
+    };
+
+    window.addEventListener('mouseup', release);
+    window.addEventListener('blur', release);
+
+    return () => {
+      window.removeEventListener('mouseup', release);
+      window.removeEventListener('blur', release);
     };
   }, []);
 
@@ -3696,7 +3753,10 @@ const CircuitCanvas: React.FC = () => {
         onClick={handleStageClick}
         onMouseDown={handleStageMouseDown}
         onMouseMove={handleMouseMove}
-        onMouseLeave={() => setHoveredBreadboardHole(null)}
+        onMouseLeave={() => {
+          pointerInsideRef.current = false;
+          setHoveredBreadboardHole(null);
+        }}
         onContextMenu={(e) => {
           const targetName = e.target.name();
           const clickedOnEmpty = e.target === e.target.getStage() || targetName === 'background';
@@ -4002,6 +4062,17 @@ const CircuitCanvas: React.FC = () => {
               scaleX={comp.scale ?? 1}
               scaleY={comp.scale ?? 1}
               draggable={toolMode === 'select' && !middlePanActive}
+              onMouseDown={(e) => {
+                // Pressing the part is the whole gesture for a momentary
+                // button: it closes here and opens again on the window's mouse
+                // up. Deliberately not cancelling the bubble — the stage still
+                // needs this event to clear its own click suppression.
+                if (e.evt.button !== 0 || toolMode !== 'select') return;
+                if (!isMomentaryButton(comp)) return;
+
+                heldButtonRef.current = comp.id;
+                updateComponentProperty(comp.id, 'pressed', true, { recordHistory: false });
+              }}
               onDragStart={(e) => handleDragStart(comp, e)}
               onDragMove={(e) => handleDragMove(comp, e)}
               onDragEnd={(e) => handleDragEnd(comp, e)}
@@ -4033,13 +4104,12 @@ const CircuitCanvas: React.FC = () => {
 
               {/* Solder blobs on the legs that actually took hold. Whether a
                   part is truly connected is the one thing a flat drawing hides,
-                  so selecting it in the select tool shows exactly which of its
-                  legs a cable reaches or a breadboard hole holds. Drawn inside
-                  the part's own group, so they follow it through rotation,
-                  mirroring and scale. */}
-              {toolMode === 'select' &&
-                (selectedComponentIds.includes(comp.id) || selectedComponentId === comp.id) &&
-                getMirroredPins(comp.pins, comp.flipX)
+                  so every leg a cable reaches or a breadboard hole holds wears
+                  one, all the time — the question is worth answering at a
+                  glance, not only for whatever happens to be selected. Drawn
+                  inside the part's own group, so they follow it through
+                  rotation, mirroring and scale. */}
+              {getMirroredPins(comp.pins, comp.flipX)
                   .filter((pin) => solderedPinKeys.has(pinKey(comp.id, pin.id)))
                   .map((pin) => (
                     <Circle

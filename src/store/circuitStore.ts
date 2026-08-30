@@ -108,8 +108,12 @@ interface CircuitStore {
   selectComponents: (ids: string[]) => void;
   /** Puts the selected parts, and the wires between them, on the clipboard. */
   copySelection: () => number;
-  /** Drops a copy on the canvas, offset so it does not hide the original. */
-  pasteClipboard: () => number;
+  /**
+   * Drops a copy on the canvas. With a point, the copy is centred there — the
+   * pointer is where the user is looking. Without one it steps away from the
+   * original so it does not hide it.
+   */
+  pasteClipboard: (at?: { x: number; y: number }) => number;
   canPaste: () => boolean;
   /** Right-click "Duplicate": clones one part without touching the clipboard. */
   duplicateComponent: (id: string) => void;
@@ -761,12 +765,33 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
 
   canPaste: () => clipboard !== null && clipboard.components.length > 0,
 
-  pasteClipboard: () => {
+  pasteClipboard: (at) => {
     if (!clipboard || clipboard.components.length === 0) return 0;
 
     pushUndoSnapshot();
-    pastesSinceCopy += 1;
-    const offset = PASTE_OFFSET * pastesSinceCopy;
+
+    // Everything on the clipboard moves by one shared vector, so the copy keeps
+    // the shape of what was copied — the parts stay where they were relative to
+    // each other and the wires between them still line up.
+    let shiftX: number;
+    let shiftY: number;
+
+    if (at) {
+      const xs = clipboard.components.map((component) => component.x);
+      const ys = clipboard.components.map((component) => component.y);
+      const centreX = (Math.min(...xs) + Math.max(...xs)) / 2;
+      const centreY = (Math.min(...ys) + Math.max(...ys)) / 2;
+
+      shiftX = at.x - centreX;
+      shiftY = at.y - centreY;
+      // Pasting at the pointer already puts each copy somewhere of its own, so
+      // the staircase starts over rather than drifting further every time.
+      pastesSinceCopy = 0;
+    } else {
+      pastesSinceCopy += 1;
+      shiftX = PASTE_OFFSET * pastesSinceCopy;
+      shiftY = shiftX;
+    }
 
     const idByOriginal = new Map<string, string>();
     const components = clipboard.components.map((component) => {
@@ -775,8 +800,8 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
       return {
         ...component,
         id,
-        x: component.x + offset,
-        y: component.y + offset,
+        x: component.x + shiftX,
+        y: component.y + shiftY,
         pins: component.pins.map((pin) => ({ ...pin })),
         properties: { ...component.properties },
       };
@@ -787,7 +812,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
       id: uuidv4(),
       startComponentId: idByOriginal.get(item.startComponentId) ?? item.startComponentId,
       endComponentId: idByOriginal.get(item.endComponentId) ?? item.endComponentId,
-      points: item.points.map((value, index) => value + (index % 2 === 0 ? offset : offset)),
+      points: item.points.map((value, index) => value + (index % 2 === 0 ? shiftX : shiftY)),
     }));
 
     const pastedIds = components.map((component) => component.id);

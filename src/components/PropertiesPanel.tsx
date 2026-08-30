@@ -40,71 +40,53 @@ import {
 const UNIT_AWARE_RESISTANCE_TYPES = new Set(['resistor', 'potentiometer']);
 
 /**
- * Resistance with the unit it is entered in.
+ * The resistance value, written in whichever unit is picked on the row below.
  *
- * The stored value stays in ohms, so switching kΩ to Ω only changes how the
- * same resistor is written — 4700 becomes 4.7 and the circuit does not move.
+ * The stored value stays in ohms, so choosing kΩ only changes how the same
+ * resistor is written — 4700 becomes 4.7 and the circuit does not move.
  *
  * The number is held as text while it is being typed. A number input reports an
  * empty value for a half-written decimal like "4.", which would collapse the
  * resistance to zero mid-keystroke — unavoidable once the natural way to write
  * a resistor is 4.7k rather than 4700.
+ *
+ * The unit sits on its own row rather than beside this field: the panel gives
+ * every value a fixed 128px control, and squeezing a second one in next to it
+ * pushed the whole properties column out of shape.
  */
 const ResistanceRow: React.FC<{
   label: string;
   ohms: number;
   unit: ResistanceUnit;
   onCommit: (ohms: number) => void;
-  onUnitChange: (unit: ResistanceUnit) => void;
   onFocus: () => void;
-}> = ({ label, ohms, unit, onCommit, onUnitChange, onFocus }) => {
+}> = ({ label, ohms, unit, onCommit, onFocus }) => {
   const [draft, setDraft] = React.useState<string | null>(null);
   const shown = draft ?? String(fromOhms(ohms, unit));
 
   return (
     <div className="property-row">
       <span className="property-label">{label}</span>
-      <span style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-        <input
-          className="property-input"
-          type="text"
-          inputMode="decimal"
-          value={shown}
-          style={{ minWidth: 0 }}
-          onFocus={() => {
-            onFocus();
-            setDraft(String(fromOhms(ohms, unit)));
-          }}
-          onChange={(event) => {
-            const next = event.target.value;
-            setDraft(next);
+      <input
+        className="property-input"
+        type="text"
+        inputMode="decimal"
+        value={shown}
+        onFocus={() => {
+          onFocus();
+          setDraft(String(fromOhms(ohms, unit)));
+        }}
+        onChange={(event) => {
+          const next = event.target.value;
+          setDraft(next);
 
-            const parsed = Number(next);
-            if (next.trim() !== '' && Number.isFinite(parsed)) {
-              onCommit(toOhms(parsed, unit));
-            }
-          }}
-          onBlur={() => setDraft(null)}
-        />
-        <select
-          className="property-select"
-          value={unit}
-          style={{ width: 'auto', flex: '0 0 auto' }}
-          onChange={(event) => {
-            // The resistance itself is untouched: only the way it is written
-            // changes, so the draft has to be dropped or it would keep showing
-            // the number in the unit that is no longer selected.
-            setDraft(null);
-            onUnitChange(normalizeResistanceUnit(event.target.value));
-          }}
-        >
-          {RESISTANCE_UNITS.map((option) => (
-            <option key={option} value={option}>
-              {getResistanceUnitSymbol(option)}
-            </option>
-          ))}
-        </select>
-      </span>
+          const parsed = Number(next);
+          if (next.trim() !== '' && Number.isFinite(parsed)) {
+            onCommit(toOhms(parsed, unit));
+          }
+        }}
+        onBlur={() => setDraft(null)}
+      />
     </div>
   );
 };
@@ -288,6 +270,9 @@ const PropertiesPanel: React.FC = () => {
       : selectedComp;
 
   const unitAwareResistance = UNIT_AWARE_RESISTANCE_TYPES.has(displayComp.type);
+  const heldButtonState =
+    displayComp.type === 'button' &&
+    String(displayComp.properties.type ?? 'momentary') === 'momentary';
   const resistanceOhms = Number(displayComp.properties.resistance);
   // Older projects were saved before the unit could be chosen, so a missing one
   // falls back to whatever writes the stored value most readably.
@@ -462,8 +447,6 @@ const PropertiesPanel: React.FC = () => {
           .filter(([key]) =>
             displayComp.type === 'multimeter' ? !multimeterHiddenKeys.has(key) : true
           )
-          // The unit is shown beside the resistance instead of on a row of its own.
-          .filter(([key]) => !(unitAwareResistance && key === 'unit'))
           .map(([key, value]) => {
           if (unitAwareResistance && key === 'resistance') {
             return (
@@ -477,9 +460,6 @@ const PropertiesPanel: React.FC = () => {
                   updateComponentProperty(selectedComp.id, 'resistance', ohms, {
                     recordHistory: false,
                   })
-                }
-                onUnitChange={(unit) =>
-                  updateComponentProperty(selectedComp.id, 'unit', unit)
                 }
               />
             );
@@ -517,6 +497,12 @@ const PropertiesPanel: React.FC = () => {
                   ? getOscilloscopeStatusLabel(language, String(value))
                   : String(value)}
               </span>
+            ) : heldButtonState && key === 'pressed' ? (
+              // A momentary button is pressed on the canvas and springs back,
+              // so what it reads here is live state rather than a setting.
+              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                {t(language, value === true ? 'buttonPressed' : 'buttonReleased')}
+              </span>
             ) : typeof value === 'boolean' ? (
               <input
                 type="checkbox"
@@ -550,6 +536,26 @@ const PropertiesPanel: React.FC = () => {
               >
                 <option value="cathode">{t(language, 'commonCathode')}</option>
                 <option value="anode">{t(language, 'commonAnode')}</option>
+              </select>
+            ) : unitAwareResistance && key === 'unit' ? (
+              <select
+                className="property-select"
+                value={resistanceUnit}
+                onChange={(event) =>
+                  // Only the way the resistance is written changes here; the
+                  // stored ohms stay exactly as they are.
+                  updateComponentProperty(
+                    selectedComp.id,
+                    key,
+                    normalizeResistanceUnit(event.target.value)
+                  )
+                }
+              >
+                {RESISTANCE_UNITS.map((option) => (
+                  <option key={option} value={option}>
+                    {getResistanceUnitSymbol(option)}
+                  </option>
+                ))}
               </select>
             ) : key === 'unit' ? (
               <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>

@@ -100,8 +100,15 @@ type Recording = {
   pinStates: Array<Record<string, number>>;
   serial: string[];
   led: Array<{ on: boolean; brightness: number }>;
+  ledById: Array<{ id: string; on: boolean; brightness: number }>;
   componentStates: ComponentStateEntry[];
 };
+
+/** The brightest this LED ever reported, so a blinking sketch still counts. */
+const peakBrightness = (recording: Recording, id: string): number =>
+  recording.ledById
+    .filter((entry) => entry.id === id)
+    .reduce((peak, entry) => Math.max(peak, entry.brightness), 0);
 
 /** Every value the runtime published for one component, oldest first. */
 const statesOf = (recording: Recording, id: string) =>
@@ -114,13 +121,17 @@ function run(code: string, components: CircuitComponent[], wires: Wire[], ms = 2
       pinStates: [],
       serial: [],
       led: [],
+      ledById: [],
       componentStates: [],
     };
 
     startMockArduinoRuntime(code, components, wires, BOARD_PINS, 5, {
       addSerialOutput: (text) => recording.serial.push(text),
       pushOscilloscopeSample: () => {},
-      setLedState: (_id, on, brightness) => recording.led.push({ on, brightness }),
+      setLedState: (id, on, brightness) => {
+        recording.led.push({ on, brightness });
+        recording.ledById.push({ id, on, brightness });
+      },
       clearLedStates: () => {},
       setComponentState: (id, state) => recording.componentStates.push({ id, state: { ...state } }),
       clearComponentStates: () => {},
@@ -283,6 +294,77 @@ const btsSketch = (rpwm: string, lpwm: string, enable = 'HIGH') => `
 
 const motorSpeeds = (recording: Recording) =>
   statesOf(recording, 'motor-1').map((state) => Number(state.rpm));
+
+describe('LEDs in series', () => {
+  const secondLed = (): CircuitComponent => ({
+    ...led(),
+    id: 'led-2',
+    x: 260,
+  });
+
+  const DRIVE_D9 = `
+void setup() {
+  pinMode(9, OUTPUT);
+}
+
+void loop() {
+  digitalWrite(9, HIGH);
+  delay(50);
+}
+`;
+
+  it('lights both of two LEDs chained through one resistor', async () => {
+    // D9 -> 220R -> LED1 -> LED2 -> GND. The node between the two LEDs is
+    // driven by nothing, which is exactly the case that used to leave the pair
+    // dark: with no level on that net there was nothing to take a difference
+    // from, so both ends read as unknown.
+    const recording = await run(
+      DRIVE_D9,
+      [resistor(), led(), secondLed()],
+      [
+        wire('w1', ARDUINO_COMPONENT_ID, 'D9', 'resistor-1', 'pin1'),
+        wire('w2', 'resistor-1', 'pin2', 'led-1', 'anode'),
+        wire('w3', 'led-1', 'cathode', 'led-2', 'anode'),
+        wire('w4', 'led-2', 'cathode', ARDUINO_COMPONENT_ID, 'GND'),
+      ],
+      900
+    );
+
+    expect(peakBrightness(recording, 'led-1')).toBeGreaterThan(0.05);
+    expect(peakBrightness(recording, 'led-2')).toBeGreaterThan(0.05);
+  });
+
+  it('still drives a single LED at full brightness', async () => {
+    const recording = await run(
+      DRIVE_D9,
+      [resistor(), led()],
+      [
+        wire('w1', ARDUINO_COMPONENT_ID, 'D9', 'resistor-1', 'pin1'),
+        wire('w2', 'resistor-1', 'pin2', 'led-1', 'anode'),
+        wire('w3', 'led-1', 'cathode', ARDUINO_COMPONENT_ID, 'GND'),
+      ],
+      900
+    );
+
+    expect(peakBrightness(recording, 'led-1')).toBe(1);
+  });
+
+  it('leaves a chain with no path to ground dark', async () => {
+    const recording = await run(
+      DRIVE_D9,
+      [resistor(), led(), secondLed()],
+      [
+        wire('w1', ARDUINO_COMPONENT_ID, 'D9', 'resistor-1', 'pin1'),
+        wire('w2', 'resistor-1', 'pin2', 'led-1', 'anode'),
+        wire('w3', 'led-1', 'cathode', 'led-2', 'anode'),
+      ],
+      900
+    );
+
+    expect(peakBrightness(recording, 'led-1')).toBe(0);
+    expect(peakBrightness(recording, 'led-2')).toBe(0);
+  });
+});
 
 describe('BTS7960 half bridge driver', () => {
   it('drives the motor forward when only RPWM is fed', async () => {
@@ -798,6 +880,66 @@ describe('getCircuitWiringIssues', () => {
         BOARD_PINS
       );
       expect(issues).toContainEqual({ type: 'part-no-resistor', componentId: 'led-1' });
+    });
+
+    /**
+     * The way this actually gets built: the resistor bridges from a cable into
+     * the board, so one leg is in a hole and the other is in the air with a
+     * wire on it. Only the seated leg has a breadboard contact.
+     */
+    const halfSeatedResistor = (): CircuitComponent => ({
+      ...resistor(),
+      x: holeX(1),
+      y: ROW_A_Y,
+      pins: [
+        { id: 'pin1', name: 'Pin 1', type: 'passive', x: 0, y: 0 },
+        { id: 'pin2', name: 'Pin 2', type: 'passive', x: -400, y: -120 },
+      ],
+    });
+
+    /** Seated in row B so it shares column 1's strip without fighting for the hole. */
+    const ledFromRowB = (): CircuitComponent => ({
+      ...led(),
+      x: holeX(1),
+      y: ROW_A_Y + HOLE_SP,
+      pins: [
+        { id: 'anode', name: 'Anode (+)', type: 'passive', x: 0, y: 0 },
+        { id: 'cathode', name: 'Cathode (-)', type: 'passive', x: holeX(10) - holeX(1), y: 0 },
+      ],
+    });
+
+    const HALF_SEATED_WIRES = [
+      wire('w1', ARDUINO_COMPONENT_ID, 'D9', 'resistor-1', 'pin2'),
+      wire('w2', BREADBOARD_COMPONENT_ID, 'bb-c-10', ARDUINO_COMPONENT_ID, 'GND'),
+    ];
+
+    it('conducts through a resistor with one leg in a hole and one leg wired', () => {
+      const issues = getCircuitWiringIssues(
+        [halfSeatedResistor(), ledFromRowB()],
+        HALF_SEATED_WIRES,
+        BOARD_PINS
+      );
+      expect(issues).toEqual([]);
+    });
+
+    it('lights the LED fed through a half-seated resistor', async () => {
+      const recording = await run(
+        `
+void setup() {
+  pinMode(9, OUTPUT);
+}
+
+void loop() {
+  digitalWrite(9, HIGH);
+  delay(50);
+}
+`,
+        [halfSeatedResistor(), ledFromRowB()],
+        HALF_SEATED_WIRES,
+        900
+      );
+
+      expect(peakBrightness(recording, 'led-1')).toBeGreaterThan(0.05);
     });
 
     it('follows the breadboard when it is moved', () => {

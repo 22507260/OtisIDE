@@ -1,8 +1,54 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="28" height="86" viewBox="0 0 28 86" fill="none">
-  <path d="M14 2L24 24V62L14 84L4 62V24L14 2Z" fill="#3d4754" stroke="#121821" stroke-width="2"/>
-  <rect x="7" y="21" width="14" height="32" rx="5" fill="#9aa4b1" opacity="0.35"/>
-  <rect x="10" y="16" width="8" height="42" rx="4" fill="#171d26"/>
-  <path d="M14 0L18 12H10L14 0Z" fill="#f2f4f7"/>
-  <path d="M14 84L17.5 76H10.5L14 84Z" fill="#d9dde3"/>
-  <path d="M14 84L14 66" stroke="#e9edf2" stroke-width="2.4" stroke-linecap="round"/>
+  <defs>
+    <linearGradient id="probeBlackBody" x1="6" y1="0" x2="22" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#141a22"/>
+      <stop offset="0.22" stop-color="#39434f"/>
+      <stop offset="0.46" stop-color="#78838f"/>
+      <stop offset="0.68" stop-color="#414b57"/>
+      <stop offset="1" stop-color="#10151c"/>
+    </linearGradient>
+    <linearGradient id="probeBlackBoot" x1="9" y1="0" x2="19" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0b0e13"/>
+      <stop offset="0.42" stop-color="#2b323b"/>
+      <stop offset="1" stop-color="#080b0f"/>
+    </linearGradient>
+    <linearGradient id="probeBlackSteel" x1="11" y1="0" x2="17" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#4c555f"/>
+      <stop offset="0.3" stop-color="#e6ecf3"/>
+      <stop offset="0.6" stop-color="#a8b3bf"/>
+      <stop offset="1" stop-color="#414a54"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Rubber boot where the lead enters, ribbed so the cable can flex. -->
+  <path d="M10.9 0h6.2l1.1 7.2c.25 1.7-.7 2.9-2.3 2.9h-4c-1.6 0-2.55-1.2-2.3-2.9L10.9 0Z" fill="url(#probeBlackBoot)"/>
+  <rect x="9.7" y="3.1" width="8.6" height="1.1" rx="0.55" fill="#000" opacity="0.45"/>
+  <rect x="9.5" y="5.7" width="9" height="1.1" rx="0.55" fill="#000" opacity="0.45"/>
+  <rect x="9.4" y="8.3" width="9.2" height="1.1" rx="0.55" fill="#000" opacity="0.45"/>
+
+  <!-- Moulded handle: narrow at the cable, swelling towards the finger guard. -->
+  <path d="M9.2 12C9.2 10.4 11.2 9.4 14 9.4C16.8 9.4 18.8 10.4 18.8 12L20.6 46C20.9 50.2 18.2 52.4 14 52.4C9.8 52.4 7.1 50.2 7.4 46Z"
+        fill="url(#probeBlackBody)" stroke="#080b10" stroke-width="0.9"/>
+
+  <!-- Grip ribs. -->
+  <rect x="9.2" y="19" width="9.6" height="1.5" rx="0.75" fill="#05080c" opacity="0.5"/>
+  <rect x="9.1" y="24" width="9.8" height="1.5" rx="0.75" fill="#05080c" opacity="0.5"/>
+  <rect x="9" y="29" width="10" height="1.5" rx="0.75" fill="#05080c" opacity="0.5"/>
+  <rect x="8.9" y="34" width="10.2" height="1.5" rx="0.75" fill="#05080c" opacity="0.5"/>
+
+  <!-- The light running down one side is what reads as "round". -->
+  <rect x="10.2" y="13" width="1.9" height="34" rx="0.95" fill="#fff" opacity="0.26"/>
+
+  <!-- Finger guard: the flange that stops a hand sliding onto the tip. -->
+  <path d="M14 49.4C18.9 49.4 22.2 51.2 22.2 53.7C22.2 56.2 18.9 58 14 58C9.1 58 5.8 56.2 5.8 53.7C5.8 51.2 9.1 49.4 14 49.4Z"
+        fill="url(#probeBlackBody)" stroke="#080b10" stroke-width="0.9"/>
+  <path d="M8.4 52.2C9.9 51.1 11.8 50.6 14 50.6" stroke="#fff" stroke-width="1.1" stroke-linecap="round" opacity="0.24"/>
+
+  <!-- Neck and metal ferrule. -->
+  <path d="M10.7 57.4h6.6l-0.9 4.4h-4.8Z" fill="url(#probeBlackBody)" stroke="#080b10" stroke-width="0.7"/>
+  <rect x="10.6" y="61.2" width="6.8" height="3.6" rx="1.1" fill="#9aa5b2" stroke="#39424c" stroke-width="0.7"/>
+
+  <!-- Tapered steel needle. -->
+  <path d="M11.7 64.4h4.6L14 84.4Z" fill="url(#probeBlackSteel)"/>
+  <path d="M13.2 66.5h1.5L14 82Z" fill="#f6f9fc" opacity="0.55"/>
 </svg>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isTextEntryTarget } from '../keyboardTarget';
+import { isCircuitScreenTarget, isTextEntryTarget } from '../keyboardTarget';
 
 /** A node that answers closest() the way the DOM would for one ancestor chain. */
 const node = (tagName: string, ancestors: string[] = [], extra: object = {}) => ({
@@ -45,6 +45,51 @@ describe('isTextEntryTarget', () => {
           throw new Error('not an element');
         },
       })
+    ).toBe(false);
+  });
+});
+
+describe('isCircuitScreenTarget', () => {
+  /** A stand-in canvas root that "contains" the nodes handed to it. */
+  const rootHolding = (...owned: unknown[]) => ({
+    contains: (other: unknown) => owned.includes(other),
+  });
+
+  it('claims the canvas itself', () => {
+    const canvas = node('CANVAS');
+    expect(isCircuitScreenTarget(canvas, rootHolding(canvas))).toBe(true);
+  });
+
+  it('claims the toolbar, so Start does not cost the next Delete', () => {
+    const startButton = node('BUTTON', ['.toolbar']);
+    expect(isCircuitScreenTarget(startButton, rootHolding())).toBe(true);
+  });
+
+  it('claims a keystroke with nothing focused', () => {
+    expect(isCircuitScreenTarget(node('BODY'), rootHolding())).toBe(true);
+    expect(isCircuitScreenTarget(null, rootHolding())).toBe(true);
+  });
+
+  it('leaves the panels alone', () => {
+    // Browsing the palette and pressing Delete used to throw away the part that
+    // happened to be selected on the canvas.
+    expect(isCircuitScreenTarget(node('DIV', ['.left-panel']), rootHolding())).toBe(false);
+    expect(isCircuitScreenTarget(node('BUTTON', ['.bottom-panel']), rootHolding())).toBe(false);
+    expect(isCircuitScreenTarget(node('DIV', ['.right-panel']), rootHolding())).toBe(false);
+  });
+
+  it('survives a root that cannot answer and a target that is not an element', () => {
+    expect(isCircuitScreenTarget(node('DIV'), null)).toBe(false);
+    expect(
+      isCircuitScreenTarget(
+        {
+          tagName: 'DIV',
+          closest: () => {
+            throw new Error('not an element');
+          },
+        },
+        null
+      )
     ).toBe(false);
   });
 });
