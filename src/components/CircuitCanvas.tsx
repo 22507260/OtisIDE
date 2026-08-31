@@ -74,6 +74,7 @@ import {
 } from '../lib/componentTransform';
 import { isCircuitScreenTarget, isTextEntryTarget } from '../lib/keyboardTarget';
 import { getSolderedPinKeys, pinKey } from '../lib/solderedPins';
+import { applyBuzzerVoices, stopAllBuzzers } from '../lib/buzzerAudio';
 import multimeterProbeRedSvg from '../assets/components/multimeter-probe-red.svg';
 import multimeterProbeBlackSvg from '../assets/components/multimeter-probe-black.svg';
 
@@ -1027,6 +1028,36 @@ const ComponentShape: React.FC<{
         </>
       )}
 
+      {/* A sounding buzzer, so it is obvious even with the volume down. */}
+      {comp.type === 'buzzer' && Boolean(comp.properties.sounding) && (
+        <>
+          <Shape
+            x={19}
+            y={4}
+            stroke="#f7e38b"
+            strokeWidth={1.3}
+            listening={false}
+            sceneFunc={(ctx, shape) => {
+              for (let ring = 0; ring < 3; ring += 1) {
+                ctx.beginPath();
+                ctx.arc(0, 0, 5 + ring * 4.5, -Math.PI / 3.4, Math.PI / 3.4, false);
+                ctx.strokeShape(shape);
+              }
+            }}
+          />
+          <Text
+            text={`${Math.round(Number(comp.properties.frequency) || 0)} Hz`}
+            x={-24}
+            y={-26}
+            width={48}
+            align="center"
+            fontSize={7}
+            fill="#f7e38b"
+            listening={false}
+          />
+        </>
+      )}
+
       {comp.type === 'dc-motor' && (
         <>
           <Circle
@@ -1762,23 +1793,18 @@ const Breadboard: React.FC<{ variant?: BreadboardVariant }> = React.memo(
 
       // ── Column numbers ──
       //
-      // Every column on a mini board, every fifth on a full-size one. A mini is
-      // short enough that all seventeen fit, and its strips are only five holes
-      // long, so knowing exactly which column a leg is in is the whole game.
-      const numberStep = spec.hasRails ? 5 : 1;
-      for (let col = 0; col < spec.cols; col += numberStep) {
+      // Every column, on every board. Numbering every fifth one left the reader
+      // counting holes across a gap to work out where a leg actually sits, and
+      // the column a leg is in is the whole game on a breadboard.
+      for (let col = 0; col < spec.cols; col += 1) {
         const text = String(col + 1);
         // Two-digit numbers need pulling left to stay over their column.
         const x = 20 + col * HOLE_SP - (text.length > 1 ? 3.4 : 1.6);
         els.push(
-          <Text key={`cn-t-${col}`} x={x} y={mainStartY - 12} text={text} fill="#aaa" fontSize={6} fontFamily="monospace" />
-        );
-        if (!spec.hasRails) {
+          <Text key={`cn-t-${col}`} x={x} y={mainStartY - 12} text={text} fill="#aaa" fontSize={6} fontFamily="monospace" />,
           // Repeated under the board so a leg in rows F-J can be read off too.
-          els.push(
-            <Text key={`cn-b-${col}`} x={x} y={mainStartY + 10 * HOLE_SP + 4} text={text} fill="#aaa" fontSize={6} fontFamily="monospace" />
-          );
-        }
+          <Text key={`cn-b-${col}`} x={x} y={mainStartY + 10 * HOLE_SP + 4} text={text} fill="#aaa" fontSize={6} fontFamily="monospace" />
+        );
       }
 
       return els;
@@ -1992,6 +2018,9 @@ const CircuitCanvas: React.FC = () => {
   const groupDragRef = useRef<{
     origin: { x: number; y: number };
     others: Array<{ id: string; x: number; y: number }>;
+    /** The block moves in the store as it is dragged, so its undo step has to
+     *  be taken before the first of those moves, not after the last. */
+    snapshotTaken: boolean;
   } | null>(null);
   const draggedComponentPositionsRef = useRef<Record<string, { x: number; y: number }>>({});
   const breadboardDragRef = useRef<{
@@ -2037,6 +2066,14 @@ const CircuitCanvas: React.FC = () => {
   const code = useCircuitStore((s) => s.code);
   const boardType = useCircuitStore((s) => s.boardType);
   const boardPosition = useCircuitStore((s) => s.boardPosition);
+  /**
+   * While the simulation runs the circuit cannot be edited — pressing a button
+   * and turning a value are the interactive part, moving and rewiring are not.
+   * The store refuses these outright; this is what stops the canvas offering
+   * them in the first place, so nothing feels broken.
+   */
+  const circuitLocked = simulation.running;
+
   /** Every breadboard on the canvas, derived from the parts themselves. */
   const breadboards = useMemo(() => getBreadboardPlacements(components), [components]);
 
@@ -2169,6 +2206,7 @@ const CircuitCanvas: React.FC = () => {
   const selectedComponentIds = useCircuitStore((s) => s.selectedComponentIds);
   const toggleComponentSelection = useCircuitStore((s) => s.toggleComponentSelection);
   const updateComponent = useCircuitStore((s) => s.updateComponent);
+  const updateComponentProperties = useCircuitStore((s) => s.updateComponentProperties);
   const removeComponent = useCircuitStore((s) => s.removeComponent);
   const addWire = useCircuitStore((s) => s.addWire);
   const removeWire = useCircuitStore((s) => s.removeWire);
@@ -2219,7 +2257,13 @@ const CircuitCanvas: React.FC = () => {
     // A wire on a hole names the board it is plugged into, so the hole is
     // looked up against that board's own position.
     if (isBreadboardType(component.type)) {
-      const hole = getBreadboardHoleGlobal(pinId, component);
+      // Hole ids repeat across sizes, so the size has to come along or a mini's
+      // A1 is resolved against the full-size board's geometry.
+      const hole = getBreadboardHoleGlobal(
+        pinId,
+        component,
+        getBreadboardVariantForType(component.type)
+      );
       return hole ? { x: hole.x, y: hole.y } : null;
     }
 
@@ -2440,11 +2484,42 @@ const CircuitCanvas: React.FC = () => {
 
     const observer = new ResizeObserver((entries) => {
       const { width, height } = entries[0].contentRect;
+      // The first measurement can land before the layout settles, and a
+      // 0x0 stage takes Konva's buffer canvas down to 0x0 with it — every
+      // shape that draws through it then throws InvalidStateError on
+      // drawImage and the whole canvas falls into the error boundary.
+      // Keep the last usable size until a real one arrives.
+      if (width < 1 || height < 1) return;
       setStageSize({ width, height });
     });
     observer.observe(container);
     return () => observer.disconnect();
   }, []);
+
+  // Buzzers actually buzz. The runtime says which ones are sounding and at what
+  // pitch; this is the only thing that turns that into a noise, and it goes
+  // quiet the moment the simulation stops or the canvas unmounts.
+  useEffect(() => {
+    if (!simulation.running) {
+      stopAllBuzzers();
+      return;
+    }
+
+    applyBuzzerVoices(
+      components
+        .filter((comp) => comp.type === 'buzzer')
+        .map((comp) => {
+          const state = simulation.componentStates[comp.id] ?? {};
+          return {
+            id: comp.id,
+            frequency: Number(state.frequency) || 0,
+            volume: state.sounding === true ? Number(state.volume) || 1 : 0,
+          };
+        })
+    );
+  }, [components, simulation.componentStates, simulation.running]);
+
+  useEffect(() => stopAllBuzzers, []);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -2587,6 +2662,8 @@ const CircuitCanvas: React.FC = () => {
   // Drop handler for palette drag
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
+    if (useCircuitStore.getState().simulation.running) return;
+
     const type = e.dataTransfer.getData('componentType') as ComponentType;
     if (!type) return;
 
@@ -2650,7 +2727,18 @@ const CircuitCanvas: React.FC = () => {
       const y = Math.max(8, Math.min(rawY, rect.height - menuHeight - 8));
 
       if (target.kind === 'component') {
-        selectComponent(target.componentId);
+        const { selectedComponentIds: current, selectComponents } = useCircuitStore.getState();
+        if (current.length > 1 && current.includes(target.componentId)) {
+          // Right-clicking one of several selected parts is asking what can be
+          // done to the block, not picking a new part — so the block stays
+          // selected, with the one under the cursor as its primary.
+          selectComponents([
+            ...current.filter((id) => id !== target.componentId),
+            target.componentId,
+          ]);
+        } else {
+          selectComponent(target.componentId);
+        }
       } else if (target.kind === 'wire') {
         selectWire(target.wireId);
       } else if (selectedComponentId || selectedWireId) {
@@ -2766,18 +2854,17 @@ const CircuitCanvas: React.FC = () => {
       const prefix = slot === 'black' ? 'blackProbe' : 'redProbe';
       const dockKey = getProbeDockKey(slot);
 
-      updateComponent(component.id, {
-        properties: {
-          ...component.properties,
-          [`${prefix}X`]: nextPosition.x,
-          [`${prefix}Y`]: nextPosition.y,
-          [dockKey]: docked,
-          [keys.componentKey]: target?.componentId ?? '',
-          [keys.pinKey]: target?.pinId ?? '',
-        },
+      // Values rather than a whole-component update, so a probe can still be
+      // moved onto a live circuit — which is the only reason to hold one.
+      updateComponentProperties(component.id, {
+        [`${prefix}X`]: nextPosition.x,
+        [`${prefix}Y`]: nextPosition.y,
+        [dockKey]: docked,
+        [keys.componentKey]: target?.componentId ?? '',
+        [keys.pinKey]: target?.pinId ?? '',
       });
     },
-    [updateComponent]
+    [updateComponentProperties]
   );
 
   const handleMultimeterProbeDragStart = useCallback(
@@ -2955,7 +3042,11 @@ const CircuitCanvas: React.FC = () => {
       if (toolMode === 'wire') {
         const hole = resolveBreadboardHoleAtPointer();
         if (hole) {
-          handlePinClick(BREADBOARD_COMPONENT_ID, hole.id, hole.x, hole.y);
+          // The board that was actually clicked, not the first one ever added.
+          // Naming a fixed id here wrote every wire against the full-size board,
+          // so a cable plugged into a mini stayed where it was when the mini
+          // moved — it was never attached to it in the first place.
+          handlePinClick(hole.breadboardId, hole.id, hole.x, hole.y);
           return;
         }
 
@@ -3434,34 +3525,40 @@ const CircuitCanvas: React.FC = () => {
       selectComponent(comp.id);
     }
 
-    if (isBreadboardType(comp.type)) {
-      // Moving a board takes everything plugged into it along, the way lifting
-      // a real breadboard would. Reuses the group-drag path, so the parts are
-      // translated by the same vector and land still seated.
-      const thisBoard = getBreadboardPlacements([comp]);
-      groupDragRef.current = {
-        origin: { x: comp.x, y: comp.y },
-        others: components
-          .filter(
-            (item) =>
-              item.id !== comp.id &&
-              !isBreadboardType(item.type) &&
-              isComponentMountedOnBreadboard(item, thisBoard)
-          )
-          .map((item) => ({ id: item.id, x: item.x, y: item.y })),
-      };
-    } else {
-      const wholeCircuitSelected =
-        components.length > 1 && selectedComponentIds.length === components.length;
-      groupDragRef.current = wholeCircuitSelected
+    // What comes along: everything else in the selection, plus whatever is
+    // plugged into any board that is moving. Dragging one of several selected
+    // parts used to move only that one unless the entire circuit happened to be
+    // selected, which is not what picking several parts is for.
+    const selection =
+      selectedComponentIds.length > 1 && selectedComponentIds.includes(comp.id)
+        ? selectedComponentIds
+        : [comp.id];
+
+    const movingIds = new Set(selection);
+    const movingBoards = getBreadboardPlacements(
+      components.filter((item) => movingIds.has(item.id) && isBreadboardType(item.type))
+    );
+
+    if (movingBoards.length > 0) {
+      // Lifting a real breadboard takes what is seated on it, selected or not.
+      for (const item of components) {
+        if (isBreadboardType(item.type)) continue;
+        if (isComponentMountedOnBreadboard(item, movingBoards)) movingIds.add(item.id);
+      }
+    }
+
+    movingIds.delete(comp.id);
+
+    groupDragRef.current =
+      movingIds.size > 0
         ? {
             origin: { x: comp.x, y: comp.y },
             others: components
-              .filter((item) => item.id !== comp.id)
+              .filter((item) => movingIds.has(item.id))
               .map((item) => ({ id: item.id, x: item.x, y: item.y })),
+            snapshotTaken: false,
           }
         : null;
-    }
 
     setRightTab('properties');
   }, [
@@ -3474,23 +3571,28 @@ const CircuitCanvas: React.FC = () => {
   ]);
 
   const handleDragMove = useCallback((comp: CircuitComponent, e: Konva.KonvaEventObject<DragEvent>) => {
-    if (isBreadboardType(comp.type)) {
-      // Parts follow the board as it moves rather than catching up when it is
-      // dropped, so the board is never dragged out from under them on screen.
-      const group = groupDragRef.current;
-      if (!group || group.others.length === 0) return;
-
+    // The rest of the block follows the cursor rather than catching up when the
+    // part is dropped, so nothing is ever dragged out from under anything else.
+    const group = groupDragRef.current;
+    if (group && group.others.length > 0) {
       const dx = e.target.x() - group.origin.x;
       const dy = e.target.y() - group.origin.y;
-      const moved = new Map(group.others.map((item) => [item.id, item]));
 
-      useCircuitStore.setState((state) => ({
-        components: state.components.map((component) => {
-          const start = moved.get(component.id);
-          return start ? { ...component, x: start.x + dx, y: start.y + dy } : component;
-        }),
-      }));
-      return;
+      if (dx !== 0 || dy !== 0) {
+        if (!group.snapshotTaken) {
+          // Before the first move, or undo would restore a half-dragged block.
+          group.snapshotTaken = true;
+          captureUndoSnapshot();
+        }
+
+        const moved = new Map(group.others.map((item) => [item.id, item]));
+        useCircuitStore.setState((state) => ({
+          components: state.components.map((component) => {
+            const start = moved.get(component.id);
+            return start ? { ...component, x: start.x + dx, y: start.y + dy } : component;
+          }),
+        }));
+      }
     }
 
     if (comp.type !== 'multimeter') return;
@@ -3511,7 +3613,7 @@ const CircuitCanvas: React.FC = () => {
 
     draggedComponentPositionsRef.current[comp.id] = nextPosition;
     setDragPreviewVersion((version) => version + 1);
-  }, []);
+  }, [captureUndoSnapshot]);
 
   const handleDragEnd = useCallback((comp: CircuitComponent, e: Konva.KonvaEventObject<DragEvent>) => {
     if (comp.type === 'multimeter') {
@@ -3524,20 +3626,25 @@ const CircuitCanvas: React.FC = () => {
 
     const group = groupDragRef.current;
     groupDragRef.current = null;
-    const dx = group ? e.target.x() - group.origin.x : 0;
-    const dy = group ? e.target.y() - group.origin.y : 0;
-    const isGroupMove = Boolean(group) && group!.others.length > 0 && (dx !== 0 || dy !== 0);
+    const hasGroup = Boolean(group) && group!.others.length > 0;
 
-    if (isGroupMove) {
-      // One snapshot for the whole block, taken before anything moves — otherwise
-      // each part's own updateComponent call would need its own undo step.
-      captureUndoSnapshot();
-      for (const other of group!.others) {
-        updateComponent(other.id, { x: other.x + dx, y: other.y + dy }, { recordHistory: false });
+    // The dragged part settles first — onto a hole, or onto the grid — and the
+    // block then moves by however far it actually ended up going. Taking the
+    // raw cursor delta instead left the others a snap's width out of place.
+    finalizeComponentDrag(comp, e.target as Konva.Group, hasGroup ? { recordHistory: false } : undefined);
+
+    if (hasGroup) {
+      const dx = e.target.x() - group!.origin.x;
+      const dy = e.target.y() - group!.origin.y;
+
+      if (dx !== 0 || dy !== 0) {
+        if (!group!.snapshotTaken) captureUndoSnapshot();
+        for (const other of group!.others) {
+          updateComponent(other.id, { x: other.x + dx, y: other.y + dy }, { recordHistory: false });
+        }
       }
     }
 
-    finalizeComponentDrag(comp, e.target as Konva.Group, isGroupMove ? { recordHistory: false } : undefined);
     if (comp.type === 'multimeter') {
       delete draggedComponentPositionsRef.current[comp.id];
       setDragPreviewVersion((version) => version + 1);
@@ -3575,7 +3682,7 @@ const CircuitCanvas: React.FC = () => {
     if (!wiringStart) return null;
 
     const board = breadboards.find((item) => item.id === wiringStart.componentId);
-    return board ? getBreadboardHoleGlobal(wiringStart.pinId, board) : null;
+    return board ? getBreadboardHoleGlobal(wiringStart.pinId, board, board.variant) : null;
   })();
 
   // One canvas shape instead of 8000 Konva nodes
@@ -3643,21 +3750,36 @@ const CircuitCanvas: React.FC = () => {
               <span>{t(language, 'startWire')}</span>
             </button>
             <button className="context-menu-item" onClick={action(() => {
-              const nextRotation = (selectedComponent.rotation + 90) % 360;
-              const snapped = snapPinsToBreadboards(
-                selectedComponent.x,
-                selectedComponent.y,
-                getTransformedPins(selectedComponent.pins, {
-                  ...getComponentTransform(selectedComponent),
-                  rotation: nextRotation,
-                }),
-                breadboards
-              );
+              // Every selected part turns by ninety degrees, each about itself
+              // and each re-seated on its own holes. A quarter turn is a
+              // relative move, so parts that were at different angles stay that
+              // way rather than being flattened to a single one.
+              const turning = selectedComponentIds.includes(selectedComponent.id)
+                ? components.filter((item) => selectedComponentIds.includes(item.id))
+                : [selectedComponent];
 
-              updateComponent(selectedComponent.id, {
-                rotation: nextRotation,
-                ...(snapped ? { x: snapped.x, y: snapped.y } : {}),
-              });
+              captureUndoSnapshot();
+              for (const item of turning) {
+                const nextRotation = (item.rotation + 90) % 360;
+                const snapped = snapPinsToBreadboards(
+                  item.x,
+                  item.y,
+                  getTransformedPins(item.pins, {
+                    ...getComponentTransform(item),
+                    rotation: nextRotation,
+                  }),
+                  breadboards
+                );
+
+                updateComponent(
+                  item.id,
+                  {
+                    rotation: nextRotation,
+                    ...(snapped ? { x: snapped.x, y: snapped.y } : {}),
+                  },
+                  { recordHistory: false }
+                );
+              }
             })}>
               <span>{t(language, 'rotate90')}</span>
             </button>
@@ -3780,7 +3902,7 @@ const CircuitCanvas: React.FC = () => {
               rotation={comp.rotation}
               scaleX={comp.scale ?? 1}
               scaleY={comp.scale ?? 1}
-              draggable={toolMode === 'select' && !middlePanActive}
+              draggable={toolMode === 'select' && !middlePanActive && !circuitLocked}
               // A board stops listening while wiring so a click reaches the
               // stage, which is what turns a point into the hole under it.
               listening={!isBreadboardType(comp.type) || toolMode === 'select'}
@@ -3860,6 +3982,11 @@ const CircuitCanvas: React.FC = () => {
                       shadowBlur={2}
                       shadowOpacity={0.45}
                       shadowOffsetY={0.6}
+                      // Fill + stroke + shadow would otherwise route every blob
+                      // through the stage-sized buffer canvas: needless work per
+                      // blob, and the one shape that crashed on a 0x0 stage.
+                      perfectDrawEnabled={false}
+                      shadowForStrokeEnabled={false}
                       listening={false}
                     />
                   ))}
@@ -4049,7 +4176,7 @@ const CircuitCanvas: React.FC = () => {
           <Group
             x={boardPosition.x}
             y={boardPosition.y}
-            draggable={toolMode === 'select' && !middlePanActive}
+            draggable={toolMode === 'select' && !middlePanActive && !circuitLocked}
             onDragStart={handleBoardDragStart}
             onDragMove={handleBoardDragMove}
             onDragEnd={handleBoardDragEnd}

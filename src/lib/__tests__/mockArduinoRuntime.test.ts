@@ -546,7 +546,94 @@ describe('BTS7960 half bridge driver', () => {
   });
 });
 
+describe('a button in the circuit', () => {
+  const button = (pressed: boolean): CircuitComponent => ({
+    id: 'btn-1',
+    type: 'button',
+    x: 300,
+    y: 200,
+    rotation: 0,
+    pins: [
+      { id: 'pin1', name: 'Pin 1', type: 'passive', x: 15, y: -10 },
+      { id: 'pin2', name: 'Pin 2', type: 'passive', x: 15, y: 10 },
+      { id: 'pin3', name: 'Pin 3', type: 'passive', x: -15, y: -10 },
+      { id: 'pin4', name: 'Pin 4', type: 'passive', x: -15, y: 10 },
+    ],
+    properties: { pressed, type: 'momentary' },
+  });
+
+  const HOLD_D9 = `
+void setup() {
+  pinMode(9, OUTPUT);
+}
+
+void loop() {
+  digitalWrite(9, HIGH);
+  delay(50);
+}
+`;
+
+  /** D9 -> resistor -> button -> LED -> GND, wired to the named button legs. */
+  const circuit = (pressed: boolean, inLeg: string, outLeg: string) => ({
+    components: [resistor(), button(pressed), led()],
+    wires: [
+      wire('w1', ARDUINO_COMPONENT_ID, 'D9', 'resistor-1', 'pin1'),
+      wire('w2', 'resistor-1', 'pin2', 'btn-1', inLeg),
+      wire('w3', 'btn-1', outLeg, 'led-1', 'anode'),
+      wire('w4', 'led-1', 'cathode', ARDUINO_COMPONENT_ID, 'GND'),
+    ],
+  });
+
+  const brightness = async (pressed: boolean, inLeg = 'pin1', outLeg = 'pin3') => {
+    const { components, wires } = circuit(pressed, inLeg, outLeg);
+    const recording = await run(HOLD_D9, components, wires, 900);
+    return peakBrightness(recording, 'led-1');
+  };
+
+  it('leaves the circuit open until it is pressed', async () => {
+    expect(await brightness(false)).toBeLessThan(0.05);
+  });
+
+  it('closes the circuit and lights the LED when pressed', async () => {
+    expect(await brightness(true)).toBeGreaterThan(0.05);
+  });
+
+  it('works off either pair of legs, because each pair is one terminal', async () => {
+    // pin2 is the other leg of pin1's terminal, pin4 the other leg of pin3's.
+    expect(await brightness(true, 'pin2', 'pin4')).toBeGreaterThan(0.05);
+    expect(await brightness(false, 'pin2', 'pin4')).toBeLessThan(0.05);
+  });
+
+  it('does nothing when both wires land on the same terminal', async () => {
+    // Legs on one side are joined inside the part, so this shorts the button
+    // out rather than switching anything — pressed or not, the LED is lit.
+    expect(await brightness(false, 'pin1', 'pin2')).toBeGreaterThan(0.05);
+  });
+});
+
 describe('editing the circuit while it runs', () => {
+  const buttonPart = (pressed: boolean): CircuitComponent => ({
+    id: 'btn-1',
+    type: 'button',
+    x: 300,
+    y: 200,
+    rotation: 0,
+    pins: [
+      { id: 'pin1', name: 'Pin 1', type: 'passive', x: 15, y: -10 },
+      { id: 'pin2', name: 'Pin 2', type: 'passive', x: 15, y: 10 },
+      { id: 'pin3', name: 'Pin 3', type: 'passive', x: -15, y: -10 },
+      { id: 'pin4', name: 'Pin 4', type: 'passive', x: -15, y: 10 },
+    ],
+    properties: { pressed, type: 'momentary' },
+  });
+
+  const BUTTON_WIRES = [
+    wire('w1', ARDUINO_COMPONENT_ID, 'D9', 'resistor-1', 'pin1'),
+    wire('w2', 'resistor-1', 'pin2', 'btn-1', 'pin1'),
+    wire('w3', 'btn-1', 'pin3', 'led-1', 'anode'),
+    wire('w4', 'led-1', 'cathode', ARDUINO_COMPONENT_ID, 'GND'),
+  ];
+
   const COUNTING_SKETCH = `
 int runs = 0;
 
@@ -621,9 +708,290 @@ void loop() {
     expect(recording.serial.filter((line) => line.includes('setup'))).toHaveLength(1);
   });
 
+  it('shows the change, not just carries on running', async () => {
+    // The claim the earlier test missed: the sketch keeping its place is only
+    // half of it, the edit has to reach the circuit too. Pressing a button is
+    // exactly this path, and it did nothing because the running sketch went on
+    // reading the graph it started with.
+    const pressed = await new Promise<boolean>((resolve) => {
+      const seen: boolean[] = [];
+
+      startMockArduinoRuntime(
+        `void setup() { pinMode(9, OUTPUT); }
+         void loop() { digitalWrite(9, HIGH); delay(30); }`,
+        [resistor(), buttonPart(false), led()],
+        BUTTON_WIRES,
+        BOARD_PINS,
+        5,
+        {
+          addSerialOutput: () => {},
+          pushOscilloscopeSample: () => {},
+          setLedState: (id, on) => {
+            if (id === 'led-1') seen.push(on);
+          },
+          clearLedStates: () => {},
+          setComponentState: () => {},
+          clearComponentStates: () => {},
+          setPinStates: () => {},
+        }
+      );
+
+      setTimeout(() => {
+        // The button goes down, the way the canvas reports a press.
+        updateMockArduinoCircuit(
+          [resistor(), buttonPart(true), led()],
+          BUTTON_WIRES,
+          BOARD_PINS
+        );
+      }, 300);
+
+      setTimeout(() => {
+        stopMockArduinoRuntime();
+        // Dark to begin with, lit once the button closed the circuit.
+        resolve(seen.slice(0, 3).every((on) => !on) && seen.slice(-3).every((on) => on));
+      }, 800);
+    });
+
+    expect(pressed).toBe(true);
+  });
+
+  it('recomputes there and then, without waiting for the sketch to run a line', async () => {
+    // A meter probing a resistor, or a potentiometer being swept, has to move as
+    // the value moves. Swapping the graph alone only showed up on the sketch's
+    // next statement, so a loop sitting in a long delay held the old reading.
+    const meter = (): CircuitComponent => ({
+      id: 'meter-1',
+      type: 'multimeter',
+      x: 300,
+      y: 300,
+      rotation: 0,
+      pins: [],
+      properties: {
+        mode: 'resistance',
+        autoRange: true,
+        redProbeTargetComponentId: 'resistor-1',
+        redProbeTargetPinId: 'pin1',
+        blackProbeTargetComponentId: 'resistor-1',
+        blackProbeTargetPinId: 'pin2',
+      },
+    });
+
+    const LIVE_WIRES = [
+      wire('w1', ARDUINO_COMPONENT_ID, 'D9', 'resistor-1', 'pin1'),
+      wire('w2', 'resistor-1', 'pin2', 'led-1', 'anode'),
+      wire('w3', 'led-1', 'cathode', ARDUINO_COMPONENT_ID, 'GND'),
+    ];
+
+    const readingsAfterEdit = await new Promise<string[]>((resolve) => {
+      const readings: string[] = [];
+      let countAtEdit = 0;
+
+      startMockArduinoRuntime(
+        `void setup() { pinMode(9, OUTPUT); digitalWrite(9, HIGH); }
+         void loop() { delay(5000); }`,
+        [resistor(), led(), meter()],
+        LIVE_WIRES,
+        BOARD_PINS,
+        5,
+        {
+          addSerialOutput: () => {},
+          pushOscilloscopeSample: () => {},
+          setLedState: () => {},
+          clearLedStates: () => {},
+          setComponentState: (id, state) => {
+            if (id === 'meter-1' && typeof state.reading === 'number') {
+              readings.push(`${state.reading} ${state.unit}`);
+            }
+          },
+          clearComponentStates: () => {},
+          setPinStates: () => {},
+        }
+      );
+
+      setTimeout(() => {
+        countAtEdit = readings.length;
+        updateMockArduinoCircuit(
+          [
+            { ...resistor(), properties: { resistance: 10000, unit: 'ohm' } },
+            led(),
+            meter(),
+          ],
+          LIVE_WIRES,
+          BOARD_PINS
+        );
+      }, 300);
+
+      setTimeout(() => {
+        stopMockArduinoRuntime();
+        resolve(readings.slice(countAtEdit));
+      }, 550);
+    });
+
+    // The sketch never ran another line in that window, so a fresh reading in
+    // it came from the edit itself — and it is the new value, not the old one.
+    expect(readingsAfterEdit.length).toBeGreaterThan(0);
+    // 220 ohm before the edit, ten kilohm after it — auto-range and all.
+    expect(readingsAfterEdit[readingsAfterEdit.length - 1]).toBe('10 kΩ');
+  });
+
   it('reports nothing to update once the run has stopped', () => {
     stopMockArduinoRuntime();
     expect(updateMockArduinoCircuit([], [], BOARD_PINS)).toBe(false);
+  });
+});
+
+describe('buzzer', () => {
+  const buzzerPart = (
+    properties: Record<string, string | number | boolean> = {}
+  ): CircuitComponent => ({
+    id: 'buzzer-1',
+    type: 'buzzer',
+    x: 200,
+    y: 300,
+    rotation: 0,
+    pins: [
+      { id: 'positive', name: '+', type: 'passive', x: -10, y: 0 },
+      { id: 'negative', name: '-', type: 'passive', x: 10, y: 0 },
+    ],
+    properties: { frequency: 1000, active: true, ...properties },
+  });
+
+  const BUZZER_WIRES = [
+    wire('w1', ARDUINO_COMPONENT_ID, 'D9', 'buzzer-1', 'positive'),
+    wire('w2', 'buzzer-1', 'negative', ARDUINO_COMPONENT_ID, 'GND'),
+  ];
+
+  /** Only the entries that carry a sounding verdict — damage reports do not. */
+  const buzzerStates = (recording: Recording) =>
+    statesOf(recording, 'buzzer-1').filter((state) => 'sounding' in state);
+
+  /** Did it ever report itself sounding, and at what pitch? */
+  const sounded = (recording: Recording) =>
+    buzzerStates(recording).filter((state) => state.sounding === true);
+
+  const HIGH_SKETCH = `
+void setup() {
+  pinMode(9, OUTPUT);
+  digitalWrite(9, HIGH);
+}
+
+void loop() {
+  delay(50);
+}
+`;
+
+  it('sounds when an active buzzer is driven high', async () => {
+    const recording = await run(HIGH_SKETCH, [buzzerPart()], BUZZER_WIRES, 700);
+    const sounding = sounded(recording);
+
+    expect(sounding.length).toBeGreaterThan(0);
+    // An active buzzer runs at its own frequency; no tone() needed.
+    expect(sounding[sounding.length - 1].frequency).toBe(1000);
+  });
+
+  it('stays quiet when the pin is low', async () => {
+    const recording = await run(
+      `void setup() { pinMode(9, OUTPUT); digitalWrite(9, LOW); }
+       void loop() { delay(50); }`,
+      [buzzerPart()],
+      BUZZER_WIRES,
+      700
+    );
+
+    expect(sounded(recording)).toHaveLength(0);
+  });
+
+  it('stays quiet with a leg in mid-air, however hard the pin is driven', async () => {
+    const recording = await run(
+      HIGH_SKETCH,
+      [buzzerPart()],
+      [wire('w1', ARDUINO_COMPONENT_ID, 'D9', 'buzzer-1', 'positive')],
+      700
+    );
+
+    expect(sounded(recording)).toHaveLength(0);
+  });
+
+  it('needs tone() for a passive buzzer — a bare HIGH does nothing', async () => {
+    const recording = await run(HIGH_SKETCH, [buzzerPart({ active: false })], BUZZER_WIRES, 700);
+
+    expect(sounded(recording)).toHaveLength(0);
+  });
+
+  it('plays the pitch tone() asks for', async () => {
+    const recording = await run(
+      `void setup() { pinMode(9, OUTPUT); tone(9, 440); }
+       void loop() { delay(50); }`,
+      [buzzerPart({ active: false })],
+      BUZZER_WIRES,
+      700
+    );
+    const sounding = sounded(recording);
+
+    expect(sounding.length).toBeGreaterThan(0);
+    expect(sounding[sounding.length - 1].frequency).toBe(440);
+  });
+
+  it('lets tone() override an active buzzer own pitch', async () => {
+    const recording = await run(
+      `void setup() { pinMode(9, OUTPUT); tone(9, 262); }
+       void loop() { delay(50); }`,
+      [buzzerPart()],
+      BUZZER_WIRES,
+      700
+    );
+    const sounding = sounded(recording);
+
+    expect(sounding.length).toBeGreaterThan(0);
+    expect(sounding[sounding.length - 1].frequency).toBe(262);
+  });
+
+  it('goes quiet on noTone()', async () => {
+    const recording = await run(
+      `void setup() {
+         pinMode(9, OUTPUT);
+         tone(9, 440);
+         delay(100);
+         noTone(9);
+       }
+       void loop() { delay(50); }`,
+      [buzzerPart({ active: false })],
+      BUZZER_WIRES,
+      900
+    );
+    const states = buzzerStates(recording);
+
+    // It sang, then stopped, and the last word is silence.
+    expect(states.some((state) => state.sounding === true)).toBe(true);
+    expect(states[states.length - 1].sounding).toBe(false);
+  });
+
+  it('stops on its own once a timed tone runs out', async () => {
+    const recording = await run(
+      `void setup() {
+         pinMode(9, OUTPUT);
+         tone(9, 440, 80);
+       }
+       void loop() { delay(40); }`,
+      [buzzerPart({ active: false })],
+      BUZZER_WIRES,
+      900
+    );
+    const states = buzzerStates(recording);
+
+    expect(states.some((state) => state.sounding === true)).toBe(true);
+    expect(states[states.length - 1].sounding).toBe(false);
+  });
+
+  it('survives being wired straight to a pin, the way every kit does it', async () => {
+    const recording = await run(HIGH_SKETCH, [buzzerPart()], BUZZER_WIRES, 900);
+    const damage = statesOf(recording, 'buzzer-1').filter((state) => state.damaged === true);
+
+    // Modelled at 32 ohm it drew 156 mA and burned out on the first tick, so it
+    // beeped once and went dead however the sketch was written.
+    expect(damage).toHaveLength(0);
+    const states = buzzerStates(recording);
+    expect(states[states.length - 1].sounding).toBe(true);
   });
 });
 

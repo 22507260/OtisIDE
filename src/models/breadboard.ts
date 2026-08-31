@@ -58,10 +58,10 @@ type RowDefinition = {
 /**
  * Which board this is.
  *
- * A full-size board is the 63-column one with power rails down both edges. A
- * mini is the 170 tie-point kind: seventeen columns, rows A-J across the same
- * centre channel, and no rails at all — power comes in on a column like
- * everything else.
+ * The two differ in width and nothing else: a full-size board is 63 columns, a
+ * mini is 17. Both carry rows A-J across a centre channel and a + / - rail
+ * above and below, because a board without rails makes the user run a separate
+ * cable back to power for every single part.
  */
 export type BreadboardVariant = 'full' | 'mini';
 
@@ -135,36 +135,32 @@ function groupByStrip(holes: BreadboardHole[]): BreadboardHole[][] {
 }
 
 function buildSpec(variant: BreadboardVariant): BreadboardSpec {
-  const isMini = variant === 'mini';
-  const cols = isMini ? MINI_BB_COLS : BB_COLS;
-  // A mini has no rails, so its rows start just inside the top edge.
-  const mainOffsetY = isMini ? 16 : RAIL_H + 28;
+  const cols = variant === 'mini' ? MINI_BB_COLS : BB_COLS;
+  const mainOffsetY = RAIL_H + 28;
   const mainStartY = BB_Y + mainOffsetY;
 
-  const rows: RowDefinition[] = isMini
-    ? mainRows(mainStartY)
-    : [
-        { rowLabel: 'T+', y: BB_Y + 14, stripId: () => 'rail-top-pos' },
-        { rowLabel: 'T-', y: BB_Y + 14 + HOLE_SP, stripId: () => 'rail-top-neg' },
-        ...mainRows(mainStartY),
-        { rowLabel: 'B+', y: BB_Y + BB_TOTAL_H - 28, stripId: () => 'rail-bottom-pos' },
-        {
-          rowLabel: 'B-',
-          y: BB_Y + BB_TOTAL_H - 28 + HOLE_SP,
-          stripId: () => 'rail-bottom-neg',
-        },
-      ];
+  // Both sizes are laid out the same way down the board; only the width moves.
+  const rows: RowDefinition[] = [
+    { rowLabel: 'T+', y: BB_Y + 14, stripId: () => 'rail-top-pos' },
+    { rowLabel: 'T-', y: BB_Y + 14 + HOLE_SP, stripId: () => 'rail-top-neg' },
+    ...mainRows(mainStartY),
+    { rowLabel: 'B+', y: BB_Y + BB_TOTAL_H - 28, stripId: () => 'rail-bottom-pos' },
+    {
+      rowLabel: 'B-',
+      y: BB_Y + BB_TOTAL_H - 28 + HOLE_SP,
+      stripId: () => 'rail-bottom-neg',
+    },
+  ];
 
   const holes = buildHoles(rows, cols);
 
   return {
     variant,
     cols,
-    hasRails: !isMini,
+    hasRails: true,
     mainOffsetY,
     width: cols * HOLE_SP + 40,
-    // Row J sits ten pitches below row A; the same margin closes the board off.
-    height: isMini ? mainOffsetY * 2 + 10 * HOLE_SP : BB_TOTAL_H,
+    height: BB_TOTAL_H,
     holes,
     holeMap: new Map(holes.map((hole) => [hole.id, hole])),
     stripGroups: groupByStrip(holes),

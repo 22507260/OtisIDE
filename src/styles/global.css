@@ -837,6 +837,19 @@ body::after {
   cursor: grabbing;
 }
 
+/* Nothing can be added while the circuit is running, so the list says so. */
+.palette-item.disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.palette-item.disabled:hover {
+  transform: none;
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-secondary);
+}
+
 .palette-item-icon {
   width: 34px;
   height: 30px;

@@ -108,7 +108,12 @@ const PropertiesPanel: React.FC = () => {
   const simulation = useCircuitStore((s) => s.simulation);
   const updateComponentProperty = useCircuitStore((s) => s.updateComponentProperty);
   const updateComponent = useCircuitStore((s) => s.updateComponent);
+  // Position, angle, size and mirror travel with the whole selection.
+  const updateComponentTransform = useCircuitStore((s) => s.updateComponentTransform);
   const removeComponent = useCircuitStore((s) => s.removeComponent);
+  // Where a part sits, and whether it exists at all, is the circuit — locked
+  // while it runs. Its values are inputs and stay live.
+  const circuitLocked = useCircuitStore((s) => s.simulation.running);
   const captureUndoSnapshot = useCircuitStore((s) => s.captureUndoSnapshot);
   const language = useCircuitStore((s) => s.language);
   const selectedComponentIds = useCircuitStore((s) => s.selectedComponentIds);
@@ -362,9 +367,10 @@ const PropertiesPanel: React.FC = () => {
             className="property-input"
             type="number"
             value={displayComp.x}
+            disabled={circuitLocked}
             onFocus={captureUndoSnapshot}
             onChange={(event) =>
-              updateComponent(
+              updateComponentTransform(
                 selectedComp.id,
                 { x: Number(event.target.value) },
                 { recordHistory: false }
@@ -378,9 +384,10 @@ const PropertiesPanel: React.FC = () => {
             className="property-input"
             type="number"
             value={displayComp.y}
+            disabled={circuitLocked}
             onFocus={captureUndoSnapshot}
             onChange={(event) =>
-              updateComponent(
+              updateComponentTransform(
                 selectedComp.id,
                 { y: Number(event.target.value) },
                 { recordHistory: false }
@@ -395,9 +402,10 @@ const PropertiesPanel: React.FC = () => {
             type="number"
             value={displayComp.rotation}
             step={5}
+            disabled={circuitLocked}
             onFocus={captureUndoSnapshot}
             onChange={(event) =>
-              updateComponent(
+              updateComponentTransform(
                 selectedComp.id,
                 { rotation: Number(event.target.value) },
                 { recordHistory: false }
@@ -414,9 +422,10 @@ const PropertiesPanel: React.FC = () => {
             step={0.1}
             min={MIN_COMPONENT_SCALE}
             max={MAX_COMPONENT_SCALE}
+            disabled={circuitLocked}
             onFocus={captureUndoSnapshot}
             onChange={(event) =>
-              updateComponent(
+              updateComponentTransform(
                 selectedComp.id,
                 { scale: clampComponentScale(Number(event.target.value)) },
                 { recordHistory: false }
@@ -429,8 +438,9 @@ const PropertiesPanel: React.FC = () => {
           <input
             type="checkbox"
             checked={displayComp.flipX === true}
+            disabled={circuitLocked}
             onChange={(event) =>
-              updateComponent(selectedComp.id, { flipX: event.target.checked })
+              updateComponentTransform(selectedComp.id, { flipX: event.target.checked })
             }
           />
         </div>
@@ -629,6 +639,8 @@ const PropertiesPanel: React.FC = () => {
         className="toolbar-btn danger"
         style={{ width: '100%', marginTop: 12 }}
         onClick={() => removeComponent(selectedComp.id)}
+        disabled={circuitLocked}
+        title={circuitLocked ? t(language, 'simulationLockedHint') : undefined}
       >
         {t(language, 'deleteComponent')}
       </button>

@@ -9,6 +9,7 @@ import { getWireColorDisplayName, t } from '../lib/i18n';
 const Toolbar: React.FC = () => {
   const toolMode = useCircuitStore((s) => s.toolMode);
   const setToolMode = useCircuitStore((s) => s.setToolMode);
+  const simulationRunning = useCircuitStore((s) => s.simulation.running);
   const wireColor = useCircuitStore((s) => s.wireColor);
   const setWireColor = useCircuitStore((s) => s.setWireColor);
   const selectedWireId = useCircuitStore((s) => s.selectedWireId);
@@ -83,6 +84,10 @@ const Toolbar: React.FC = () => {
   };
 
   const handleLoad = async () => {
+    // Opening replaces everything on the canvas, so unsaved work gets the same
+    // question New asks. Backing out must not even open the file dialog.
+    if (!(await confirmDiscardingChanges())) return;
+
     if (window.electronAPI) {
       let result: { data: unknown; filePath: string } | null = null;
       try {
@@ -201,7 +206,10 @@ const Toolbar: React.FC = () => {
         <button
           className={`toolbar-btn ${toolMode === 'wire' ? 'active' : ''}`}
           onClick={() => setToolMode('wire')}
-          title={t(language, 'wireToolTitle')}
+          disabled={simulationRunning}
+          title={
+            simulationRunning ? t(language, 'simulationLockedHint') : t(language, 'wireToolTitle')
+          }
         >
           {t(language, 'wireTool')}
         </button>
@@ -215,7 +223,10 @@ const Toolbar: React.FC = () => {
         <button
           className={`toolbar-btn ${toolMode === 'delete' ? 'active' : ''}`}
           onClick={() => setToolMode('delete')}
-          title={t(language, 'deleteToolTitle')}
+          disabled={simulationRunning}
+          title={
+            simulationRunning ? t(language, 'simulationLockedHint') : t(language, 'deleteToolTitle')
+          }
         >
           {t(language, 'deleteToolButton')}
         </button>

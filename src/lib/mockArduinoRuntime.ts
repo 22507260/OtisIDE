@@ -70,6 +70,7 @@ type RuntimeExecutionContext = {
   clockMs: { value: number };
   pinValues: Map<string, number>;
   servoRuntime: Map<string, ServoRuntimeState>;
+  toneRuntime: Map<string, ToneRuntimeState>;
   lcdRuntime: Map<string, LcdRuntimeState>;
   connectivity: Connectivity;
   measurementConnectivity: Connectivity;
@@ -168,6 +169,13 @@ type ServoRuntimeState = {
   angle: number;
   pulseWidthUs: number | null;
   hasWritten: boolean;
+};
+
+/** A tone() a sketch has started on one pin, and when it runs out. */
+type ToneRuntimeState = {
+  frequency: number;
+  /** null for tone(pin, freq) — it plays until noTone() or the run ends. */
+  endsAtMs: number | null;
 };
 
 type LcdRuntimeState = {
@@ -326,6 +334,25 @@ const LED_FULL_BRIGHTNESS_CURRENT = 0.02;
 const LED_DYNAMIC_RESISTANCE = 68;
 const DIODE_FORWARD_VOLTAGE = 0.7;
 const DIODE_DYNAMIC_RESISTANCE = 30;
+
+/** What a small piezo buzzer draws when it is driven at its rated level. */
+const BUZZER_RATED_CURRENT = 0.03;
+/** Where a buzzer is being driven hard enough to hear. */
+const BUZZER_SOUNDING_LEVEL = 0.05;
+/** An active buzzer with no frequency of its own runs about here. */
+const BUZZER_DEFAULT_FREQUENCY = 2300;
+/**
+ * What the buzzer looks like to the rest of the circuit.
+ *
+ * It was modelled at 32 ohm, which is a magnetic transducer, not the piezo in
+ * every starter kit: straight off a 5 V pin that is 156 mA, so the damage check
+ * burned the part out on the first tick and it never made a sound again. A
+ * small piezo buzzer draws something like 15-30 mA, which is exactly why it is
+ * safe to wire one directly to a pin — as everybody does.
+ */
+const BUZZER_RESISTANCE = 300;
+const BUZZER_MIN_FREQUENCY = 31;
+const BUZZER_MAX_FREQUENCY = 20000;
 
 const DAMAGE_LIMITS: Partial<Record<CircuitComponent['type'], DamageLimits>> = {
   // Current alone decides for LEDs, and with the part modelled as a diode the
@@ -2094,6 +2121,7 @@ function updateRuntimeSimulationState(context: RuntimeExecutionContext): void {
     context.measurementConnectivity,
     context.pinValues,
     context.servoRuntime,
+    context.toneRuntime,
     context.lcdRuntime,
     context.boardPins,
     context.logicHighVoltage,
@@ -2124,6 +2152,77 @@ function resolveLcdPrintText(expr: string, context: RuntimeExecutionContext): st
   }
 
   return resolveSerialExpression(trimmed, context.baseVariables, context.scope, context);
+}
+
+/**
+ * tone(pin, frequency[, duration]) and noTone(pin).
+ *
+ * The pin is driven high for as long as the tone lasts, which is what puts
+ * current through the buzzer; the frequency is carried alongside so the part
+ * knows what pitch to make. Nothing was executing these at all before, so a
+ * sketch that played a note ran to the end in silence.
+ */
+function applyToneCall(statement: string, context: RuntimeExecutionContext): boolean {
+  const match = /^(tone|noTone)\(([\s\S]*)\)$/i.exec(statement);
+  if (!match) return false;
+
+  const args = splitTopLevel(match[2], ',');
+  const pin = normalizeArduinoPin(args[0] ?? '', context.baseVariables, context.scope);
+  if (!pin) return true;
+
+  if (match[1].toLowerCase() === 'notone') {
+    context.toneRuntime.delete(pin);
+    context.pinValues.set(pin, 0);
+    updateRuntimeSimulationState(context);
+    return true;
+  }
+
+  const frequency = toRuntimeNumber(
+    evaluateRuntimeExpression(
+      args[1] ?? '',
+      context.baseVariables,
+      context.scope,
+      context.clockMs,
+      context
+    )
+  );
+  if (frequency === null || frequency <= 0) return true;
+
+  const duration =
+    args.length > 2
+      ? toRuntimeNumber(
+          evaluateRuntimeExpression(
+            args[2] ?? '',
+            context.baseVariables,
+            context.scope,
+            context.clockMs,
+            context
+          )
+        )
+      : null;
+
+  const timed = duration !== null && duration > 0;
+  const tone: ToneRuntimeState = {
+    frequency: clamp(frequency, BUZZER_MIN_FREQUENCY, BUZZER_MAX_FREQUENCY),
+    endsAtMs: timed ? context.clockMs.value + duration : null,
+  };
+  context.toneRuntime.set(pin, tone);
+  context.pinValues.set(pin, 255);
+
+  // A timed tone stops itself on the hardware, whatever the sketch is doing.
+  // The clock-based sweep only runs when a statement asks for a state update,
+  // so a loop that just sleeps would hold the note forever without this.
+  if (timed) {
+    context.trackTimeout(() => {
+      if (context.isCancelled() || context.toneRuntime.get(pin) !== tone) return;
+      context.toneRuntime.delete(pin);
+      context.pinValues.set(pin, 0);
+      updateRuntimeSimulationState(context);
+    }, duration);
+  }
+
+  updateRuntimeSimulationState(context);
+  return true;
 }
 
 function applyLcdMethodCall(
@@ -2457,8 +2556,15 @@ function executeRuntimeExpressionStatement(
             );
 
       context.pinValues.set(pin, rawValue);
+      // A pin the sketch writes by hand is no longer playing a tone.
+      context.toneRuntime.delete(pin);
       updateRuntimeSimulationState(context);
     }
+    done();
+    return;
+  }
+
+  if (applyToneCall(trimmed, context)) {
     done();
     return;
   }
@@ -2795,9 +2901,20 @@ function buildConnectivity(
       }
     }
 
-    if (component.type === 'button' && component.properties.pressed) {
+    if (component.type === 'button') {
+      // A tactile switch has two terminals, each brought out as a pair of legs
+      // that are joined inside the part whether it is pressed or not. Pressing
+      // is what bridges one terminal to the other.
+      //
+      // The pairs used to be wired up only while pressed, and the terminals
+      // never joined at all — so a button with a pin on one side and an LED on
+      // the other did nothing however hard it was pressed.
       connectPairs(graph, component.id, ['pin1', 'pin2']);
       connectPairs(graph, component.id, ['pin3', 'pin4']);
+
+      if (component.properties.pressed) {
+        addEdge(graph, endpointKey(component.id, 'pin1'), endpointKey(component.id, 'pin3'));
+      }
     }
 
     if (bridgePotentiometers && component.type === 'potentiometer') {
@@ -3317,6 +3434,70 @@ function computeDriverStates(
   }
 }
 
+/**
+ * How hard a two-terminal part is being driven, as a 0-255 level.
+ *
+ * A net only carries a level when something drives it directly — a board pin,
+ * a supply rail, a battery. That covers a part wired straight between a pin
+ * and ground, and it is still the answer wherever it applies.
+ *
+ * It says nothing about a node in the middle of a chain, though: put two LEDs
+ * in series and the junction between them is driven by nobody, so both ends
+ * read null and both LEDs stayed dark however the circuit was wired. The
+ * solved node voltages do know that node, because the resistive network is
+ * solved across the whole thing — so they answer when levels cannot. The nets
+ * are numbered per graph, so those voltages have to be looked up in the graph
+ * they were solved in.
+ *
+ * `fullScaleCurrent` is what the part draws when it is running flat out, so
+ * 255 means "as hard as this part is ever driven" for an LED and a buzzer
+ * alike.
+ */
+function driveLevelAcross(
+  componentId: string,
+  fromPin: string,
+  toPin: string,
+  connectivity: Connectivity,
+  netState: NetState,
+  measurementConnectivity: Connectivity,
+  measurementVoltages: Map<number, number>,
+  measurementEdges: ResistiveEdge[],
+  fullScaleCurrent: number
+): number {
+  const fromLevel = getNetLevel(netState, getEndpointNet(connectivity, componentId, fromPin));
+  const toLevel = getNetLevel(netState, getEndpointNet(connectivity, componentId, toPin));
+
+  if (fromLevel !== null && toLevel !== null) {
+    return clamp(fromLevel - toLevel, 0, 255);
+  }
+
+  const fromNet = getEndpointNet(measurementConnectivity, componentId, fromPin);
+  const toNet = getEndpointNet(measurementConnectivity, componentId, toPin);
+  if (fromNet === undefined || toNet === undefined) return 0;
+
+  const fromVoltage = measurementVoltages.get(fromNet);
+  const toVoltage = measurementVoltages.get(toNet);
+  if (fromVoltage === undefined || toVoltage === undefined) return 0;
+
+  // Drive from current, not from the voltage across the part. A diode solved as
+  // a linear branch keeps showing its forward drop even when no current flows at
+  // all — a chain with no path to ground, or an LED wired backwards — and
+  // reading that voltage as light lit them both.
+  const edge = measurementEdges.find(
+    (item) =>
+      item.componentId === componentId &&
+      item.pinIds[0] === fromPin &&
+      item.pinIds[1] === toPin
+  );
+  if (!edge) return 0;
+
+  const driving = fromVoltage - toVoltage - (edge.forwardDrop ?? 0);
+  if (driving <= 0) return 0;
+
+  const amps = driving / Math.max(edge.resistance, 0.0001);
+  return clamp((amps / fullScaleCurrent) * 255, 0, 255);
+}
+
 function computeLedStates(
   connectivity: Connectivity,
   netState: NetState,
@@ -3327,55 +3508,18 @@ function computeLedStates(
   measurementEdges: ResistiveEdge[],
   logicHighVoltage: number
 ): void {
-  /**
-   * How hard the LED is driven, as a 0-255 level.
-   *
-   * A net only carries a level when something drives it directly — a board pin,
-   * a supply rail, a battery. That covers an LED wired straight between a pin
-   * and ground, and it is still the answer wherever it applies.
-   *
-   * It says nothing about a node in the middle of a chain, though: put two LEDs
-   * in series and the junction between them is driven by nobody, so both ends
-   * read null and both LEDs stayed dark however the circuit was wired. The
-   * solved node voltages do know that node, because the resistive network is
-   * solved across the whole thing — so they answer when levels cannot. The nets
-   * are numbered per graph, so those voltages have to be looked up in the graph
-   * they were solved in.
-   */
-  const levelAcross = (componentId: string, fromPin: string, toPin: string): number => {
-    const fromLevel = getNetLevel(netState, getEndpointNet(connectivity, componentId, fromPin));
-    const toLevel = getNetLevel(netState, getEndpointNet(connectivity, componentId, toPin));
-
-    if (fromLevel !== null && toLevel !== null) {
-      return clamp(fromLevel - toLevel, 0, 255);
-    }
-
-    const fromNet = getEndpointNet(measurementConnectivity, componentId, fromPin);
-    const toNet = getEndpointNet(measurementConnectivity, componentId, toPin);
-    if (fromNet === undefined || toNet === undefined) return 0;
-
-    const fromVoltage = measurementVoltages.get(fromNet);
-    const toVoltage = measurementVoltages.get(toNet);
-    if (fromVoltage === undefined || toVoltage === undefined) return 0;
-
-    // Brightness from current, not from the voltage across the part. A diode
-    // solved as a linear branch keeps showing its forward drop even when no
-    // current flows at all — a chain with no path to ground, or an LED wired
-    // backwards — and reading that voltage as light lit them both.
-    const edge = measurementEdges.find(
-      (item) =>
-        item.componentId === componentId &&
-        item.pinIds[0] === fromPin &&
-        item.pinIds[1] === toPin
+  const levelAcross = (componentId: string, fromPin: string, toPin: string): number =>
+    driveLevelAcross(
+      componentId,
+      fromPin,
+      toPin,
+      connectivity,
+      netState,
+      measurementConnectivity,
+      measurementVoltages,
+      measurementEdges,
+      LED_FULL_BRIGHTNESS_CURRENT
     );
-    if (!edge) return 0;
-
-    const driving = fromVoltage - toVoltage - (edge.forwardDrop ?? 0);
-    if (driving <= 0) return 0;
-
-    const amps = driving / Math.max(edge.resistance, 0.0001);
-    return clamp((amps / LED_FULL_BRIGHTNESS_CURRENT) * 255, 0, 255);
-  };
 
   for (const led of connectivity.components.filter((component) => component.type === 'led')) {
     if (damaged.has(led.id)) {
@@ -3410,6 +3554,82 @@ function computeLedStates(
       red: channelBrightness('red'),
       green: channelBrightness('green'),
       blue: channelBrightness('blue'),
+    });
+  }
+}
+
+/**
+ * Which buzzers are sounding, and at what pitch.
+ *
+ * Two kinds of part answer to two kinds of code, the way they do on a bench:
+ * an active buzzer has its own oscillator and sounds whenever it has current,
+ * so digitalWrite(pin, HIGH) is enough; a passive one is just a piezo disc and
+ * only makes a noise when something wiggles the pin, which is what tone() is
+ * for. Either way it has to actually be in a circuit — the drive level comes
+ * from the same reader the LEDs use, so a buzzer with one leg in mid-air stays
+ * as quiet as an unconnected LED stays dark.
+ */
+function computeBuzzerStates(
+  connectivity: Connectivity,
+  netState: NetState,
+  measurementConnectivity: Connectivity,
+  measurementVoltages: Map<number, number>,
+  measurementEdges: ResistiveEdge[],
+  toneRuntime: Map<string, ToneRuntimeState>,
+  callbacks: RuntimeCallbacks,
+  damaged: Map<string, DamageRecord>
+): void {
+  const buzzers = connectivity.components.filter((component) => component.type === 'buzzer');
+  if (buzzers.length === 0) return;
+
+  // A tone belongs to a board pin; the buzzer hears it if it shares that net.
+  const toneByNet = new Map<number, number>();
+  for (const [pinId, tone] of toneRuntime) {
+    const net = getEndpointNet(connectivity, ARDUINO_COMPONENT_ID, pinId);
+    if (net !== undefined) toneByNet.set(net, tone.frequency);
+  }
+
+  for (const buzzer of buzzers) {
+    if (damaged.has(buzzer.id)) {
+      callbacks.setComponentState(buzzer.id, { sounding: false, frequency: 0, volume: 0 });
+      continue;
+    }
+
+    const level =
+      driveLevelAcross(
+        buzzer.id,
+        'positive',
+        'negative',
+        connectivity,
+        netState,
+        measurementConnectivity,
+        measurementVoltages,
+        measurementEdges,
+        BUZZER_RATED_CURRENT
+      ) / 255;
+
+    // Either way round: a buzzer wired backwards still shares the driven net.
+    const positiveNet = getEndpointNet(connectivity, buzzer.id, 'positive');
+    const negativeNet = getEndpointNet(connectivity, buzzer.id, 'negative');
+    const toneFrequency =
+      (positiveNet !== undefined ? toneByNet.get(positiveNet) : undefined) ??
+      (negativeNet !== undefined ? toneByNet.get(negativeNet) : undefined);
+
+    const isActiveBuzzer = buzzer.properties.active !== false;
+    const ownFrequency = clamp(
+      getNumericProperty(buzzer, 'frequency', BUZZER_DEFAULT_FREQUENCY),
+      BUZZER_MIN_FREQUENCY,
+      BUZZER_MAX_FREQUENCY
+    );
+
+    const powered = level > BUZZER_SOUNDING_LEVEL;
+    const sounding = powered && (toneFrequency !== undefined || isActiveBuzzer);
+    const frequency = toneFrequency ?? ownFrequency;
+
+    callbacks.setComponentState(buzzer.id, {
+      sounding,
+      frequency: sounding ? Math.round(frequency) : 0,
+      volume: sounding ? Number(Math.min(1, level).toFixed(3)) : 0,
     });
   }
 }
@@ -3675,7 +3895,14 @@ function buildResistiveEdges(connectivity: Connectivity): ResistiveEdge[] {
         );
         break;
       case 'buzzer':
-        addResistiveEdge(edges, connectivity, component, 'positive', 'negative', 32);
+        addResistiveEdge(
+          edges,
+          connectivity,
+          component,
+          'positive',
+          'negative',
+          BUZZER_RESISTANCE
+        );
         break;
       case 'dc-motor':
         addResistiveEdge(edges, connectivity, component, 'pin1', 'pin2', 18);
@@ -4358,6 +4585,7 @@ function updateActuatorStates(
   measurementConnectivity: Connectivity,
   pinValues: Map<string, number>,
   servoRuntime: Map<string, ServoRuntimeState>,
+  toneRuntime: Map<string, ToneRuntimeState>,
   lcdRuntime: Map<string, LcdRuntimeState>,
   boardPins: Pin[],
   logicHighVoltage: number,
@@ -4365,6 +4593,14 @@ function updateActuatorStates(
   clockMs: number,
   damaged: Map<string, DamageRecord>
 ): void {
+  // tone(pin, freq, duration) stops on its own once its time is up.
+  for (const [pinId, tone] of [...toneRuntime]) {
+    if (tone.endsAtMs !== null && clockMs >= tone.endsAtMs) {
+      toneRuntime.delete(pinId);
+      pinValues.set(pinId, 0);
+    }
+  }
+
   callbacks.clearLedStates();
   callbacks.clearComponentStates();
   callbacks.setPinStates(Object.fromEntries(pinValues));
@@ -4396,6 +4632,16 @@ function updateActuatorStates(
     voltages,
     resistiveEdges,
     logicHighVoltage
+  );
+  computeBuzzerStates(
+    connectivity,
+    netState,
+    measurementConnectivity,
+    voltages,
+    resistiveEdges,
+    toneRuntime,
+    callbacks,
+    damaged
   );
   computeServoStates(connectivity, servoRuntime, netState, callbacks);
   computeLcdStates(connectivity, lcdRuntime, netState, callbacks);
@@ -4934,16 +5180,18 @@ export function startMockArduinoRuntime(
   const servoInstances = extractServoInstances(code);
   const lcdRuntime = extractLcdInstances(code, variables);
   const { setupStatements, loopStatements, loopBody } = parseSketch(code);
-  // Rebuilt in place when the circuit is edited mid-run, so turning a
-  // resistor's value up does not throw the sketch back to setup().
-  let connectivity = buildConnectivity(components, wires, boardPins);
-  let measurementConnectivity = buildConnectivity(components, wires, boardPins, {
+  // The starting graphs. Once the run is under way these live on the execution
+  // context, which is rebuilt in place when the circuit is edited mid-run — so
+  // turning a resistor up does not throw the sketch back to setup().
+  const connectivity = buildConnectivity(components, wires, boardPins);
+  const measurementConnectivity = buildConnectivity(components, wires, boardPins, {
     bridgeResistors: false,
     bridgePotentiometers: false,
   });
   const pinValues = new Map<string, number>();
   const damagedComponents = new Map<string, DamageRecord>();
   const servoRuntime = new Map<string, ServoRuntimeState>();
+  const toneRuntime = new Map<string, ToneRuntimeState>();
   const scope = createRuntimeScope(variables);
   const clockMs = { value: 0 };
   const timers = new Set<number>();
@@ -4986,6 +5234,7 @@ export function startMockArduinoRuntime(
     clockMs,
     pinValues,
     servoRuntime,
+    toneRuntime,
     lcdRuntime,
     connectivity,
     measurementConnectivity,
@@ -5020,6 +5269,7 @@ export function startMockArduinoRuntime(
     measurementConnectivity,
     pinValues,
     servoRuntime,
+    toneRuntime,
     lcdRuntime,
     boardPins,
     logicHighVoltage,
@@ -5044,12 +5294,28 @@ export function startMockArduinoRuntime(
   activeCircuitUpdate = (nextComponents, nextWires, nextBoardPins) => {
     if (cancelled) return;
 
-    connectivity = buildConnectivity(nextComponents, nextWires, nextBoardPins);
-    measurementConnectivity = buildConnectivity(nextComponents, nextWires, nextBoardPins, {
-      bridgeResistors: false,
-      bridgePotentiometers: false,
-    });
-    boardPins = nextBoardPins;
+    // Onto the execution context, which is what every tick actually reads.
+    // Rebuilding a local variable instead left the running sketch looking at
+    // the graph it started with, so nothing a change did ever showed up —
+    // pressing a button included.
+    executionContext.connectivity = buildConnectivity(
+      nextComponents,
+      nextWires,
+      nextBoardPins
+    );
+    executionContext.measurementConnectivity = buildConnectivity(
+      nextComponents,
+      nextWires,
+      nextBoardPins,
+      { bridgeResistors: false, bridgePotentiometers: false }
+    );
+    executionContext.boardPins = nextBoardPins;
+
+    // Solve it again now rather than waiting for the sketch's next statement.
+    // A meter probing a resistor that just changed value, or a potentiometer
+    // being swept, has to move as the value moves — and a sketch sitting in a
+    // long delay would otherwise show the old reading until it woke up.
+    updateRuntimeSimulationState(executionContext);
   };
 }
 

@@ -9,6 +9,7 @@ import {
 
 const Palette: React.FC = () => {
   const addComponent = useCircuitStore((s) => s.addComponent);
+  const simulationRunning = useCircuitStore((s) => s.simulation.running);
   const language = useCircuitStore((s) => s.language);
   const [searchQuery, setSearchQuery] = useState('');
   const [openCategories, setOpenCategories] = useState<Record<string, boolean>>({
@@ -88,6 +89,9 @@ const Palette: React.FC = () => {
   };
 
   const handleClick = (type: ComponentType) => {
+    // The store refuses this while the circuit runs; stopping here keeps the
+    // palette from looking like it did something.
+    if (simulationRunning) return;
     addComponent(type, 400, 300);
   };
 
@@ -136,11 +140,15 @@ const Palette: React.FC = () => {
                   return (
                     <div
                       key={item.type}
-                      className="palette-item"
-                      draggable
+                      className={`palette-item${simulationRunning ? ' disabled' : ''}`}
+                      draggable={!simulationRunning}
                       onDragStart={(event) => handleDragStart(event, item.type)}
                       onClick={() => handleClick(item.type)}
-                      title={`${displayName} - ${t(language, 'clickOrDrag')}`}
+                      title={
+                        simulationRunning
+                          ? t(language, 'simulationLockedHint')
+                          : `${displayName} - ${t(language, 'clickOrDrag')}`
+                      }
                     >
                       <div className="palette-item-icon">{item.icon}</div>
                       <span>{displayName}</span>

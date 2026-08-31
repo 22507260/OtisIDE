@@ -5,6 +5,7 @@ import {
   BB_Y,
   BREADBOARD_COMPONENT_ID,
   HOLE_SP,
+  getBreadboardHoleOn,
   getBreadboardSpec,
 } from '../../models/breadboard';
 import type { CircuitComponent } from '../../models/types';
@@ -205,15 +206,25 @@ describe('the mini board', () => {
     ...overrides,
   });
 
-  it('has seventeen columns of A-J and no rails', () => {
+  it('has seventeen columns of A-J, with rails like the full board', () => {
     const spec = getBreadboardSpec('mini');
 
     expect(spec.cols).toBe(17);
-    expect(spec.hasRails).toBe(false);
-    // Ten rows, seventeen columns: the 170 tie points the part is named for.
-    expect(spec.holes).toHaveLength(170);
-    expect(spec.holes.some((hole) => hole.rowLabel.startsWith('T'))).toBe(false);
+    expect(spec.hasRails).toBe(true);
+    // Ten main rows plus four rail rows, seventeen columns.
+    expect(spec.holes).toHaveLength(14 * 17);
     expect(spec.holes.filter((hole) => hole.rowLabel === 'A')).toHaveLength(17);
+    expect(spec.holes.filter((hole) => hole.rowLabel === 'T+')).toHaveLength(17);
+    expect(spec.holes.filter((hole) => hole.rowLabel === 'B-')).toHaveLength(17);
+  });
+
+  it('runs each rail as one strip across the whole board', () => {
+    const spec = getBreadboardSpec('mini');
+
+    for (const stripId of ['rail-top-pos', 'rail-top-neg', 'rail-bottom-pos', 'rail-bottom-neg']) {
+      const rail = spec.stripGroups.find((group) => group[0].stripId === stripId);
+      expect(rail).toHaveLength(17);
+    }
   });
 
   it('keeps a column on one strip, five holes at a time', () => {
@@ -229,9 +240,8 @@ describe('the mini board', () => {
   });
 
   it('seats parts on its own holes', () => {
-    // Row A of the mini sits at the same place as the full board's row A only
-    // because both are measured from the board's own corner; the mini simply
-    // has no rails above it.
+    // Both sizes measure their rows from the board's own corner, so row A lands
+    // in the same place on either; only how far the columns run apart differs.
     const spec = getBreadboardSpec('mini');
     const a1 = spec.holes.find((hole) => hole.id === 'bb-a-1');
     expect(a1).toBeDefined();
@@ -253,11 +263,38 @@ describe('the mini board', () => {
     expect(getBreadboardSpec('full').holes.some((hole) => hole.id === 'bb-a-18')).toBe(true);
   });
 
-  it('is narrower and shorter than the full board', () => {
+  it('looks a hole up on the board it was asked about', () => {
+    const mini = { id: 'mini-1', x: 500, y: 40, variant: 'mini' as const };
+    const full = { id: 'full-1', x: 900, y: 300, variant: 'full' as const };
+
+    const onMini = getBreadboardHoleOn(mini, 'bb-a-1');
+    const onFull = getBreadboardHoleOn(full, 'bb-a-1');
+
+    expect(onMini).not.toBeNull();
+    expect(onFull).not.toBeNull();
+    // Same hole id, two boards: the answer follows the board it belongs to,
+    // which is what makes a wire move when its board moves.
+    expect(onMini!.x).not.toBe(onFull!.x);
+    expect(Math.round(onMini!.x - mini.x)).toBe(Math.round(onFull!.x - full.x));
+  });
+
+  it('will not hand back a hole the board does not have', () => {
+    const mini = { id: 'mini-1', x: 500, y: 40, variant: 'mini' as const };
+    const full = { id: 'full-1', x: 900, y: 300, variant: 'full' as const };
+
+    // Column 40 exists on a full-size board and nowhere on a mini; asking
+    // without saying which board used to answer with the full board's geometry.
+    expect(getBreadboardHoleOn(full, 'bb-a-40')).not.toBeNull();
+    expect(getBreadboardHoleOn(mini, 'bb-a-40')).toBeNull();
+  });
+
+  it('is narrower than the full board, and just as tall', () => {
     const mini = getBreadboardSpec('mini');
     const full = getBreadboardSpec('full');
 
     expect(mini.width).toBeLessThan(full.width);
-    expect(mini.height).toBeLessThan(full.height);
+    // Same rows, same rails, same height — the mini is a short board, not a
+    // squat one.
+    expect(mini.height).toBe(full.height);
   });
 });

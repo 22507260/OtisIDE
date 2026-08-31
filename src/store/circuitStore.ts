@@ -105,6 +105,19 @@ interface CircuitStore {
     updates: Partial<CircuitComponent>,
     options?: { recordHistory?: boolean }
   ) => void;
+  /**
+   * A move, turn, resize or mirror that carries the rest of the selection.
+   *
+   * Picking several parts and then having only one of them respond is not what
+   * anyone means by picking several. Position travels as a delta, so the block
+   * keeps its shape; angle, size and mirror are values, so every selected part
+   * ends up matching the one that was edited.
+   */
+  updateComponentTransform: (
+    id: string,
+    updates: Partial<Pick<CircuitComponent, 'x' | 'y' | 'rotation' | 'scale' | 'flipX'>>,
+    options?: { recordHistory?: boolean }
+  ) => void;
   selectComponent: (id: string | null) => void;
   /** Ctrl+click: adds the part to the selection, or drops it if it was in it. */
   toggleComponentSelection: (id: string) => void;
@@ -124,6 +137,12 @@ interface CircuitStore {
     id: string,
     key: string,
     value: string | number | boolean,
+    options?: { recordHistory?: boolean }
+  ) => void;
+  /** Several of a part's values at once — a multimeter probe being moved, say. */
+  updateComponentProperties: (
+    id: string,
+    values: Record<string, string | number | boolean>,
     options?: { recordHistory?: boolean }
   ) => void;
 
@@ -590,6 +609,18 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
     }
   };
 
+  /**
+   * Whether the circuit is being run right now, and so must not be rebuilt
+   * under the running sketch.
+   *
+   * Pressing a button or turning a value is the point of watching a simulation;
+   * moving a part, cutting a wire or deleting something is editing, and editing
+   * a circuit that is live makes no more sense here than it does on a bench.
+   * Refused at the store rather than only in the canvas, so no path — a
+   * shortcut, the assistant, a context menu — can slip past it.
+   */
+  const isCircuitLocked = () => get().simulation.running;
+
   /** Restarts the sketch from its first line. For changes to the sketch itself. */
   const syncRuntimeIfRunning = () => {
     if (!get().simulation.running) return;
@@ -757,6 +788,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
 
   // Component actions
   addComponent: (type, x, y) => {
+    if (isCircuitLocked()) return;
     pushUndoSnapshot();
     const comp = createComponent(type, x, y);
     set((s) => ({
@@ -769,6 +801,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
   },
 
   removeComponent: (id) => {
+    if (isCircuitLocked()) return;
     if (!get().components.some((component) => component.id === id)) return;
     pushUndoSnapshot();
     set((s) => ({
@@ -783,12 +816,55 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
   },
 
   updateComponent: (id, updates, options) => {
+    if (isCircuitLocked()) return;
     if (!get().components.some((component) => component.id === id)) return;
     if (options?.recordHistory !== false) pushUndoSnapshot();
     set((s) => ({
       components: s.components.map((c) =>
         c.id === id ? { ...c, ...updates } : c
       ),
+    }));
+    syncCircuitIfRunning();
+  },
+
+  updateComponentTransform: (id, updates, options) => {
+    if (isCircuitLocked()) return;
+
+    const state = get();
+    const primary = state.components.find((component) => component.id === id);
+    if (!primary) return;
+
+    const selection =
+      state.selectedComponentIds.length > 1 && state.selectedComponentIds.includes(id)
+        ? state.selectedComponentIds
+        : [id];
+
+    // On its own it is an ordinary edit; no need for a second code path.
+    if (selection.length === 1) {
+      get().updateComponent(id, updates, options);
+      return;
+    }
+
+    // Where the edited part went is how far the whole block goes.
+    const dx = updates.x !== undefined ? updates.x - primary.x : 0;
+    const dy = updates.y !== undefined ? updates.y - primary.y : 0;
+    const ids = new Set(selection);
+
+    // One snapshot for the block, not one per part.
+    if (options?.recordHistory !== false) pushUndoSnapshot();
+
+    set((s) => ({
+      components: s.components.map((component) => {
+        if (!ids.has(component.id)) return component;
+
+        const next = { ...component };
+        if (updates.x !== undefined) next.x = component.x + dx;
+        if (updates.y !== undefined) next.y = component.y + dy;
+        if (updates.rotation !== undefined) next.rotation = updates.rotation;
+        if (updates.scale !== undefined) next.scale = updates.scale;
+        if (updates.flipX !== undefined) next.flipX = updates.flipX;
+        return next;
+      }),
     }));
     syncCircuitIfRunning();
   },
@@ -840,6 +916,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
   canPaste: () => clipboard !== null && clipboard.components.length > 0,
 
   pasteClipboard: (at) => {
+    if (isCircuitLocked()) return 0;
     if (!clipboard || clipboard.components.length === 0) return 0;
 
     pushUndoSnapshot();
@@ -905,6 +982,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
   },
 
   duplicateComponent: (id) => {
+    if (isCircuitLocked()) return;
     const state = get();
     const original = state.components.find((component) => component.id === id);
     if (!original) return;
@@ -948,8 +1026,20 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
     syncCircuitIfRunning();
   },
 
+  updateComponentProperties: (id, values, options) => {
+    if (!get().components.some((component) => component.id === id)) return;
+    if (options?.recordHistory !== false) pushUndoSnapshot();
+    set((s) => ({
+      components: s.components.map((c) =>
+        c.id === id ? { ...c, properties: { ...c.properties, ...values } } : c
+      ),
+    }));
+    syncCircuitIfRunning();
+  },
+
   // Wire actions
   addWire: (wire) => {
+    if (isCircuitLocked()) return;
     pushUndoSnapshot();
     const newWire = { ...wire, id: uuidv4() };
     set((s) => ({ wires: [...s.wires, newWire] }));
@@ -957,6 +1047,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
   },
 
   updateWirePoints: (id, points) => {
+    if (isCircuitLocked()) return;
     // Geometry only — the simulation reads endpoints, not the route.
     set((s) => ({
       wires: s.wires.map((wire) =>
@@ -966,6 +1057,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
   },
 
   updateWireEndpoint: (id, end, componentId, pinId, position) => {
+    if (isCircuitLocked()) return;
     const wire = get().wires.find((item) => item.id === id);
     if (!wire) return;
 
@@ -1017,6 +1109,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
   },
 
   setWireColorById: (id, color) => {
+    if (isCircuitLocked()) return;
     const wire = get().wires.find((item) => item.id === id);
     if (!wire || wire.color === color) return;
 
@@ -1027,6 +1120,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
   },
 
   setWireWidthById: (id, width) => {
+    if (isCircuitLocked()) return;
     const wire = get().wires.find((item) => item.id === id);
     const clamped = Math.min(WIRE_MAX_WIDTH, Math.max(WIRE_MIN_WIDTH, width));
     if (!wire || wire.width === clamped) return;
@@ -1038,18 +1132,21 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
   },
 
   thickenWire: (id) => {
+    if (isCircuitLocked()) return;
     const wire = get().wires.find((item) => item.id === id);
     if (!wire) return;
     get().setWireWidthById(id, (wire.width ?? WIRE_DEFAULT_WIDTH) + WIRE_WIDTH_STEP);
   },
 
   thinWire: (id) => {
+    if (isCircuitLocked()) return;
     const wire = get().wires.find((item) => item.id === id);
     if (!wire) return;
     get().setWireWidthById(id, (wire.width ?? WIRE_DEFAULT_WIDTH) - WIRE_WIDTH_STEP);
   },
 
   removeWire: (id) => {
+    if (isCircuitLocked()) return;
     if (!get().wires.some((wire) => wire.id === id)) return;
     pushUndoSnapshot();
     set((s) => ({
@@ -1093,6 +1190,9 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
     set((s) => {
       stopMockArduinoRuntime();
       return {
+        // Wiring and deleting are locked while it runs, so holding one of those
+        // tools would leave the cursor promising something it cannot do.
+        toolMode: s.toolMode === 'wire' || s.toolMode === 'delete' ? 'select' : s.toolMode,
         simulation: {
           ...s.simulation,
           running: true,
@@ -1183,6 +1283,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
     syncRuntimeIfRunning();
   },
   undo: () => {
+    if (isCircuitLocked()) return;
     const snapshot = undoStack.pop();
     if (!snapshot) return;
     pushHistory(redoStack);
@@ -1191,6 +1292,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
   canUndo: () => undoStack.length > 0,
 
   redo: () => {
+    if (isCircuitLocked()) return;
     const snapshot = redoStack.pop();
     if (!snapshot) return;
     pushHistory(undoStack);
