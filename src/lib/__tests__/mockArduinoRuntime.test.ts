@@ -103,6 +103,7 @@ type Recording = {
   led: Array<{ on: boolean; brightness: number }>;
   ledById: Array<{ id: string; on: boolean; brightness: number }>;
   componentStates: ComponentStateEntry[];
+  wireFlow: Array<Record<string, number>>;
 };
 
 /** The brightest this LED ever reported, so a blinking sketch still counts. */
@@ -124,6 +125,7 @@ function run(code: string, components: CircuitComponent[], wires: Wire[], ms = 2
       led: [],
       ledById: [],
       componentStates: [],
+      wireFlow: [],
     };
 
     startMockArduinoRuntime(code, components, wires, BOARD_PINS, 5, {
@@ -137,6 +139,7 @@ function run(code: string, components: CircuitComponent[], wires: Wire[], ms = 2
       setComponentState: (id, state) => recording.componentStates.push({ id, state: { ...state } }),
       clearComponentStates: () => {},
       setPinStates: (states) => recording.pinStates.push({ ...states }),
+      setWireFlow: (flow) => recording.wireFlow.push({ ...flow }),
     });
 
     setTimeout(() => {
@@ -658,6 +661,7 @@ void loop() {
         led: [],
         ledById: [],
         componentStates: [],
+        wireFlow: [],
       };
 
       startMockArduinoRuntime(
@@ -992,6 +996,284 @@ void loop() {
     expect(damage).toHaveLength(0);
     const states = buzzerStates(recording);
     expect(states[states.length - 1].sounding).toBe(true);
+  });
+});
+
+describe('potentiometer', () => {
+  const pot = (position: number): CircuitComponent => ({
+    id: 'pot-1',
+    type: 'potentiometer',
+    x: 200,
+    y: 200,
+    rotation: 0,
+    pins: [
+      { id: 'pin1', name: 'Pin 1', type: 'passive', x: -12, y: 8 },
+      { id: 'wiper', name: 'Wiper', type: 'passive', x: 0, y: 8 },
+      { id: 'pin2', name: 'Pin 2', type: 'passive', x: 12, y: 8 },
+    ],
+    properties: { resistance: 10000, position, unit: 'ohm' },
+  });
+
+  // The textbook wiring: track across the supply, wiper into an analog pin.
+  const POT_WIRES = [
+    wire('w1', ARDUINO_COMPONENT_ID, '5V', 'pot-1', 'pin1'),
+    wire('w2', 'pot-1', 'pin2', ARDUINO_COMPONENT_ID, 'GND'),
+    wire('w3', 'pot-1', 'wiper', ARDUINO_COMPONENT_ID, 'A0'),
+  ];
+
+  const READ_SKETCH = `
+void setup() {
+  Serial.begin(9600);
+}
+
+void loop() {
+  Serial.println(analogRead(A0));
+  delay(60);
+}
+`;
+
+  /** The last reading the sketch printed — println flushes one line per entry. */
+  const lastReading = (recording: Recording): number => {
+    const numbers = recording.serial
+      .map((line) => Number(line.trim()))
+      .filter((value) => Number.isFinite(value));
+    return numbers[numbers.length - 1] ?? -1;
+  };
+
+  it('reads full scale with the wiper at the supply end', async () => {
+    const recording = await run(READ_SKETCH, [pot(0)], POT_WIRES, 800);
+    expect(lastReading(recording)).toBeGreaterThan(1000);
+  });
+
+  it('reads about half way with the wiper in the middle', async () => {
+    const recording = await run(READ_SKETCH, [pot(50)], POT_WIRES, 800);
+    const reading = lastReading(recording);
+
+    expect(reading).toBeGreaterThan(480);
+    expect(reading).toBeLessThan(545);
+  });
+
+  it('reads nothing with the wiper at the ground end', async () => {
+    const recording = await run(READ_SKETCH, [pot(100)], POT_WIRES, 800);
+    expect(lastReading(recording)).toBeLessThan(20);
+  });
+
+  it('gives a different reading for every position, not one flat value', async () => {
+    // Read through the bridged graph the track was a dead short, so pin1, the
+    // wiper and pin2 all sat on one net and turning the knob did nothing.
+    const readings = await Promise.all(
+      [0, 25, 50, 75, 100].map(async (position) =>
+        lastReading(await run(READ_SKETCH, [pot(position)], POT_WIRES, 700))
+      )
+    );
+
+    expect(new Set(readings).size).toBe(readings.length);
+    // And they fall as the wiper travels away from the supply.
+    for (let i = 1; i < readings.length; i += 1) {
+      expect(readings[i]).toBeLessThan(readings[i - 1]);
+    }
+  });
+});
+
+describe('transistor', () => {
+  const transistor = (
+    type: 'transistor-npn' | 'transistor-pnp',
+    properties: Record<string, string | number | boolean> = {}
+  ): CircuitComponent => ({
+    id: 'q-1',
+    type,
+    x: 260,
+    y: 200,
+    rotation: 0,
+    pins: [
+      { id: 'base', name: 'Base', type: 'passive', x: 0, y: 8 },
+      { id: 'collector', name: 'Collector', type: 'passive', x: -9.5, y: 8 },
+      { id: 'emitter', name: 'Emitter', type: 'passive', x: 9.5, y: 8 },
+    ],
+    properties: { hfe: 100, on: false, ...properties },
+  });
+
+  const baseResistor = (): CircuitComponent => ({ ...resistor(), id: 'rb-1' });
+  const loadResistor = (): CircuitComponent => ({ ...resistor(), id: 'rl-1' });
+
+  /**
+   * The textbook low-side switch: a pin drives the base through a resistor, and
+   * the LED sits between the supply and the collector.
+   */
+  const NPN_WIRES = [
+    wire('w1', ARDUINO_COMPONENT_ID, 'D9', 'rb-1', 'pin1'),
+    wire('w2', 'rb-1', 'pin2', 'q-1', 'base'),
+    wire('w3', ARDUINO_COMPONENT_ID, '5V', 'rl-1', 'pin1'),
+    wire('w4', 'rl-1', 'pin2', 'led-1', 'anode'),
+    wire('w5', 'led-1', 'cathode', 'q-1', 'collector'),
+    wire('w6', 'q-1', 'emitter', ARDUINO_COMPONENT_ID, 'GND'),
+  ];
+
+  const DRIVE = (level: 'HIGH' | 'LOW') => `
+void setup() {
+  pinMode(9, OUTPUT);
+  digitalWrite(9, ${level});
+}
+
+void loop() {
+  delay(50);
+}
+`;
+
+  it('leaves the load off while the base is not driven', async () => {
+    const recording = await run(
+      DRIVE('LOW'),
+      [baseResistor(), loadResistor(), transistor('transistor-npn'), led()],
+      NPN_WIRES,
+      800
+    );
+
+    expect(peakBrightness(recording, 'led-1')).toBeLessThan(0.05);
+  });
+
+  it('turns the load on when the sketch drives the base', async () => {
+    const recording = await run(
+      DRIVE('HIGH'),
+      [baseResistor(), loadResistor(), transistor('transistor-npn'), led()],
+      NPN_WIRES,
+      800
+    );
+
+    expect(peakBrightness(recording, 'led-1')).toBeGreaterThan(0.2);
+  });
+
+  it('reports whether it is conducting', async () => {
+    const recording = await run(
+      DRIVE('HIGH'),
+      [baseResistor(), loadResistor(), transistor('transistor-npn'), led()],
+      NPN_WIRES,
+      800
+    );
+    const states = statesOf(recording, 'q-1').filter((state) => 'conducting' in state);
+
+    expect(states.length).toBeGreaterThan(0);
+    expect(states[states.length - 1].conducting).toBe(true);
+  });
+
+  it('can be switched on by hand from the properties panel', async () => {
+    // The pin is low, so only the panel switch can be closing this.
+    const recording = await run(
+      DRIVE('LOW'),
+      [
+        baseResistor(),
+        loadResistor(),
+        transistor('transistor-npn', { on: true }),
+        led(),
+      ],
+      NPN_WIRES,
+      800
+    );
+
+    expect(peakBrightness(recording, 'led-1')).toBeGreaterThan(0.2);
+  });
+
+  it('answers to the base the other way round when it is a PNP', async () => {
+    // A PNP conducts when its base is pulled below the emitter, so the same
+    // circuit that switches an NPN on with a high pin leaves a PNP off.
+    const lit = await run(
+      DRIVE('HIGH'),
+      [baseResistor(), loadResistor(), transistor('transistor-pnp'), led()],
+      NPN_WIRES,
+      800
+    );
+
+    expect(peakBrightness(lit, 'led-1')).toBeLessThan(0.05);
+  });
+});
+
+describe('current flow', () => {
+  const LIT_WIRES = [
+    wire('w1', ARDUINO_COMPONENT_ID, 'D9', 'resistor-1', 'pin1'),
+    wire('w2', 'resistor-1', 'pin2', 'led-1', 'anode'),
+    wire('w3', 'led-1', 'cathode', ARDUINO_COMPONENT_ID, 'GND'),
+  ];
+
+  const DRIVE = (level: 'HIGH' | 'LOW') => `
+void setup() {
+  pinMode(9, OUTPUT);
+  digitalWrite(9, ${level});
+}
+
+void loop() {
+  delay(50);
+}
+`;
+
+  /** The last set of cable currents the runtime published. */
+  const lastFlow = (recording: Recording): Record<string, number> =>
+    recording.wireFlow[recording.wireFlow.length - 1] ?? {};
+
+  it('runs current through every cable of a lit circuit', async () => {
+    const recording = await run(DRIVE('HIGH'), [resistor(), led()], LIT_WIRES, 800);
+    const flow = lastFlow(recording);
+
+    for (const id of ['w1', 'w2', 'w3']) {
+      expect(Math.abs(flow[id] ?? 0)).toBeGreaterThan(0);
+    }
+  });
+
+  it('points every cable the same way round the loop', async () => {
+    // Each cable is written pin-first along the path out of the board and back
+    // to ground, so a circuit traced from the supply runs positive throughout.
+    const recording = await run(DRIVE('HIGH'), [resistor(), led()], LIT_WIRES, 800);
+    const flow = lastFlow(recording);
+
+    expect(flow.w1).toBeGreaterThan(0);
+    expect(flow.w2).toBeGreaterThan(0);
+    expect(flow.w3).toBeGreaterThan(0);
+  });
+
+  it('turns the other way when the cable is written the other way', async () => {
+    const reversed = [
+      wire('w1', 'resistor-1', 'pin1', ARDUINO_COMPONENT_ID, 'D9'),
+      wire('w2', 'resistor-1', 'pin2', 'led-1', 'anode'),
+      wire('w3', 'led-1', 'cathode', ARDUINO_COMPONENT_ID, 'GND'),
+    ];
+    const recording = await run(DRIVE('HIGH'), [resistor(), led()], reversed, 800);
+    const flow = lastFlow(recording);
+
+    // Same circuit, same direction on the bench — the sign follows the points
+    // the wire is drawn with, which is what the canvas animates along.
+    expect(flow.w1).toBeLessThan(0);
+    expect(flow.w2).toBeGreaterThan(0);
+  });
+
+  it('reports nothing while the pin is low', async () => {
+    const recording = await run(DRIVE('LOW'), [resistor(), led()], LIT_WIRES, 800);
+    const flow = lastFlow(recording);
+
+    for (const id of ['w1', 'w2', 'w3']) {
+      expect(Math.abs(flow[id] ?? 0)).toBeLessThan(1e-6);
+    }
+  });
+
+  it('reports nothing when the circuit is not closed', async () => {
+    const open = [
+      wire('w1', ARDUINO_COMPONENT_ID, 'D9', 'resistor-1', 'pin1'),
+      wire('w2', 'resistor-1', 'pin2', 'led-1', 'anode'),
+    ];
+    const recording = await run(DRIVE('HIGH'), [resistor(), led()], open, 800);
+    const flow = lastFlow(recording);
+
+    expect(Math.abs(flow.w1 ?? 0)).toBeLessThan(1e-6);
+    expect(Math.abs(flow.w2 ?? 0)).toBeLessThan(1e-6);
+  });
+
+  it('carries more current through a smaller resistor', async () => {
+    const small = await run(DRIVE('HIGH'), [resistor(), led()], LIT_WIRES, 800);
+    const large = await run(
+      DRIVE('HIGH'),
+      [{ ...resistor(), properties: { resistance: 10000, unit: 'ohm' } }, led()],
+      LIT_WIRES,
+      800
+    );
+
+    expect(Math.abs(lastFlow(small).w1)).toBeGreaterThan(Math.abs(lastFlow(large).w1));
   });
 });
 

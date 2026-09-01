@@ -91,6 +91,12 @@ interface CircuitStore {
   stagePos: { x: number; y: number };
   setZoom: (z: number) => void;
   setStagePos: (pos: { x: number; y: number }) => void;
+  /**
+   * Bumped whenever the canvas gets a different circuit — opening a project, or
+   * starting a new one. The view has to be pointed at it again, and only the
+   * canvas knows how big the viewport is, so this is how it hears about it.
+   */
+  viewResetToken: number;
   boardType: ControllerBoardType;
   setBoardType: (boardType: ControllerBoardType) => void;
   boardPosition: { x: number; y: number };
@@ -595,6 +601,10 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
             set((s) => ({
               simulation: { ...s.simulation, runtimeError: message },
             })),
+          setWireFlow: (wireFlow) =>
+            set((s) => ({
+              simulation: { ...s.simulation, wireFlow },
+            })),
         }
       );
     } catch (error) {
@@ -669,6 +679,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
             running: true,
             pinStates: {},
             ledStates: {},
+            wireFlow: {},
             componentStates: {},
             serialOutput: [],
             oscilloscopeTraces: {},
@@ -677,6 +688,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
             ...state.simulation,
             pinStates: {},
             ledStates: {},
+            wireFlow: {},
             componentStates: {},
             oscilloscopeTraces: {},
           },
@@ -773,6 +785,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
   // Canvas
   zoom: 1,
   stagePos: { x: 0, y: 0 },
+  viewResetToken: 0,
   setZoom: (z) => set({ zoom: Math.max(0.2, Math.min(3, z)) }),
   setStagePos: (pos) => set({ stagePos: pos }),
   boardType: draft?.boardType ?? DEFAULT_CONTROLLER_BOARD_TYPE,
@@ -1171,6 +1184,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
     running: false,
     pinStates: {},
     ledStates: {},
+    wireFlow: {},
     componentStates: {},
     serialOutput: [],
     oscilloscopeTraces: {},
@@ -1198,6 +1212,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
           running: true,
           pinStates: {},
           ledStates: {},
+          wireFlow: {},
           componentStates: {},
           serialOutput: [],
           oscilloscopeTraces: {},
@@ -1217,6 +1232,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
           running: false,
           pinStates: {},
           ledStates: {},
+          wireFlow: {},
           componentStates: {},
           runtimeError: null,
         },
@@ -1417,6 +1433,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
         running: false,
         pinStates: {},
         ledStates: {},
+        wireFlow: {},
         componentStates: {},
         serialOutput: [],
         oscilloscopeTraces: {},
@@ -1427,7 +1444,11 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
     // A second set, because the subscription that marks the project dirty runs
     // inside the first one. A fresh project belongs to no file and has nothing
     // unsaved in it.
-    set({ projectFilePath: null, projectDirty: false });
+    set((s) => ({
+      projectFilePath: null,
+      projectDirty: false,
+      viewResetToken: s.viewResetToken + 1,
+    }));
   },
 
   loadProject: (data) => {
@@ -1449,6 +1470,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
         running: false,
         pinStates: {},
         ledStates: {},
+        wireFlow: {},
         componentStates: {},
         serialOutput: [],
         oscilloscopeTraces: {},
@@ -1456,7 +1478,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
       },
     });
 
-    set({ projectDirty: false });
+    set((s) => ({ projectDirty: false, viewResetToken: s.viewResetToken + 1 }));
 
     return true;
   },

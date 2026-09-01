@@ -1,4 +1,5 @@
 import React from 'react';
+import { clampPropertyValue, getPropertyRange } from '../lib/propertyRanges';
 import { useCircuitStore } from '../store/circuitStore';
 import {
   COMPONENT_CATALOG,
@@ -275,6 +276,7 @@ const PropertiesPanel: React.FC = () => {
   const oscilloscopeReadOnlyKeys = new Set(['reading', 'displayText', 'status']);
   // Shown as one red line of its own rather than three raw rows.
   const damageKeys = new Set(['damaged', 'damageReason', 'damageDetail']);
+  const numericRange = (key: string) => getPropertyRange(selectedComp.type, key);
   const liveProperties = simulation.componentStates[selectedComp.id] ?? null;
   const displayComp =
     simulation.running && liveProperties
@@ -520,6 +522,12 @@ const PropertiesPanel: React.FC = () => {
                   ? getOscilloscopeStatusLabel(language, String(value))
                   : String(value)}
               </span>
+            ) : key === 'conducting' ? (
+              // What the transistor is doing, not a setting. The switch above
+              // it is the one to reach for.
+              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                {t(language, value === true ? 'on' : 'off')}
+              </span>
             ) : heldButtonState && key === 'pressed' ? (
               // A momentary button is pressed on the canvas and springs back,
               // so what it reads here is live state rather than a setting.
@@ -584,16 +592,43 @@ const PropertiesPanel: React.FC = () => {
               <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
                 {value as string}
               </span>
+            ) : typeof value === 'number' && numericRange(key)?.slider ? (
+              // A knob, a dimmer, a charge level: worth dragging. Typing a
+              // number into these let a potentiometer sit at 5000 percent.
+              <span className="property-slider">
+                <input
+                  type="range"
+                  min={numericRange(key)!.min}
+                  max={numericRange(key)!.max}
+                  step={numericRange(key)!.step}
+                  value={clampPropertyValue(displayComp.type, key, value)}
+                  onMouseDown={captureUndoSnapshot}
+                  onChange={(event) =>
+                    updateComponentProperty(
+                      selectedComp.id,
+                      key,
+                      clampPropertyValue(displayComp.type, key, Number(event.target.value)),
+                      { recordHistory: false }
+                    )
+                  }
+                />
+                <span className="property-slider-value">
+                  {clampPropertyValue(displayComp.type, key, value)}
+                </span>
+              </span>
             ) : (
               <input
                 className="property-input"
                 type={typeof value === 'number' ? 'number' : 'text'}
                 value={value as string | number}
+                min={typeof value === 'number' ? numericRange(key)?.min : undefined}
+                max={typeof value === 'number' ? numericRange(key)?.max : undefined}
+                step={typeof value === 'number' ? numericRange(key)?.step : undefined}
                 onFocus={captureUndoSnapshot}
                 onChange={(event) => {
                   const newValue =
                     typeof value === 'number'
-                      ? Number(event.target.value)
+                      ? clampPropertyValue(displayComp.type, key, Number(event.target.value))
                       : event.target.value;
                   updateComponentProperty(selectedComp.id, key, newValue, {
                     recordHistory: false,

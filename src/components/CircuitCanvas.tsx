@@ -99,6 +99,150 @@ const PROBE_IMAGE_HEIGHT = 72;
 const MARQUEE_THRESHOLD = 4;
 /** How near a wire has to be to level before it is pulled straight. */
 const WIRE_STRAIGHTEN_TOLERANCE = 6;
+/** Below this there is nothing worth drawing as a flow. */
+const FLOW_MIN_CURRENT = 1e-6;
+/** How fast the marks travel, in canvas units per second at one amp. */
+const FLOW_SPEED = 260;
+/** …and the pace a barely-conducting circuit still crawls along at. */
+const FLOW_MIN_SPEED = 22;
+/** How far apart the arrowheads sit along a cable. */
+const FLOW_ARROW_SPACING = 26;
+const FLOW_ARROW_LENGTH = 4.2;
+const FLOW_ARROW_WIDTH = 3.4;
+
+/**
+ * Arrowheads marching along a cable, pointing the way the current runs.
+ *
+ * Moving dashes showed that something was happening but not which way it was
+ * going — at a glance, or in a still, a dotted line looks the same in both
+ * directions. An arrow does not.
+ *
+ * `travelled` is how far the marks have moved since the animation started;
+ * `direction` is +1 along the cable's own points and -1 against them.
+ */
+function drawFlowArrows(
+  context: Konva.Context,
+  shape: Konva.Shape,
+  points: number[],
+  direction: number,
+  travelled: number
+): void {
+  if (points.length < 4) return;
+
+  // The run, cut into straight pieces, so a mark can be put a given distance
+  // along it however many bends the cable has.
+  const segments: Array<{ x: number; y: number; ux: number; uy: number; length: number }> = [];
+  let total = 0;
+
+  for (let i = 0; i + 3 < points.length; i += 2) {
+    const x = points[i];
+    const y = points[i + 1];
+    const dx = points[i + 2] - x;
+    const dy = points[i + 3] - y;
+    const length = Math.hypot(dx, dy);
+    if (length < 0.01) continue;
+
+    segments.push({ x, y, ux: dx / length, uy: dy / length, length });
+    total += length;
+  }
+
+  if (segments.length === 0 || total < FLOW_ARROW_LENGTH * 2) return;
+
+  // Where the first mark sits this frame; the rest follow at a fixed spacing.
+  const start =
+    (((direction * travelled) % FLOW_ARROW_SPACING) + FLOW_ARROW_SPACING) % FLOW_ARROW_SPACING;
+
+  for (let distance = start; distance < total; distance += FLOW_ARROW_SPACING) {
+    let remaining = distance;
+    let segment = segments[0];
+    for (const candidate of segments) {
+      if (remaining <= candidate.length) {
+        segment = candidate;
+        break;
+      }
+      remaining -= candidate.length;
+    }
+
+    const px = segment.x + segment.ux * remaining;
+    const py = segment.y + segment.uy * remaining;
+    // Along the current, which may be against the way the cable was drawn.
+    const ux = segment.ux * direction;
+    const uy = segment.uy * direction;
+    const nx = -uy;
+    const ny = ux;
+
+    context.beginPath();
+    context.moveTo(px + ux * FLOW_ARROW_LENGTH, py + uy * FLOW_ARROW_LENGTH);
+    context.lineTo(
+      px - ux * FLOW_ARROW_LENGTH + nx * FLOW_ARROW_WIDTH,
+      py - uy * FLOW_ARROW_LENGTH + ny * FLOW_ARROW_WIDTH
+    );
+    context.lineTo(
+      px - ux * FLOW_ARROW_LENGTH - nx * FLOW_ARROW_WIDTH,
+      py - uy * FLOW_ARROW_LENGTH - ny * FLOW_ARROW_WIDTH
+    );
+    context.closePath();
+    context.fillStrokeShape(shape);
+  }
+}
+
+type AlignGuide = {
+  axis: 'horizontal' | 'vertical';
+  from: { x: number; y: number };
+  to: { x: number; y: number };
+};
+
+/**
+ * Pulls a dragged point onto an anchor's axis when it is nearly there, and says
+ * which lines to draw for it.
+ *
+ * One rule for three gestures: drawing a cable, reshaping one at a bend or a
+ * plug, and sliding a part around in select mode. Two anchors can each claim an
+ * axis — lining a part up with one neighbour across and another down is useful.
+ * One anchor only ever gets the nearer axis, because taking both would drag the
+ * point onto the anchor itself rather than into line with it.
+ */
+function snapToAlignment(
+  point: { x: number; y: number },
+  anchors: ReadonlyArray<{ x: number; y: number }>,
+  tolerance = WIRE_STRAIGHTEN_TOLERANCE
+): { point: { x: number; y: number }; guides: AlignGuide[] } {
+  let horizontal: { anchor: { x: number; y: number }; distance: number } | null = null;
+  let vertical: { anchor: { x: number; y: number }; distance: number } | null = null;
+
+  for (const anchor of anchors) {
+    const dy = Math.abs(point.y - anchor.y);
+    if (dy <= tolerance && (!horizontal || dy < horizontal.distance)) {
+      horizontal = { anchor, distance: dy };
+    }
+
+    const dx = Math.abs(point.x - anchor.x);
+    if (dx <= tolerance && (!vertical || dx < vertical.distance)) {
+      vertical = { anchor, distance: dx };
+    }
+  }
+
+  if (
+    horizontal &&
+    vertical &&
+    horizontal.anchor.x === vertical.anchor.x &&
+    horizontal.anchor.y === vertical.anchor.y
+  ) {
+    if (horizontal.distance <= vertical.distance) vertical = null;
+    else horizontal = null;
+  }
+
+  const snapped = {
+    x: vertical ? vertical.anchor.x : point.x,
+    y: horizontal ? horizontal.anchor.y : point.y,
+  };
+
+  const guides: AlignGuide[] = [];
+  if (horizontal) guides.push({ axis: 'horizontal', from: horizontal.anchor, to: snapped });
+  if (vertical) guides.push({ axis: 'vertical', from: vertical.anchor, to: snapped });
+
+  return { point: snapped, guides };
+}
 /** Big enough to read as a bead on the leg, small enough not to hide the pin. */
 const SOLDER_BLOB_RADIUS = 3.6;
 
@@ -2028,15 +2172,15 @@ const CircuitCanvas: React.FC = () => {
     attachedComponents: Array<{ id: string; x: number; y: number }>;
   } | null>(null);
   const [stageSize, setStageSize] = useState({ width: 800, height: 600 });
+  const stageSizeRef = useRef(stageSize);
+  stageSizeRef.current = stageSize;
   const [middlePanActive, setMiddlePanActive] = useState(false);
   const [wiringStart, setWiringStart] = useState<{ componentId: string; pinId: string; x: number; y: number } | null>(null);
   const [wiringMouse, setWiringMouse] = useState<{ x: number; y: number } | null>(null);
-  /** The axis the cable has snapped to, so a guide can be drawn along it. */
-  const [wireGuide, setWireGuide] = useState<{
-    axis: 'horizontal' | 'vertical';
-    from: { x: number; y: number };
-    to: { x: number; y: number };
-  } | null>(null);
+  /** The axes something has snapped to, so guides can be drawn along them. */
+  const [alignGuides, setAlignGuides] = useState<AlignGuide[]>([]);
+  /** Shift shows where the current is going, for as long as it is held. */
+  const [flowVisible, setFlowVisible] = useState(false);
   /** Bend points placed since the wire was started, as a flat x,y list. */
   const [wiringPath, setWiringPath] = useState<number[]>([]);
   /** Mirror of the wiring state so the keyboard handler can read it. */
@@ -2061,6 +2205,7 @@ const CircuitCanvas: React.FC = () => {
   const toolMode = useCircuitStore((s) => s.toolMode);
   const zoom = useCircuitStore((s) => s.zoom);
   const stagePos = useCircuitStore((s) => s.stagePos);
+  const viewResetToken = useCircuitStore((s) => s.viewResetToken);
   const wireColor = useCircuitStore((s) => s.wireColor);
   const simulation = useCircuitStore((s) => s.simulation);
   const code = useCircuitStore((s) => s.code);
@@ -2422,7 +2567,7 @@ const CircuitCanvas: React.FC = () => {
     setWiringStart(null);
     setWiringMouse(null);
     setWiringPath([]);
-    setWireGuide(null);
+    setAlignGuides([]);
     setHoveredBreadboardHole(null);
     setContextMenu(null);
   }, []);
@@ -2476,6 +2621,69 @@ const CircuitCanvas: React.FC = () => {
       useCircuitStore.setState({ wires: nextWires });
     }
   }, [resolveWireEndpointPosition, wireDrag, wires]);
+
+  // Shift switches the arrows on, and Shift again switches them off. Holding it
+  // down would have meant keeping a finger on the key to watch anything.
+  useEffect(() => {
+    const down = (e: KeyboardEvent) => {
+      if (e.key !== 'Shift') return;
+      // Held down, the key repeats; one press should be one toggle.
+      if (e.repeat) return;
+      // Shift is a modifier as often as it is a key: Ctrl+Shift+Z is a redo,
+      // and a capital letter in the code editor is not a request for this.
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (isTextEntryTarget(e.target)) return;
+      if (!isCircuitScreenTarget(e.target, containerRef.current)) return;
+
+      setFlowVisible((visible) => !visible);
+    };
+
+    window.addEventListener('keydown', down);
+    return () => window.removeEventListener('keydown', down);
+  }, []);
+
+  const flowRunning = flowVisible && simulation.running;
+
+  // The latest currents, for the animation to read without being restarted.
+  const wireFlowRef = useRef(simulation.wireFlow);
+  wireFlowRef.current = simulation.wireFlow;
+
+  useEffect(() => {
+    if (!flowRunning) return;
+
+    const stage = stageRef.current;
+    const layer = stage?.getLayers()[0];
+    if (!layer) return;
+
+    let frame = 0;
+    let phase = 0;
+    let last = performance.now();
+
+    const step = (now: number) => {
+      const elapsed = (now - last) / 1000;
+      last = now;
+      phase += elapsed;
+
+      // Straight onto the nodes. Putting the phase in React state re-rendered
+      // every part on the canvas sixty times a second for an effect that only
+      // moves a dash offset.
+      for (const node of layer.find('.flow-mark')) {
+        const current = wireFlowRef.current[node.id().slice('flow-'.length)] ?? 0;
+        if (current === 0) continue;
+        const speed = Math.max(
+          FLOW_MIN_SPEED,
+          Math.min(FLOW_SPEED, Math.abs(current) * FLOW_SPEED)
+        );
+        node.setAttr('flowTravelled', phase * speed);
+      }
+
+      layer.batchDraw();
+      frame = window.requestAnimationFrame(step);
+    };
+
+    frame = window.requestAnimationFrame(step);
+    return () => window.cancelAnimationFrame(frame);
+  }, [flowRunning]);
 
   // Resize observer
   useEffect(() => {
@@ -2842,6 +3050,88 @@ const CircuitCanvas: React.FC = () => {
     setStagePos({ x: 0, y: 0 });
   }, [setStagePos, setZoom]);
 
+  /**
+   * Points the view at whatever is on the canvas: everything visible, centred.
+   *
+   * Opening a project used to leave the camera wherever it happened to be, so a
+   * circuit drawn far from the origin — or saved while zoomed in — opened onto
+   * empty space. Reads the circuit off the store rather than a closure so it is
+   * never looking at the project that was there a moment ago.
+   */
+  const fitViewToCircuit = useCallback(() => {
+    const { width: viewWidth, height: viewHeight } = stageSizeRef.current;
+    if (viewWidth < 1 || viewHeight < 1) return;
+
+    const state = useCircuitStore.getState();
+    let left = Infinity;
+    let top = Infinity;
+    let right = -Infinity;
+    let bottom = -Infinity;
+    const include = (x1: number, y1: number, x2: number, y2: number) => {
+      left = Math.min(left, x1, x2);
+      top = Math.min(top, y1, y2);
+      right = Math.max(right, x1, x2);
+      bottom = Math.max(bottom, y1, y2);
+    };
+
+    const board = getControllerBoardDefinition(state.boardType);
+    include(
+      state.boardPosition.x,
+      state.boardPosition.y,
+      state.boardPosition.x + board.width,
+      state.boardPosition.y + board.height
+    );
+
+    for (const comp of state.components) {
+      if (isBreadboardType(comp.type)) {
+        // Boards are drawn with Konva shapes, so they have no SVG box to ask.
+        const spec = getBreadboardSpec(getBreadboardVariantForType(comp.type));
+        include(comp.x, comp.y, comp.x + spec.width, comp.y + spec.height);
+        continue;
+      }
+
+      const box = getComponentWorldBounds(comp);
+      include(box.left, box.top, box.right, box.bottom);
+    }
+
+    for (const wire of state.wires) {
+      for (let i = 0; i + 1 < wire.points.length; i += 2) {
+        include(wire.points[i], wire.points[i + 1], wire.points[i], wire.points[i + 1]);
+      }
+    }
+
+    if (!Number.isFinite(left) || !Number.isFinite(top)) {
+      resetViewport();
+      return;
+    }
+
+    const margin = 48;
+    const contentWidth = Math.max(1, right - left);
+    const contentHeight = Math.max(1, bottom - top);
+    // Never blown up past life size: a lone resistor filling the screen helps
+    // nobody. Only a circuit too big to fit gets pulled back.
+    const nextZoom = Math.min(
+      1,
+      (viewWidth - margin * 2) / contentWidth,
+      (viewHeight - margin * 2) / contentHeight
+    );
+
+    setZoom(nextZoom);
+    setStagePos({
+      x: viewWidth / 2 - ((left + right) / 2) * nextZoom,
+      y: viewHeight / 2 - ((top + bottom) / 2) * nextZoom,
+    });
+  }, [resetViewport, setStagePos, setZoom]);
+
+  // A different circuit means the view has to be pointed at it again. Only the
+  // token is watched, so ordinary edits leave the camera alone.
+  const fitViewRef = useRef(fitViewToCircuit);
+  fitViewRef.current = fitViewToCircuit;
+  useEffect(() => {
+    if (viewResetToken === 0) return;
+    fitViewRef.current();
+  }, [viewResetToken]);
+
   const persistMultimeterProbePosition = useCallback(
     (
       component: CircuitComponent,
@@ -3058,7 +3348,7 @@ const CircuitCanvas: React.FC = () => {
           const bend = wiringMouse ?? getWorldPointerPosition();
           if (bend) {
             setWiringPath((current) => [...current, bend.x, bend.y]);
-            setWireGuide(null);
+            setAlignGuides([]);
             return;
           }
         }
@@ -3106,7 +3396,7 @@ const CircuitCanvas: React.FC = () => {
         if (hoveredHole) {
           // Landing in the right hole beats looking tidy.
           setWiringMouse({ x: hoveredHole.x, y: hoveredHole.y });
-          setWireGuide(null);
+          setAlignGuides([]);
           return;
         }
 
@@ -3117,25 +3407,9 @@ const CircuitCanvas: React.FC = () => {
             ? { x: wiringPath[wiringPath.length - 2], y: wiringPath[wiringPath.length - 1] }
             : { x: wiringStart.x, y: wiringStart.y };
 
-        const offY = Math.abs(pointer.y - anchor.y);
-        const offX = Math.abs(pointer.x - anchor.x);
-
-        if (offY <= WIRE_STRAIGHTEN_TOLERANCE && offY <= offX) {
-          const snapped = { x: pointer.x, y: anchor.y };
-          setWiringMouse(snapped);
-          setWireGuide({ axis: 'horizontal', from: anchor, to: snapped });
-          return;
-        }
-
-        if (offX <= WIRE_STRAIGHTEN_TOLERANCE) {
-          const snapped = { x: anchor.x, y: pointer.y };
-          setWiringMouse(snapped);
-          setWireGuide({ axis: 'vertical', from: anchor, to: snapped });
-          return;
-        }
-
-        setWiringMouse(pointer);
-        setWireGuide(null);
+        const aligned = snapToAlignment(pointer, [anchor]);
+        setWiringMouse(aligned.point);
+        setAlignGuides(aligned.guides);
       }
       return;
     }
@@ -3152,12 +3426,27 @@ const CircuitCanvas: React.FC = () => {
   const handleWireBendDrag = useCallback(
     (wireId: string, pointIndex: number, x: number, y: number) => {
       const wire = useCircuitStore.getState().wires.find((item) => item.id === wireId);
-      if (!wire) return;
+      if (!wire) return null;
+
+      // Its neighbours down the cable: lining up with either makes that run
+      // level, which is the whole reason to drag a bend.
+      const neighbours: Array<{ x: number; y: number }> = [];
+      if (pointIndex >= 2) {
+        neighbours.push({ x: wire.points[pointIndex - 2], y: wire.points[pointIndex - 1] });
+      }
+      if (pointIndex + 3 < wire.points.length) {
+        neighbours.push({ x: wire.points[pointIndex + 2], y: wire.points[pointIndex + 3] });
+      }
+
+      const aligned = snapToAlignment({ x, y }, neighbours);
+      setAlignGuides(aligned.guides);
 
       const nextPoints = [...wire.points];
-      nextPoints[pointIndex] = x;
-      nextPoints[pointIndex + 1] = y;
+      nextPoints[pointIndex] = aligned.point.x;
+      nextPoints[pointIndex + 1] = aligned.point.y;
       updateWirePoints(wireId, nextPoints);
+
+      return aligned.point;
     },
     [updateWirePoints]
   );
@@ -3197,23 +3486,36 @@ const CircuitCanvas: React.FC = () => {
       const wire = useCircuitStore.getState().wires.find((item) => item.id === wireId);
       if (!wire) return;
 
+      // Lining the plug up with the point next to it keeps that run level.
+      const neighbour =
+        end === 'start'
+          ? { x: wire.points[2], y: wire.points[3] }
+          : { x: wire.points[wire.points.length - 4], y: wire.points[wire.points.length - 3] };
+      const aligned =
+        Number.isFinite(neighbour?.x) && Number.isFinite(neighbour?.y)
+          ? snapToAlignment({ x, y }, [neighbour])
+          : { point: { x, y }, guides: [] as AlignGuide[] };
+      setAlignGuides(aligned.guides);
+
       // The cable follows the cursor while it is unplugged.
       const nextPoints = [...wire.points];
       if (end === 'start') {
-        nextPoints[0] = x;
-        nextPoints[1] = y;
+        nextPoints[0] = aligned.point.x;
+        nextPoints[1] = aligned.point.y;
       } else {
-        nextPoints[nextPoints.length - 2] = x;
-        nextPoints[nextPoints.length - 1] = y;
+        nextPoints[nextPoints.length - 2] = aligned.point.x;
+        nextPoints[nextPoints.length - 1] = aligned.point.y;
       }
       updateWirePoints(wireId, nextPoints);
 
-      const target = resolveProbeSnapTargetAtPosition(x, y, '');
+      const target = resolveProbeSnapTargetAtPosition(aligned.point.x, aligned.point.y, '');
       setWireDrag((current) =>
         current && current.wireId === wireId && current.end === end
           ? { ...current, target }
           : current
       );
+
+      return aligned.point;
     },
     [resolveProbeSnapTargetAtPosition, updateWirePoints]
   );
@@ -3222,6 +3524,7 @@ const CircuitCanvas: React.FC = () => {
     (wireId: string, end: 'start' | 'end', x: number, y: number) => {
       const target = resolveProbeSnapTargetAtPosition(x, y, '');
       setWireDrag(null);
+      setAlignGuides([]);
 
       if (target) {
         updateWireEndpoint(wireId, end, target.componentId, target.pinId, {
@@ -3571,6 +3874,25 @@ const CircuitCanvas: React.FC = () => {
   ]);
 
   const handleDragMove = useCallback((comp: CircuitComponent, e: Konva.KonvaEventObject<DragEvent>) => {
+    // Lining a part up with another one, the same cue a cable gets. Skipped
+    // over a breadboard, where seating in a hole governs and a guide would only
+    // promise something the drop is about to overrule.
+    if (!isBreadboardType(comp.type) && !isNearAnyBreadboard(e.target.x(), e.target.y(), breadboards)) {
+      const anchors = components
+        .filter((item) => item.id !== comp.id)
+        .map((item) => ({ x: item.x, y: item.y }));
+      anchors.push({ x: boardPosition.x, y: boardPosition.y });
+
+      const aligned = snapToAlignment({ x: e.target.x(), y: e.target.y() }, anchors);
+      setAlignGuides(aligned.guides);
+      if (aligned.guides.length > 0) {
+        e.target.x(aligned.point.x);
+        e.target.y(aligned.point.y);
+      }
+    } else {
+      setAlignGuides([]);
+    }
+
     // The rest of the block follows the cursor rather than catching up when the
     // part is dropped, so nothing is ever dragged out from under anything else.
     const group = groupDragRef.current;
@@ -3613,7 +3935,7 @@ const CircuitCanvas: React.FC = () => {
 
     draggedComponentPositionsRef.current[comp.id] = nextPosition;
     setDragPreviewVersion((version) => version + 1);
-  }, [captureUndoSnapshot]);
+  }, [boardPosition, breadboards, captureUndoSnapshot, components]);
 
   const handleDragEnd = useCallback((comp: CircuitComponent, e: Konva.KonvaEventObject<DragEvent>) => {
     if (comp.type === 'multimeter') {
@@ -3623,6 +3945,7 @@ const CircuitCanvas: React.FC = () => {
       };
     }
     activeDragRef.current = null;
+    setAlignGuides([]);
 
     const group = groupDragRef.current;
     groupDragRef.current = null;
@@ -4305,6 +4628,42 @@ const CircuitCanvas: React.FC = () => {
                 />
                 {/* Highlight stripe */}
                 <Line points={wire.points.map((v, i) => i % 2 === 1 ? v - 0.6 : v)} stroke="#fff" strokeWidth={wireWidth * 0.25} opacity={0.25} lineCap="round" lineJoin="miter" listening={false} />
+                {/* Where the current is going, while Shift is held. Round dashes
+                    marching along the cable: the offset runs backwards so they
+                    travel from the supply towards ground, which is the way the
+                    sign points. */}
+                {(() => {
+                  if (!flowRunning) return null;
+                  const current = simulation.wireFlow[wire.id] ?? 0;
+                  if (Math.abs(current) < FLOW_MIN_CURRENT) return null;
+
+                  const direction = current > 0 ? 1 : -1;
+
+                  return (
+                    <Shape
+                      id={`flow-${wire.id}`}
+                      name="flow-mark"
+                      fill="#9ef7ff"
+                      stroke="#0b2233"
+                      strokeWidth={0.5}
+                      shadowColor="#4aa3ff"
+                      shadowBlur={5}
+                      opacity={0.98}
+                      perfectDrawEnabled={false}
+                      shadowForStrokeEnabled={false}
+                      listening={false}
+                      sceneFunc={(context, shape) => {
+                        drawFlowArrows(
+                          context,
+                          shape,
+                          wire.points,
+                          direction,
+                          Number(shape.getAttr('flowTravelled')) || 0
+                        );
+                      }}
+                    />
+                  );
+                })()}
                 {/* Selection indicator */}
                 {isWireSelected && (
                   <Line points={wire.points} stroke="#fff" strokeWidth={wireWidth + 1.8} dash={[4, 4]} opacity={0.5} lineCap="round" lineJoin="miter" listening={false} />
@@ -4328,7 +4687,20 @@ const CircuitCanvas: React.FC = () => {
                       }}
                       onDragMove={(e) => {
                         e.cancelBubble = true;
-                        handleWireBendDrag(wire.id, pointIndex, e.target.x(), e.target.y());
+                        const snapped = handleWireBendDrag(
+                          wire.id,
+                          pointIndex,
+                          e.target.x(),
+                          e.target.y()
+                        );
+                        if (snapped) {
+                          e.target.x(snapped.x);
+                          e.target.y(snapped.y);
+                        }
+                      }}
+                      onDragEnd={(e) => {
+                        e.cancelBubble = true;
+                        setAlignGuides([]);
                       }}
                       onDblClick={(e) => {
                         e.cancelBubble = true;
@@ -4372,7 +4744,16 @@ const CircuitCanvas: React.FC = () => {
                         }}
                         onDragMove={(e) => {
                           e.cancelBubble = true;
-                          handleWireEndDragMove(wire.id, end, e.target.x(), e.target.y());
+                          const snapped = handleWireEndDragMove(
+                            wire.id,
+                            end,
+                            e.target.x(),
+                            e.target.y()
+                          );
+                          if (snapped) {
+                            e.target.x(snapped.x);
+                            e.target.y(snapped.y);
+                          }
                         }}
                         onDragEnd={(e) => {
                           e.cancelBubble = true;
@@ -4384,6 +4765,41 @@ const CircuitCanvas: React.FC = () => {
               </Group>
             );
           })}
+
+          {/* The lines that say "this is in line with that" — the same cue
+              Tinkercad gives, drawn along whichever axis snapped and stretched
+              a little past both ends so they read as guides, not as parts of
+              the circuit. Set while drawing a cable, while reshaping one at a
+              bend or a plug, and while sliding a part around. */}
+          {alignGuides.length > 0 && (
+            <Group listening={false}>
+              {alignGuides.map((guide, index) => (
+                <Line
+                  key={`align-${guide.axis}-${index}`}
+                  points={
+                    guide.axis === 'horizontal'
+                      ? [
+                          Math.min(guide.from.x, guide.to.x) - 26,
+                          guide.from.y,
+                          Math.max(guide.from.x, guide.to.x) + 26,
+                          guide.from.y,
+                        ]
+                      : [
+                          guide.from.x,
+                          Math.min(guide.from.y, guide.to.y) - 26,
+                          guide.from.x,
+                          Math.max(guide.from.y, guide.to.y) + 26,
+                        ]
+                  }
+                  stroke="#4aa3ff"
+                  strokeWidth={1}
+                  dash={[5, 4]}
+                  opacity={0.9}
+                  listening={false}
+                />
+              ))}
+            </Group>
+          )}
 
           {/* Where the plug in hand would land */}
           {wireDrag?.target && (
@@ -4419,34 +4835,6 @@ const CircuitCanvas: React.FC = () => {
             ];
             return (
               <Group listening={false}>
-                {/* The line that says "this run is level" — the same cue
-                    Tinkercad gives, drawn along the axis the cable snapped to
-                    and stretched a little past both ends so it reads as a
-                    guide rather than as part of the wire. */}
-                {wireGuide && (
-                  <Line
-                    points={
-                      wireGuide.axis === 'horizontal'
-                        ? [
-                            Math.min(wireGuide.from.x, wireGuide.to.x) - 26,
-                            wireGuide.from.y,
-                            Math.max(wireGuide.from.x, wireGuide.to.x) + 26,
-                            wireGuide.from.y,
-                          ]
-                        : [
-                            wireGuide.from.x,
-                            Math.min(wireGuide.from.y, wireGuide.to.y) - 26,
-                            wireGuide.from.x,
-                            Math.max(wireGuide.from.y, wireGuide.to.y) + 26,
-                          ]
-                    }
-                    stroke="#4aa3ff"
-                    strokeWidth={1}
-                    dash={[5, 4]}
-                    opacity={0.9}
-                    listening={false}
-                  />
-                )}
                 <Line points={previewPoints} stroke="#000" strokeWidth={4} opacity={0.15} lineCap="round" lineJoin="miter" listening={false} />
                 <Line points={previewPoints} stroke={wireColor} strokeWidth={2.5} dash={[6, 4]} lineCap="round" lineJoin="miter" listening={false} />
                 {/* Bends placed so far */}

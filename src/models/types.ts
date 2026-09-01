@@ -148,6 +148,12 @@ export interface SimulationState {
   pinStates: Record<string, number>;
   ledStates: Record<string, { on: boolean; brightness: number }>;
   componentStates: Record<string, Record<string, string | number | boolean>>;
+  /**
+   * Which way current is running through each cable, keyed by wire id: the sign
+   * is the direction along the wire's own points, the size is amps. Drives the
+   * flow the canvas shows while Shift is held.
+   */
+  wireFlow: Record<string, number>;
   serialOutput: string[];
   oscilloscopeTraces: Record<string, OscilloscopeSample[]>;
   /** Set when a sketch statement threw instead of running cleanly. */
@@ -1066,9 +1072,9 @@ export function getDefaultProperties(type: ComponentType): Record<string, string
     case 'relay':
       return { coilVoltage: 5, activated: false };
     case 'transistor-npn':
-      return { hfe: 100 };
+      return { hfe: 100, on: false };
     case 'transistor-pnp':
-      return { hfe: 100 };
+      return { hfe: 100, on: false };
     case 'bme280':
       return {
         temperature: 24,

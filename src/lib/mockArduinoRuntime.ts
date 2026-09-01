@@ -34,6 +34,12 @@ type RuntimeCallbacks = {
    * mainly) don't all need updating for a failure mode they don't exercise.
    */
   reportRuntimeError?: (message: string) => void;
+  /**
+   * Which way current is running through each cable, and how much of it: the
+   * sign is the direction along the wire's own points, the size is amps.
+   * Optional for the same reason.
+   */
+  setWireFlow?: (flow: Record<string, number>) => void;
 };
 
 type Command =
@@ -74,6 +80,8 @@ type RuntimeExecutionContext = {
   lcdRuntime: Map<string, LcdRuntimeState>;
   connectivity: Connectivity;
   measurementConnectivity: Connectivity;
+  /** The cables themselves, which the graphs flatten away. */
+  wires: Wire[];
   boardPins: Pin[];
   logicHighVoltage: number;
   callbacks: RuntimeCallbacks;
@@ -334,6 +342,18 @@ const LED_FULL_BRIGHTNESS_CURRENT = 0.02;
 const LED_DYNAMIC_RESISTANCE = 68;
 const DIODE_FORWARD_VOLTAGE = 0.7;
 const DIODE_DYNAMIC_RESISTANCE = 30;
+
+/**
+ * A transistor, as far as the rest of the circuit is concerned.
+ *
+ * Saturated it is very nearly a closed switch; cut off it is very nearly an
+ * open one. Real numbers rather than zero and infinity so the solver always has
+ * something finite to work with.
+ */
+const TRANSISTOR_ON_RESISTANCE = 5;
+const TRANSISTOR_OFF_RESISTANCE = 10_000_000;
+/** Base-emitter drop a silicon transistor needs before it starts conducting. */
+const TRANSISTOR_BASE_THRESHOLD = 0.7;
 
 /** What a small piezo buzzer draws when it is driven at its rated level. */
 const BUZZER_RATED_CURRENT = 0.03;
@@ -1791,6 +1811,48 @@ function buildRuntimeReadNetState(context: RuntimeExecutionContext): NetState {
   return netState;
 }
 
+/**
+ * What a board pin is actually sitting at, in volts.
+ *
+ * Reads had to make do with the bridged graph, where a resistor or a
+ * potentiometer is a piece of wire. That makes the classic divider — track
+ * across the supply, wiper into an analog pin — a dead short: pin1, the wiper
+ * and pin2 all land on one net, so the reading was 1023 wherever the knob was.
+ * The measurement graph keeps those parts as real resistances and the solver
+ * works out the node voltages, which is the only place a divider exists.
+ *
+ * Null when nothing in the resistive network reaches this pin; the caller then
+ * falls back to the drive level, which still answers for a pin wired straight
+ * to something.
+ */
+function readSolvedPinVoltage(
+  pin: string,
+  context: RuntimeExecutionContext
+): number | null {
+  const net = getEndpointNet(context.measurementConnectivity, ARDUINO_COMPONENT_ID, pin);
+  if (net === undefined) return null;
+
+  const netState = buildBaseNetState(
+    context.measurementConnectivity,
+    context.pinValues,
+    context.boardPins,
+    context.logicHighVoltage
+  );
+  computeDriverStates(context.measurementConnectivity, netState, NOOP_CALLBACKS);
+
+  const { voltages } = solveMeasurementVoltages(
+    context.measurementConnectivity,
+    netState,
+    resolveTransistorConduction(
+      context.connectivity,
+      buildRuntimeReadNetState(context),
+      context.logicHighVoltage
+    )
+  );
+  const solved = voltages.get(net);
+  return solved === undefined || !Number.isFinite(solved) ? null : solved;
+}
+
 function resolveRuntimeReadPin(
   value: RuntimeValue | null | undefined,
   context: RuntimeExecutionContext
@@ -1809,6 +1871,15 @@ function readRuntimeAnalogPin(
   const pin = resolveRuntimeReadPin(pinValue, context);
   if (!pin) {
     return 0;
+  }
+
+  const solved = readSolvedPinVoltage(pin, context);
+  if (solved !== null) {
+    return clamp(
+      Math.round((solved / Math.max(context.logicHighVoltage, 0.001)) * 1023),
+      0,
+      1023
+    );
   }
 
   const netState = buildRuntimeReadNetState(context);
@@ -1837,6 +1908,11 @@ function readRuntimeDigitalPin(
   const pin = resolveRuntimeReadPin(pinValue, context);
   if (!pin) {
     return 0;
+  }
+
+  const solved = readSolvedPinVoltage(pin, context);
+  if (solved !== null) {
+    return solved >= context.logicHighVoltage * 0.5 ? 1 : 0;
   }
 
   const netState = buildRuntimeReadNetState(context);
@@ -2123,6 +2199,7 @@ function updateRuntimeSimulationState(context: RuntimeExecutionContext): void {
     context.servoRuntime,
     context.toneRuntime,
     context.lcdRuntime,
+    context.wires,
     context.boardPins,
     context.logicHighVoltage,
     context.callbacks,
@@ -2921,6 +2998,17 @@ function buildConnectivity(
       connectPairs(graph, component.id, ['pin1', 'wiper', 'pin2']);
     }
 
+    // Switched on by hand from the properties panel, the way the relay is.
+    // A transistor the sketch drives is decided later, from the base, and shows
+    // up as a low collector-emitter resistance rather than a bridge here.
+    if (isTransistorType(component.type) && component.properties.on === true) {
+      addEdge(
+        graph,
+        endpointKey(component.id, 'collector'),
+        endpointKey(component.id, 'emitter')
+      );
+    }
+
     if (component.type === 'relay') {
       const common = component.pins.find((pin) => pin.id === 'com')?.id;
       const no = component.pins.find((pin) => pin.id === 'no')?.id;
@@ -3634,6 +3722,227 @@ function computeBuzzerStates(
   }
 }
 
+/**
+ * Which way current is running through every cable on the canvas.
+ *
+ * The graphs cannot answer this on their own. A wire is a bridge, so both its
+ * ends sit on one net at one voltage, and there is no potential difference
+ * along it to read a direction from. What is known is where current enters a
+ * net and where it leaves: the solved branch currents say which component
+ * terminals push into it and which pull out, and the supply and ground
+ * terminals are pushing and pulling by definition.
+ *
+ * So each net is walked outward from the terminals feeding it, and every cable
+ * is oriented the way that walk crossed it — from the supply side towards the
+ * ground side. Follow enough of them and you have traced the circuit from one
+ * end to the other, which is the point.
+ */
+/**
+ * The network as it would be with the dark diodes taken out of it.
+ *
+ * A part with a forward drop is solved as a resistor in series with a battery,
+ * and that battery is there whether the part is conducting or not. Around a
+ * loop with a reverse-biased LED in it, the phantom battery drives a phantom
+ * current — small, but enough to make every cable look alive with the pin held
+ * low. Brightness sidesteps this by checking the direction before believing the
+ * number; a flow has to actually re-solve, because it is the current in the
+ * *other* branches, the plain resistors, that the artefact leaks into.
+ *
+ * Two passes is enough for the circuits this draws: one to find what is dark,
+ * one to settle what is left.
+ */
+function solveConductingVoltages(
+  resistiveEdges: ResistiveEdge[],
+  netState: NetState,
+  voltages: Map<number, number>
+): { voltages: Map<number, number>; edges: ResistiveEdge[] } {
+  let live = resistiveEdges;
+  let solved = voltages;
+
+  for (let pass = 0; pass < 2; pass += 1) {
+    const conducting = live.filter((edge) => {
+      if ((edge.forwardDrop ?? 0) <= 0) return true;
+      const fromVolts = solved.get(edge.fromNet);
+      const toVolts = solved.get(edge.toNet);
+      if (fromVolts === undefined || toVolts === undefined) return false;
+      return fromVolts - toVolts - (edge.forwardDrop ?? 0) > 0;
+    });
+
+    if (conducting.length === live.length) break;
+
+    live = conducting;
+    solved = solveVoltagesForEdges(live, netState);
+  }
+
+  return { voltages: solved, edges: live };
+}
+
+function computeWireFlow(
+  wires: Wire[],
+  connectivity: Connectivity,
+  netState: NetState,
+  solvedVoltages: Map<number, number>,
+  allEdges: ResistiveEdge[],
+  boardPins: Pin[],
+  pinValues: Map<string, number>,
+  callbacks: RuntimeCallbacks
+): void {
+  if (!callbacks.setWireFlow) return;
+
+  const flow: Record<string, number> = {};
+  if (wires.length === 0) {
+    callbacks.setWireFlow(flow);
+    return;
+  }
+
+  const { voltages, edges: resistiveEdges } = solveConductingVoltages(
+    allEdges,
+    netState,
+    solvedVoltages
+  );
+
+  const { powerKeys, groundKeys } = collectPowerAndGroundKeys(
+    connectivity.components,
+    boardPins
+  );
+
+  /** Per net: what pushes current in, what pulls it out, and how much. */
+  const sources = new Map<number, Set<string>>();
+  const sinks = new Map<number, Set<string>>();
+  const injected = new Map<number, number>();
+
+  const mark = (map: Map<number, Set<string>>, net: number | undefined, key: string) => {
+    if (net === undefined) return;
+    if (!map.has(net)) map.set(net, new Set());
+    map.get(net)!.add(key);
+  };
+
+  for (const key of powerKeys) {
+    mark(sources, connectivity.endpointToNet.get(key), key);
+  }
+  for (const key of groundKeys) {
+    mark(sinks, connectivity.endpointToNet.get(key), key);
+  }
+
+  // A pin the sketch is holding high feeds the circuit exactly as the supply
+  // rail does, and one held low is somewhere for the current to go. Leaving
+  // them out left an LED driven straight off a pin with no source at all, so
+  // nothing downstream of it was ever given a direction.
+  for (const [pinId, value] of pinValues) {
+    const key = endpointKey(ARDUINO_COMPONENT_ID, pinId);
+    const net = connectivity.endpointToNet.get(key);
+    if (net === undefined) continue;
+    mark(value > 0 ? sources : sinks, net, key);
+  }
+
+  for (const edge of resistiveEdges) {
+    const fromVolts = voltages.get(edge.fromNet);
+    const toVolts = voltages.get(edge.toNet);
+    if (fromVolts === undefined || toVolts === undefined) continue;
+
+    const driving = fromVolts - toVolts - (edge.forwardDrop ?? 0);
+    const current = driving / Math.max(edge.resistance, 1e-9);
+    if (!Number.isFinite(current) || Math.abs(current) < 1e-7) continue;
+
+    // A diode solved as a linear branch keeps its forward drop even with no
+    // current through it, so a dark LED reads as conducting backwards. It does
+    // not conduct backwards, and a branch that is not conducting feeds nothing
+    // — the same rule the brightness reader applies.
+    if ((edge.forwardDrop ?? 0) > 0 && current <= 0) continue;
+
+    // Current leaves the net it comes from and arrives in the one it goes to.
+    const outOf = current > 0 ? edge.fromNet : edge.toNet;
+    const into = current > 0 ? edge.toNet : edge.fromNet;
+    const outPin = current > 0 ? edge.pinIds[0] : edge.pinIds[1];
+    const inPin = current > 0 ? edge.pinIds[1] : edge.pinIds[0];
+
+    mark(sinks, outOf, endpointKey(edge.componentId, outPin));
+    mark(sources, into, endpointKey(edge.componentId, inPin));
+    injected.set(into, (injected.get(into) ?? 0) + Math.abs(current));
+    injected.set(outOf, (injected.get(outOf) ?? 0) + Math.abs(current));
+  }
+
+  // Cables, grouped by the net they run inside.
+  type WireEnd = { wire: Wire; startKey: string; endKey: string };
+  const byNet = new Map<number, WireEnd[]>();
+
+  for (const wire of wires) {
+    const startKey = endpointKey(wire.startComponentId, wire.startPinId);
+    const endKey = endpointKey(wire.endComponentId, wire.endPinId);
+    const startNet = connectivity.endpointToNet.get(startKey);
+    const endNet = connectivity.endpointToNet.get(endKey);
+
+    flow[wire.id] = 0;
+    if (startNet === undefined || endNet === undefined) continue;
+
+    if (startNet !== endNet) {
+      // Rare, but unambiguous when it happens: downhill.
+      const startVolts = voltages.get(startNet);
+      const endVolts = voltages.get(endNet);
+      if (startVolts !== undefined && endVolts !== undefined && startVolts !== endVolts) {
+        flow[wire.id] = startVolts > endVolts ? 1 : -1;
+      }
+      continue;
+    }
+
+    if (!byNet.has(startNet)) byNet.set(startNet, []);
+    byNet.get(startNet)!.push({ wire, startKey, endKey });
+  }
+
+  for (const [net, netWires] of byNet) {
+    const netSources = sources.get(net);
+    const netSinks = sinks.get(net);
+    const amps = injected.get(net) ?? 0;
+    if (!netSources || !netSinks || amps < 1e-7) continue;
+
+    const adjacency = new Map<string, WireEnd[]>();
+    for (const entry of netWires) {
+      if (!adjacency.has(entry.startKey)) adjacency.set(entry.startKey, []);
+      if (!adjacency.has(entry.endKey)) adjacency.set(entry.endKey, []);
+      adjacency.get(entry.startKey)!.push(entry);
+      adjacency.get(entry.endKey)!.push(entry);
+    }
+
+    // Walked outward from everything *draining* the net, so that every terminal
+    // feeding it can then be traced back down to a drain. Starting from the
+    // feeds instead gave each endpoint one predecessor, so a net fed from two
+    // places only ever had one of its routes marked.
+    const towardsSink = new Map<string, { entry: WireEnd; from: string; forwards: boolean }>();
+    const seen = new Set<string>([...netSinks].filter((key) => adjacency.has(key)));
+    const queue = [...seen];
+
+    while (queue.length > 0) {
+      const key = queue.shift()!;
+      for (const entry of adjacency.get(key) ?? []) {
+        const forwards = entry.startKey === key;
+        const other = forwards ? entry.endKey : entry.startKey;
+        if (seen.has(other)) continue;
+
+        seen.add(other);
+        towardsSink.set(other, { entry, from: key, forwards });
+        queue.push(other);
+      }
+    }
+
+    // Only the cables on a route from a feed to a drain carry anything. Marking
+    // everything the walk touched lit up dead ends too — the ground lead of a
+    // branch that is switched off shares the ground net, and was showing a flow
+    // it has no part in.
+    for (const sourceKey of netSources) {
+      let key = sourceKey;
+      while (towardsSink.has(key)) {
+        const step = towardsSink.get(key)!;
+        // The walk crossed this cable away from the drain; the current runs the
+        // other way, towards it.
+        flow[step.entry.wire.id] = (step.forwards ? -1 : 1) * amps;
+        key = step.from;
+      }
+    }
+  }
+
+  callbacks.setWireFlow(flow);
+}
+
 function computeServoStates(
   connectivity: Connectivity,
   servoRuntime: Map<string, ServoRuntimeState>,
@@ -3817,7 +4126,68 @@ function addResistiveEdge(
   });
 }
 
-function buildResistiveEdges(connectivity: Connectivity): ResistiveEdge[] {
+function isTransistorType(type: string): boolean {
+  return type === 'transistor-npn' || type === 'transistor-pnp';
+}
+
+/**
+ * Which transistors are conducting.
+ *
+ * Two ways in: the properties panel switch, and the base. The base is read off
+ * the bridged graph on purpose — there a base resistor is a piece of wire, so
+ * the base sits on the driving pin's own net and the question "is the sketch
+ * driving this base" has a straight answer. Reading it from the solved graph
+ * would need the answer before it could be worked out.
+ */
+function resolveTransistorConduction(
+  connectivity: Connectivity,
+  netState: NetState,
+  logicHighVoltage: number
+): Map<string, boolean> {
+  const conducting = new Map<string, boolean>();
+
+  for (const component of connectivity.components) {
+    if (!isTransistorType(component.type)) continue;
+
+    if (component.properties.on === true) {
+      conducting.set(component.id, true);
+      continue;
+    }
+
+    const baseNet = getEndpointNet(connectivity, component.id, 'base');
+    const emitterNet = getEndpointNet(connectivity, component.id, 'emitter');
+    if (baseNet === undefined || emitterNet === undefined) {
+      conducting.set(component.id, false);
+      continue;
+    }
+
+    const levelToVolts = (level: number | null) =>
+      level === null ? null : (level / 255) * logicHighVoltage;
+    const baseVolts =
+      getNetVoltage(netState, baseNet) ?? levelToVolts(getNetLevel(netState, baseNet));
+    const emitterVolts =
+      getNetVoltage(netState, emitterNet) ?? levelToVolts(getNetLevel(netState, emitterNet)) ?? 0;
+
+    if (baseVolts === null) {
+      conducting.set(component.id, false);
+      continue;
+    }
+
+    conducting.set(
+      component.id,
+      component.type === 'transistor-npn'
+        ? baseVolts - emitterVolts >= TRANSISTOR_BASE_THRESHOLD
+        : emitterVolts - baseVolts >= TRANSISTOR_BASE_THRESHOLD
+    );
+  }
+
+  return conducting;
+}
+
+function buildResistiveEdges(
+  connectivity: Connectivity,
+  transistorConduction?: Map<string, boolean>
+): ResistiveEdge[] {
   const edges: ResistiveEdge[] = [];
 
   for (const component of connectivity.components) {
@@ -3904,6 +4274,19 @@ function buildResistiveEdges(connectivity: Connectivity): ResistiveEdge[] {
           BUZZER_RESISTANCE
         );
         break;
+      case 'transistor-npn':
+      case 'transistor-pnp':
+        addResistiveEdge(
+          edges,
+          connectivity,
+          component,
+          component.type === 'transistor-npn' ? 'collector' : 'emitter',
+          component.type === 'transistor-npn' ? 'emitter' : 'collector',
+          transistorConduction?.get(component.id)
+            ? TRANSISTOR_ON_RESISTANCE
+            : TRANSISTOR_OFF_RESISTANCE
+        );
+        break;
       case 'dc-motor':
         addResistiveEdge(edges, connectivity, component, 'pin1', 'pin2', 18);
         break;
@@ -3964,15 +4347,15 @@ function solveLinearSystem(matrix: number[][], vector: number[]): number[] | nul
   return augmented.map((row) => row[size]);
 }
 
-function solveMeasurementVoltages(
-  connectivity: Connectivity,
+/** Node voltages for one particular set of branches. */
+function solveVoltagesForEdges(
+  resistiveEdges: ResistiveEdge[],
   netState: NetState
-): { voltages: Map<number, number>; resistiveEdges: ResistiveEdge[] } {
-  const resistiveEdges = buildResistiveEdges(connectivity);
+): Map<number, number> {
   const voltages = new Map<number, number>(netState.voltages);
 
   if (resistiveEdges.length === 0) {
-    return { voltages, resistiveEdges };
+    return voltages;
   }
 
   const adjacency = new Map<number, ResistiveEdge[]>();
@@ -4070,7 +4453,16 @@ function solveMeasurementVoltages(
     });
   }
 
-  return { voltages, resistiveEdges };
+  return voltages;
+}
+
+function solveMeasurementVoltages(
+  connectivity: Connectivity,
+  netState: NetState,
+  transistorConduction?: Map<string, boolean>
+): { voltages: Map<number, number>; resistiveEdges: ResistiveEdge[] } {
+  const resistiveEdges = buildResistiveEdges(connectivity, transistorConduction);
+  return { voltages: solveVoltagesForEdges(resistiveEdges, netState), resistiveEdges };
 }
 
 function buildResistanceAdjacency(
@@ -4587,6 +4979,7 @@ function updateActuatorStates(
   servoRuntime: Map<string, ServoRuntimeState>,
   toneRuntime: Map<string, ToneRuntimeState>,
   lcdRuntime: Map<string, LcdRuntimeState>,
+  wires: Wire[],
   boardPins: Pin[],
   logicHighVoltage: number,
   callbacks: RuntimeCallbacks,
@@ -4618,10 +5011,23 @@ function updateActuatorStates(
     logicHighVoltage
   );
   computeDriverStates(measurementConnectivity, measurementNetState, NOOP_CALLBACKS, damaged);
+
+  // Worked out on the bridged graph, applied on the measurement one.
+  const transistorConduction = resolveTransistorConduction(
+    connectivity,
+    netState,
+    logicHighVoltage
+  );
+
   const { voltages, resistiveEdges } = solveMeasurementVoltages(
     measurementConnectivity,
-    measurementNetState
+    measurementNetState,
+    transistorConduction
   );
+
+  for (const [componentId, on] of transistorConduction) {
+    callbacks.setComponentState(componentId, { conducting: on });
+  }
 
   computeLedStates(
     connectivity,
@@ -4647,6 +5053,16 @@ function updateActuatorStates(
   computeLcdStates(connectivity, lcdRuntime, netState, callbacks);
   computeDcMotorStates(connectivity, netState, callbacks, damaged);
 
+  computeWireFlow(
+    wires,
+    measurementConnectivity,
+    measurementNetState,
+    voltages,
+    resistiveEdges,
+    boardPins,
+    pinValues,
+    callbacks
+  );
   computeComponentDamage(measurementConnectivity, voltages, resistiveEdges, damaged, callbacks);
   computeProbeDrivenMultimeterStates(measurementConnectivity, voltages, resistiveEdges, callbacks);
   computeOscilloscopeStates(measurementConnectivity, voltages, callbacks, clockMs);
@@ -5238,6 +5654,7 @@ export function startMockArduinoRuntime(
     lcdRuntime,
     connectivity,
     measurementConnectivity,
+    wires,
     boardPins,
     logicHighVoltage,
     callbacks,
@@ -5271,6 +5688,7 @@ export function startMockArduinoRuntime(
     servoRuntime,
     toneRuntime,
     lcdRuntime,
+    wires,
     boardPins,
     logicHighVoltage,
     callbacks,
@@ -5309,6 +5727,7 @@ export function startMockArduinoRuntime(
       nextBoardPins,
       { bridgeResistors: false, bridgePotentiometers: false }
     );
+    executionContext.wires = nextWires;
     executionContext.boardPins = nextBoardPins;
 
     // Solve it again now rather than waiting for the sketch's next statement.
