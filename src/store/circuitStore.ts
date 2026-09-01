@@ -511,6 +511,19 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
     redoStack.length = 0;
   };
 
+  /**
+   * History stops at the edge of a project.
+   *
+   * Opening or starting one used to push the outgoing circuit onto the stack and
+   * leave everything before it in place, so undo walked straight back out of the
+   * project the user was looking at and into the last one — code and all. Going
+   * back should only ever mean going back within what is open.
+   */
+  const clearHistory = () => {
+    undoStack.length = 0;
+    redoStack.length = 0;
+  };
+
   const startRuntime = () => {
     const state = get();
     // Setting a circuit up (parsing the sketch, building the connectivity
@@ -605,6 +618,10 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
             set((s) => ({
               simulation: { ...s.simulation, wireFlow },
             })),
+          setPartFlow: (partFlow) =>
+            set((s) => ({
+              simulation: { ...s.simulation, partFlow },
+            })),
         }
       );
     } catch (error) {
@@ -680,6 +697,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
             pinStates: {},
             ledStates: {},
             wireFlow: {},
+            partFlow: {},
             componentStates: {},
             serialOutput: [],
             oscilloscopeTraces: {},
@@ -689,6 +707,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
             pinStates: {},
             ledStates: {},
             wireFlow: {},
+            partFlow: {},
             componentStates: {},
             oscilloscopeTraces: {},
           },
@@ -1185,6 +1204,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
     pinStates: {},
     ledStates: {},
     wireFlow: {},
+    partFlow: {},
     componentStates: {},
     serialOutput: [],
     oscilloscopeTraces: {},
@@ -1213,6 +1233,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
           pinStates: {},
           ledStates: {},
           wireFlow: {},
+          partFlow: {},
           componentStates: {},
           serialOutput: [],
           oscilloscopeTraces: {},
@@ -1233,6 +1254,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
           pinStates: {},
           ledStates: {},
           wireFlow: {},
+          partFlow: {},
           componentStates: {},
           runtimeError: null,
         },
@@ -1409,16 +1431,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
   markProjectSaved: (projectFilePath) => set({ projectFilePath, projectDirty: false }),
 
   clearProject: () => {
-    if (
-      get().components.length > 0 ||
-      get().wires.length > 0 ||
-      get().code !== DEFAULT_CODE ||
-      get().boardType !== DEFAULT_CONTROLLER_BOARD_TYPE ||
-      get().boardPosition.x !== DEFAULT_CONTROLLER_BOARD_POSITION.x ||
-      get().boardPosition.y !== DEFAULT_CONTROLLER_BOARD_POSITION.y
-    ) {
-      pushUndoSnapshot();
-    }
+    clearHistory();
     stopMockArduinoRuntime();
     set({
       components: [createDefaultBreadboard()],
@@ -1434,6 +1447,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
         pinStates: {},
         ledStates: {},
         wireFlow: {},
+        partFlow: {},
         componentStates: {},
         serialOutput: [],
         oscilloscopeTraces: {},
@@ -1455,7 +1469,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
     const project = sanitizeProjectData(data, DEFAULT_CODE);
     if (!project) return false;
 
-    pushUndoSnapshot();
+    clearHistory();
     stopMockArduinoRuntime();
     set({
       components: withMigratedBreadboard(project.components, project.breadboardPosition),
@@ -1471,6 +1485,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
         pinStates: {},
         ledStates: {},
         wireFlow: {},
+        partFlow: {},
         componentStates: {},
         serialOutput: [],
         oscilloscopeTraces: {},

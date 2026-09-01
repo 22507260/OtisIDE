@@ -199,19 +199,26 @@ describe('mock Arduino runtime', () => {
   });
 
   it('dims an LED driven by analogWrite', async () => {
-    const dim = `
-      void setup() { pinMode(9, OUTPUT); }
-      void loop() { analogWrite(9, 64); delay(400); }
-    `;
+    // Through a resistor, so the comparison is not both ends pinned at full.
+    const at = async (value: number) => {
+      const recording = await run(
+        `void setup() { pinMode(9, OUTPUT); }
+         void loop() { analogWrite(9, ${value}); delay(400); }`,
+        [resistor(), led()],
+        [
+          wire('w1', ARDUINO_COMPONENT_ID, 'D9', 'resistor-1', 'pin1'),
+          wire('w2', 'resistor-1', 'pin2', 'led-1', 'anode'),
+          wire('w3', 'led-1', 'cathode', ARDUINO_COMPONENT_ID, 'GND'),
+        ]
+      );
+      return peakBrightness(recording, 'led-1');
+    };
 
-    const recording = await run(dim, [led()], [
-      wire('w1', ARDUINO_COMPONENT_ID, 'D9', 'led-1', 'anode'),
-      wire('w2', 'led-1', 'cathode', ARDUINO_COMPONENT_ID, 'GND'),
-    ]);
+    const full = await at(255);
+    const quarter = await at(64);
 
-    const lit = recording.led.filter((state) => state.on);
-    expect(lit.length).toBeGreaterThan(0);
-    expect(Math.max(...lit.map((state) => state.brightness))).toBeLessThan(0.5);
+    expect(quarter).toBeGreaterThan(0);
+    expect(quarter).toBeLessThan(full);
   });
 
   it('stops publishing once the runtime is stopped', async () => {
@@ -1274,6 +1281,481 @@ void loop() {
     );
 
     expect(Math.abs(lastFlow(small).w1)).toBeGreaterThan(Math.abs(lastFlow(large).w1));
+  });
+});
+
+describe('brightness follows the series resistance', () => {
+  const LED_WIRES = [
+    wire('w1', ARDUINO_COMPONENT_ID, 'D9', 'resistor-1', 'pin1'),
+    wire('w2', 'resistor-1', 'pin2', 'led-1', 'anode'),
+    wire('w3', 'led-1', 'cathode', ARDUINO_COMPONENT_ID, 'GND'),
+  ];
+
+  const ON = `
+void setup() {
+  pinMode(9, OUTPUT);
+  digitalWrite(9, HIGH);
+}
+
+void loop() {
+  delay(50);
+}
+`;
+
+  const litWith = async (ohms: number) => {
+    const recording = await run(
+      ON,
+      [{ ...resistor(), properties: { resistance: ohms, unit: 'ohm' } }, led()],
+      LED_WIRES,
+      800
+    );
+    return peakBrightness(recording, 'led-1');
+  };
+
+  it('runs a 220 ohm circuit at full brightness', async () => {
+    // The resistor everybody reaches for should look properly lit.
+    expect(await litWith(220)).toBeGreaterThan(0.9);
+  });
+
+  it('dims noticeably at a kilohm', async () => {
+    const bright = await litWith(220);
+    const dim = await litWith(1000);
+
+    expect(dim).toBeLessThan(bright * 0.6);
+    expect(dim).toBeGreaterThan(0.05);
+  });
+
+  it('barely lights at ten kilohm', async () => {
+    const faint = await litWith(10000);
+
+    expect(faint).toBeLessThan(0.15);
+    expect(faint).toBeGreaterThan(0);
+  });
+
+  it('falls off as the resistance climbs, every step of the way', async () => {
+    const readings = [];
+    for (const ohms of [220, 470, 1000, 4700, 10000]) {
+      readings.push(await litWith(ohms));
+    }
+
+    for (let i = 1; i < readings.length; i += 1) {
+      expect(readings[i]).toBeLessThan(readings[i - 1]);
+    }
+  });
+
+  it('dims as a potentiometer in series is turned up', async () => {
+    // The knob wired as a rheostat: pin1 in, wiper out, and the track between
+    // them is the resistance the LED sees.
+    const pot = (position: number): CircuitComponent => ({
+      id: 'pot-1',
+      type: 'potentiometer',
+      x: 200,
+      y: 300,
+      rotation: 0,
+      pins: [
+        { id: 'pin1', name: 'Pin 1', type: 'passive', x: -12, y: 8 },
+        { id: 'wiper', name: 'Wiper', type: 'passive', x: 0, y: 8 },
+        { id: 'pin2', name: 'Pin 2', type: 'passive', x: 12, y: 8 },
+      ],
+      properties: { resistance: 10000, position, unit: 'ohm' },
+    });
+
+    const POT_WIRES = [
+      wire('p1', ARDUINO_COMPONENT_ID, 'D9', 'pot-1', 'pin1'),
+      wire('p2', 'pot-1', 'wiper', 'led-1', 'anode'),
+      wire('p3', 'led-1', 'cathode', ARDUINO_COMPONENT_ID, 'GND'),
+    ];
+
+    const litAt = async (position: number) => {
+      const recording = await run(ON, [pot(position), led()], POT_WIRES, 800);
+      return peakBrightness(recording, 'led-1');
+    };
+
+    const nearlyZero = await litAt(2);
+    const halfWay = await litAt(50);
+
+    expect(nearlyZero).toBeGreaterThan(halfWay);
+  });
+});
+
+describe('INPUT_PULLUP', () => {
+  const button = (pressed: boolean): CircuitComponent => ({
+    id: 'btn-1',
+    type: 'button',
+    x: 300,
+    y: 200,
+    rotation: 0,
+    pins: [
+      { id: 'pin1', name: 'Pin 1', type: 'passive', x: 15, y: -10 },
+      { id: 'pin2', name: 'Pin 2', type: 'passive', x: 15, y: 10 },
+      { id: 'pin3', name: 'Pin 3', type: 'passive', x: -15, y: -10 },
+      { id: 'pin4', name: 'Pin 4', type: 'passive', x: -15, y: 10 },
+    ],
+    properties: { pressed, type: 'momentary' },
+  });
+
+  // The wiring the pull-up exists for: no resistor, just the switch to ground.
+  const WIRES = [
+    wire('w1', ARDUINO_COMPONENT_ID, 'D7', 'btn-1', 'pin1'),
+    wire('w2', 'btn-1', 'pin3', ARDUINO_COMPONENT_ID, 'GND'),
+  ];
+
+  const SKETCH = (mode: string) => `
+void setup() {
+  pinMode(7, ${mode});
+  Serial.begin(9600);
+}
+
+void loop() {
+  Serial.println(digitalRead(7));
+  delay(60);
+}
+`;
+
+  const lastRead = (recording: Recording): number => {
+    const values = recording.serial
+      .map((line) => Number(line.trim()))
+      .filter((value) => Number.isFinite(value));
+    return values[values.length - 1] ?? -1;
+  };
+
+  it('reads high with the button open', async () => {
+    const recording = await run(SKETCH('INPUT_PULLUP'), [button(false)], WIRES, 800);
+    expect(lastRead(recording)).toBe(1);
+  });
+
+  it('reads low with the button pressed', async () => {
+    const recording = await run(SKETCH('INPUT_PULLUP'), [button(true)], WIRES, 800);
+    expect(lastRead(recording)).toBe(0);
+  });
+
+  it('follows the button as it is pressed and let go', async () => {
+    const open = await run(SKETCH('INPUT_PULLUP'), [button(false)], WIRES, 700);
+    const closed = await run(SKETCH('INPUT_PULLUP'), [button(true)], WIRES, 700);
+
+    expect(lastRead(open)).toBe(1);
+    expect(lastRead(closed)).toBe(0);
+  });
+
+  it('leaves a plain INPUT floating, as it really is', async () => {
+    // Without the pull-up there is nothing holding the pin up, so an open
+    // switch reads low — which is exactly why the pull-up is wanted.
+    const recording = await run(SKETCH('INPUT'), [button(false)], WIRES, 700);
+    expect(lastRead(recording)).toBe(0);
+  });
+});
+
+describe('transistor, wired every way round', () => {
+  const npn = (properties: Record<string, string | number | boolean> = {}): CircuitComponent => ({
+    id: 'q-1',
+    type: 'transistor-npn',
+    x: 260,
+    y: 200,
+    rotation: 0,
+    pins: [
+      { id: 'base', name: 'Base', type: 'passive', x: 0, y: 8 },
+      { id: 'collector', name: 'Collector', type: 'passive', x: -9.5, y: 8 },
+      { id: 'emitter', name: 'Emitter', type: 'passive', x: 9.5, y: 8 },
+    ],
+    properties: { hfe: 100, on: false, ...properties },
+  });
+
+  const baseR = (): CircuitComponent => ({ ...resistor(), id: 'rb-1' });
+  const loadR = (): CircuitComponent => ({ ...resistor(), id: 'rl-1' });
+
+  const DRIVE = (level: 'HIGH' | 'LOW') => `
+void setup() {
+  pinMode(9, OUTPUT);
+  digitalWrite(9, ${level});
+}
+
+void loop() {
+  delay(50);
+}
+`;
+
+  // Load above the transistor: 5V -> resistor -> LED -> collector, emitter to GND.
+  const LOW_SIDE = [
+    wire('a1', ARDUINO_COMPONENT_ID, 'D9', 'rb-1', 'pin1'),
+    wire('a2', 'rb-1', 'pin2', 'q-1', 'base'),
+    wire('a3', ARDUINO_COMPONENT_ID, '5V', 'rl-1', 'pin1'),
+    wire('a4', 'rl-1', 'pin2', 'led-1', 'anode'),
+    wire('a5', 'led-1', 'cathode', 'q-1', 'collector'),
+    wire('a6', 'q-1', 'emitter', ARDUINO_COMPONENT_ID, 'GND'),
+  ];
+
+  // Load below it: collector to 5V, emitter -> resistor -> LED -> GND.
+  const EMITTER_FOLLOWER = [
+    wire('b1', ARDUINO_COMPONENT_ID, 'D9', 'rb-1', 'pin1'),
+    wire('b2', 'rb-1', 'pin2', 'q-1', 'base'),
+    wire('b3', ARDUINO_COMPONENT_ID, '5V', 'q-1', 'collector'),
+    wire('b4', 'q-1', 'emitter', 'rl-1', 'pin1'),
+    wire('b5', 'rl-1', 'pin2', 'led-1', 'anode'),
+    wire('b6', 'led-1', 'cathode', ARDUINO_COMPONENT_ID, 'GND'),
+  ];
+
+  const lit = async (
+    wires: Wire[],
+    level: 'HIGH' | 'LOW',
+    properties: Record<string, string | number | boolean> = {}
+  ) => {
+    const recording = await run(
+      DRIVE(level),
+      [baseR(), loadR(), npn(properties), led()],
+      wires,
+      800
+    );
+    return peakBrightness(recording, 'led-1');
+  };
+
+  it('switches a load on the collector', async () => {
+    expect(await lit(LOW_SIDE, 'LOW')).toBeLessThan(0.05);
+    expect(await lit(LOW_SIDE, 'HIGH')).toBeGreaterThan(0.2);
+  });
+
+  it('switches a load on the emitter', async () => {
+    expect(await lit(EMITTER_FOLLOWER, 'LOW')).toBeLessThan(0.05);
+    expect(await lit(EMITTER_FOLLOWER, 'HIGH')).toBeGreaterThan(0.2);
+  });
+
+  it('switches by hand whichever way the load is wired', async () => {
+    // The pin is low, so only the panel switch can be closing these.
+    expect(await lit(LOW_SIDE, 'LOW', { on: true })).toBeGreaterThan(0.2);
+    expect(await lit(EMITTER_FOLLOWER, 'LOW', { on: true })).toBeGreaterThan(0.2);
+  });
+
+  it('carries a current of its own once it is conducting', async () => {
+    const recording = await new Promise<Recording>((resolve) => {
+      const captured: Recording = {
+        pinStates: [], serial: [], led: [], ledById: [],
+        componentStates: [], wireFlow: [],
+      };
+
+      startMockArduinoRuntime(
+        DRIVE('HIGH'),
+        [baseR(), loadR(), npn(), led()],
+        LOW_SIDE,
+        BOARD_PINS,
+        5,
+        {
+          addSerialOutput: () => {},
+          pushOscilloscopeSample: () => {},
+          setLedState: () => {},
+          clearLedStates: () => {},
+          setComponentState: () => {},
+          clearComponentStates: () => {},
+          setPinStates: () => {},
+          setWireFlow: (flow) => captured.wireFlow.push({ ...flow }),
+        }
+      );
+
+      setTimeout(() => {
+        stopMockArduinoRuntime();
+        resolve(captured);
+      }, 800);
+    });
+
+    const last = recording.wireFlow[recording.wireFlow.length - 1] ?? {};
+    // The cables feeding the collector and leaving the emitter both run.
+    expect(Math.abs(last.a5 ?? 0)).toBeGreaterThan(0);
+    expect(Math.abs(last.a6 ?? 0)).toBeGreaterThan(0);
+  });
+});
+
+describe('current flow, every branch of it', () => {
+  const secondResistor = (): CircuitComponent => ({ ...resistor(), id: 'resistor-2' });
+  const secondLed = (): CircuitComponent => ({ ...led(), id: 'led-2' });
+
+  // One pin feeding two branches that rejoin at ground: the shape where a walk
+  // that only ever finds one route back leaves half the circuit dark.
+  const PARALLEL = [
+    wire('p1', ARDUINO_COMPONENT_ID, 'D9', 'resistor-1', 'pin1'),
+    wire('p2', 'resistor-1', 'pin2', 'led-1', 'anode'),
+    wire('p3', 'led-1', 'cathode', ARDUINO_COMPONENT_ID, 'GND'),
+    wire('p4', ARDUINO_COMPONENT_ID, 'D9', 'resistor-2', 'pin1'),
+    wire('p5', 'resistor-2', 'pin2', 'led-2', 'anode'),
+    wire('p6', 'led-2', 'cathode', ARDUINO_COMPONENT_ID, 'GND'),
+  ];
+
+  const flowOf = async (components: CircuitComponent[], wires: Wire[]) => {
+    const seen: Array<Record<string, number>> = [];
+
+    await new Promise<void>((resolve) => {
+      startMockArduinoRuntime(
+        `void setup() { pinMode(9, OUTPUT); digitalWrite(9, HIGH); }
+         void loop() { delay(50); }`,
+        components,
+        wires,
+        BOARD_PINS,
+        5,
+        {
+          addSerialOutput: () => {},
+          pushOscilloscopeSample: () => {},
+          setLedState: () => {},
+          clearLedStates: () => {},
+          setComponentState: () => {},
+          clearComponentStates: () => {},
+          setPinStates: () => {},
+          setWireFlow: (flow) => seen.push({ ...flow }),
+        }
+      );
+
+      setTimeout(() => {
+        stopMockArduinoRuntime();
+        resolve();
+      }, 800);
+    });
+
+    return seen[seen.length - 1] ?? {};
+  };
+
+  it('runs current in both branches, not just the one it found first', async () => {
+    const flow = await flowOf(
+      [resistor(), secondResistor(), led(), secondLed()],
+      PARALLEL
+    );
+
+    for (const id of ['p1', 'p2', 'p3', 'p4', 'p5', 'p6']) {
+      expect(Math.abs(flow[id] ?? 0)).toBeGreaterThan(0);
+    }
+  });
+
+  it('still leaves a branch that is switched off alone', async () => {
+    // Only the first branch is fed; the second shares the ground net but has
+    // nothing driving it, so its ground lead carries nothing.
+    const oneFed = [
+      wire('p1', ARDUINO_COMPONENT_ID, 'D9', 'resistor-1', 'pin1'),
+      wire('p2', 'resistor-1', 'pin2', 'led-1', 'anode'),
+      wire('p3', 'led-1', 'cathode', ARDUINO_COMPONENT_ID, 'GND'),
+      wire('p5', 'resistor-2', 'pin2', 'led-2', 'anode'),
+      wire('p6', 'led-2', 'cathode', ARDUINO_COMPONENT_ID, 'GND'),
+    ];
+
+    const flow = await flowOf(
+      [resistor(), secondResistor(), led(), secondLed()],
+      oneFed
+    );
+
+    expect(Math.abs(flow.p3 ?? 0)).toBeGreaterThan(0);
+    expect(Math.abs(flow.p6 ?? 0)).toBeLessThan(1e-6);
+  });
+});
+
+describe('the meter as an ammeter', () => {
+  const meter = (
+    mode: string,
+    red: [string, string] | null,
+    black: [string, string] | null
+  ): CircuitComponent => ({
+    id: 'meter-1',
+    type: 'multimeter',
+    x: 400,
+    y: 300,
+    rotation: 0,
+    pins: [],
+    properties: {
+      mode,
+      autoRange: true,
+      ...(red
+        ? { redProbeTargetComponentId: red[0], redProbeTargetPinId: red[1] }
+        : {}),
+      ...(black
+        ? { blackProbeTargetComponentId: black[0], blackProbeTargetPinId: black[1] }
+        : {}),
+    },
+  });
+
+  const ON = `
+void setup() {
+  pinMode(9, OUTPUT);
+  digitalWrite(9, HIGH);
+}
+
+void loop() {
+  delay(50);
+}
+`;
+
+  /** The gap in the circuit the meter is meant to fill: pin to resistor. */
+  const BROKEN = [
+    wire('m2', 'resistor-1', 'pin2', 'led-1', 'anode'),
+    wire('m3', 'led-1', 'cathode', ARDUINO_COMPONENT_ID, 'GND'),
+  ];
+
+  const readingOf = (recording: Recording) => {
+    const states = statesOf(recording, 'meter-1').filter((state) => 'displayText' in state);
+    return states[states.length - 1] ?? null;
+  };
+
+  it('reads the current when it bridges the gap in the circuit', async () => {
+    // Red on the pin, black on the resistor: the meter completes the loop.
+    const recording = await run(
+      ON,
+      [resistor(), led(), meter('current', [ARDUINO_COMPONENT_ID, 'D9'], ['resistor-1', 'pin1'])],
+      BROKEN,
+      800
+    );
+    const state = readingOf(recording);
+
+    expect(state).not.toBeNull();
+    expect(state!.status).toBe('ready');
+    // Roughly (5 - 2) / (220 + 68) in milliamps.
+    expect(Number(state!.reading)).toBeGreaterThan(8);
+    expect(Number(state!.reading)).toBeLessThan(13);
+  });
+
+  it('lights the LED it is standing in for', async () => {
+    const recording = await run(
+      ON,
+      [resistor(), led(), meter('current', [ARDUINO_COMPONENT_ID, 'D9'], ['resistor-1', 'pin1'])],
+      BROKEN,
+      800
+    );
+
+    expect(peakBrightness(recording, 'led-1')).toBeGreaterThan(0.5);
+  });
+
+  it('reads OPEN with only one probe clipped on', async () => {
+    const recording = await run(
+      ON,
+      [resistor(), led(), meter('current', [ARDUINO_COMPONENT_ID, 'D9'], null)],
+      BROKEN,
+      800
+    );
+    const state = readingOf(recording);
+
+    expect(state!.displayText).toBe('OPEN');
+  });
+
+  it('reads nothing while the circuit around it is dead', async () => {
+    const recording = await run(
+      `void setup() { pinMode(9, OUTPUT); digitalWrite(9, LOW); }
+       void loop() { delay(50); }`,
+      [resistor(), led(), meter('current', [ARDUINO_COMPONENT_ID, 'D9'], ['resistor-1', 'pin1'])],
+      BROKEN,
+      800
+    );
+    const state = readingOf(recording);
+
+    expect(Math.abs(Number(state!.reading))).toBeLessThan(0.5);
+  });
+
+  it('leaves the other modes alone', async () => {
+    // Voltage mode still measures across two points without joining them.
+    const WHOLE = [
+      wire('v1', ARDUINO_COMPONENT_ID, 'D9', 'resistor-1', 'pin1'),
+      ...BROKEN,
+    ];
+    const recording = await run(
+      ON,
+      [resistor(), led(), meter('voltage', ['led-1', 'anode'], ['led-1', 'cathode'])],
+      WHOLE,
+      800
+    );
+    const state = readingOf(recording);
+
+    expect(state!.status).toBe('ready');
+    expect(Number(state!.reading)).toBeGreaterThan(1.5);
   });
 });
 

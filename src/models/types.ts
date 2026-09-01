@@ -154,6 +154,12 @@ export interface SimulationState {
    * flow the canvas shows while Shift is held.
    */
   wireFlow: Record<string, number>;
+  /**
+   * The current running through the parts themselves, keyed
+   * `componentId|fromPin|toPin`, so the arrows carry on across a resistor or an
+   * LED instead of stopping at its legs.
+   */
+  partFlow: Record<string, number>;
   serialOutput: string[];
   oscilloscopeTraces: Record<string, OscilloscopeSample[]>;
   /** Set when a sketch statement threw instead of running cleanly. */

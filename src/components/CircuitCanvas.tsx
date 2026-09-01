@@ -74,6 +74,7 @@ import {
 } from '../lib/componentTransform';
 import { isCircuitScreenTarget, isTextEntryTarget } from '../lib/keyboardTarget';
 import { getSolderedPinKeys, pinKey } from '../lib/solderedPins';
+import { stepResistance } from '../lib/resistanceSteps';
 import { applyBuzzerVoices, stopAllBuzzers } from '../lib/buzzerAudio';
 import multimeterProbeRedSvg from '../assets/components/multimeter-probe-red.svg';
 import multimeterProbeBlackSvg from '../assets/components/multimeter-probe-black.svg';
@@ -414,9 +415,14 @@ function getProbeDockedLocalPosition(
   mode: 'voltage' | 'current' | 'resistance' | 'continuity'
 ) {
   const anchor = getProbeAnchorLocalPosition(slot, mode);
+  // Parked out to opposite sides rather than straight down. Hanging them both
+  // below their sockets left thirty-odd pixels between two probes wider than
+  // that, so they sat on top of each other and you could not tell which lead
+  // was which. The artwork turns to face wherever its tip is, so putting the
+  // tips apart fans the two of them out on its own.
   return {
-    x: anchor.x,
-    y: anchor.y + 54,
+    x: anchor.x + (slot === 'black' ? -44 : 44),
+    y: anchor.y + 48,
   };
 }
 
@@ -1147,6 +1153,35 @@ const ComponentShape: React.FC<{
       )}
 
       {/* Servo angle */}
+      {/* Which leg is which. A TO-92 reads C-B-E left to right and nothing on
+          screen said so, so collector and emitter were easy to swap — and a
+          transistor with those two the wrong way round does not conduct, on a
+          bench or here. */}
+      {(comp.type === 'transistor-npn' || comp.type === 'transistor-pnp') && (
+        <>
+          {(
+            [
+              ['C', -9.5],
+              ['B', 0],
+              ['E', 9.5],
+            ] as const
+          ).map(([label, x]) => (
+            <Text
+              key={label}
+              text={label}
+              x={x - 3}
+              y={20}
+              width={6}
+              align="center"
+              fontSize={6}
+              fontStyle="bold"
+              fill="#9aa4b2"
+              listening={false}
+            />
+          ))}
+        </>
+      )}
+
       {comp.type === 'servo' && (
         <>
           <Group rotation={(servoAngle - 90) * 0.9} listening={false}>
@@ -2647,6 +2682,8 @@ const CircuitCanvas: React.FC = () => {
   // The latest currents, for the animation to read without being restarted.
   const wireFlowRef = useRef(simulation.wireFlow);
   wireFlowRef.current = simulation.wireFlow;
+  const partFlowRef = useRef(simulation.partFlow);
+  partFlowRef.current = simulation.partFlow;
 
   useEffect(() => {
     if (!flowRunning) return;
@@ -2668,7 +2705,10 @@ const CircuitCanvas: React.FC = () => {
       // every part on the canvas sixty times a second for an effect that only
       // moves a dash offset.
       for (const node of layer.find('.flow-mark')) {
-        const current = wireFlowRef.current[node.id().slice('flow-'.length)] ?? 0;
+        const id = node.id();
+        const current = id.startsWith('partflow-')
+          ? partFlowRef.current[id.slice('partflow-'.length)] ?? 0
+          : wireFlowRef.current[id.slice('flow-'.length)] ?? 0;
         if (current === 0) continue;
         const speed = Math.max(
           FLOW_MIN_SPEED,
@@ -2852,6 +2892,40 @@ const CircuitCanvas: React.FC = () => {
     const pointer = stage.getPointerPosition();
     if (!pointer) return;
 
+    // Ctrl and the wheel over a resistor or a knob turns its value instead of
+    // the view. Along the E12 series, because one ohm at a time never gets from
+    // 220 to ten kilohm and a thousand at a time skips everything below it.
+    if (e.evt.ctrlKey || e.evt.metaKey) {
+      const world = {
+        x: (pointer.x - stagePos.x) / oldScale,
+        y: (pointer.y - stagePos.y) / oldScale,
+      };
+      const under = [...components]
+        .reverse()
+        .find(
+          (comp) =>
+            (comp.type === 'resistor' || comp.type === 'potentiometer') &&
+            (() => {
+              const box = getComponentWorldBounds(comp);
+              return (
+                world.x >= box.left &&
+                world.x <= box.right &&
+                world.y >= box.top &&
+                world.y <= box.bottom
+              );
+            })()
+        );
+
+      if (under) {
+        const current = getNumericValue(under.properties.resistance, 220);
+        const next = stepResistance(current, e.evt.deltaY > 0 ? -1 : 1);
+        if (next !== current) {
+          updateComponentProperty(under.id, 'resistance', next);
+        }
+        return;
+      }
+    }
+
     const mousePointTo = {
       x: (pointer.x - stagePos.x) / oldScale,
       y: (pointer.y - stagePos.y) / oldScale,
@@ -2865,7 +2939,7 @@ const CircuitCanvas: React.FC = () => {
       x: pointer.x - mousePointTo.x * newScale,
       y: pointer.y - mousePointTo.y * newScale,
     });
-  }, [zoom, stagePos]);
+  }, [components, stagePos, updateComponentProperty, zoom]);
 
   // Drop handler for palette drag
   const handleDrop = useCallback((e: React.DragEvent) => {
@@ -4858,6 +4932,57 @@ const CircuitCanvas: React.FC = () => {
           {components
             .filter((comp) => !isBreadboardType(comp.type))
             .map(renderComponent)}
+
+          {/* The current running through the parts themselves. Without these the
+              arrows stop at every resistor and LED and the loop reads as broken.
+              Drawn over the parts: under them the artwork covered its own
+              arrow, which is exactly the bit worth seeing. */}
+          {flowRunning &&
+            components.map((comp) => {
+              const branches = Object.entries(simulation.partFlow).filter(
+                ([key, current]) =>
+                  Math.abs(current) >= FLOW_MIN_CURRENT && key.startsWith(`${comp.id}|`)
+              );
+              if (branches.length === 0) return null;
+
+              return (
+                <Group key={`partflow-${comp.id}`} listening={false}>
+                  {branches.map(([key, current]) => {
+                    const [, fromPin, toPin] = key.split('|');
+                    const from = getComponentPinWorldPosition(comp, fromPin);
+                    const to = getComponentPinWorldPosition(comp, toPin);
+                    if (!from || !to) return null;
+
+                    const direction = current > 0 ? 1 : -1;
+                    return (
+                      <Shape
+                        key={key}
+                        id={`partflow-${key}`}
+                        name="flow-mark"
+                        fill="#9ef7ff"
+                        stroke="#0b2233"
+                        strokeWidth={0.5}
+                        shadowColor="#4aa3ff"
+                        shadowBlur={5}
+                        opacity={0.98}
+                        perfectDrawEnabled={false}
+                        shadowForStrokeEnabled={false}
+                        listening={false}
+                        sceneFunc={(context, shape) => {
+                          drawFlowArrows(
+                            context,
+                            shape,
+                            [from.x, from.y, to.x, to.y],
+                            direction,
+                            Number(shape.getAttr('flowTravelled')) || 0
+                          );
+                        }}
+                      />
+                    );
+                  })}
+                </Group>
+              );
+            })}
 
           {components
             .filter((comp) => comp.type === 'multimeter')
