@@ -74,7 +74,7 @@ import {
 } from '../lib/componentTransform';
 import { isCircuitScreenTarget, isTextEntryTarget } from '../lib/keyboardTarget';
 import { getSolderedPinKeys, pinKey } from '../lib/solderedPins';
-import { stepResistance } from '../lib/resistanceSteps';
+import { getPrimaryProperty, stepPropertyValue } from '../lib/propertyRanges';
 import { applyBuzzerVoices, stopAllBuzzers } from '../lib/buzzerAudio';
 import multimeterProbeRedSvg from '../assets/components/multimeter-probe-red.svg';
 import multimeterProbeBlackSvg from '../assets/components/multimeter-probe-black.svg';
@@ -107,7 +107,39 @@ const FLOW_SPEED = 260;
 /** …and the pace a barely-conducting circuit still crawls along at. */
 const FLOW_MIN_SPEED = 22;
 /** How far apart the arrowheads sit along a cable. */
-const FLOW_ARROW_SPACING = 26;
+/** Closer than this and two probes are drawn on top of one another. */
+const PROBE_FAN_DISTANCE = 58;
+
+/**
+ * Nudges two probe tips apart when they land on the same spot.
+ *
+ * Clipped to the same leg — or to two legs a couple of pixels apart — the two
+ * probes cover each other completely and there is no telling which is which,
+ * nor any way to grab the one underneath. Pushing them to opposite sides of
+ * where they actually are keeps both visible and both grabbable; it is only the
+ * drawing that moves, never what they are measuring.
+ */
+function fanOutProbeTips(
+  black: { x: number; y: number },
+  red: { x: number; y: number }
+): { black: { x: number; y: number }; red: { x: number; y: number } } {
+  const dx = red.x - black.x;
+  const dy = red.y - black.y;
+  const distance = Math.hypot(dx, dy);
+  if (distance >= PROBE_FAN_DISTANCE) return { black, red };
+
+  // Sitting exactly on top of each other gives no line to push along, so pick
+  // one: sideways, which is how you would lay two probes down by hand.
+  const [ux, uy] = distance < 0.01 ? [1, 0] : [dx / distance, dy / distance];
+  const push = (PROBE_FAN_DISTANCE - distance) / 2;
+
+  return {
+    black: { x: black.x - ux * push, y: black.y - uy * push },
+    red: { x: red.x + ux * push, y: red.y + uy * push },
+  };
+}
+
+const FLOW_ARROW_SPACING = 46;
 const FLOW_ARROW_LENGTH = 4.2;
 const FLOW_ARROW_WIDTH = 3.4;
 
@@ -801,6 +833,28 @@ function mapWiringIssueToWarning(
   const comp = components.find((item) => item.id === issue.componentId);
   const info = comp ? COMPONENT_CATALOG.find((item) => item.type === comp.type) : undefined;
   const name = comp ? getComponentDisplayName(language, comp.type, info?.name ?? comp.type) : '';
+
+  // Shown the moment they are true rather than waiting for a check to be asked
+  // for. Dropping a part you have not wired yet is work in progress; clipping
+  // both probes of an ammeter onto one point is a mistake that is already
+  // giving you a wrong number, and the sooner it says so the better.
+  if (issue.type === 'meter-needs-series') {
+    return {
+      id: `wiring-meter-series-${issue.componentId}`,
+      text: t(language, 'circuitWarningMeterSeries', { name }),
+      componentId: issue.componentId,
+      live: true,
+    };
+  }
+
+  if (issue.type === 'meter-needs-parallel') {
+    return {
+      id: `wiring-meter-parallel-${issue.componentId}`,
+      text: t(language, 'circuitWarningMeterParallel', { name }),
+      componentId: issue.componentId,
+      live: true,
+    };
+  }
 
   if (issue.type === 'floating-part') {
     return {
@@ -2892,36 +2946,31 @@ const CircuitCanvas: React.FC = () => {
     const pointer = stage.getPointerPosition();
     if (!pointer) return;
 
-    // Ctrl and the wheel over a resistor or a knob turns its value instead of
-    // the view. Along the E12 series, because one ohm at a time never gets from
-    // 220 to ten kilohm and a thousand at a time skips everything below it.
+    // Ctrl and the wheel over a part turns its value instead of the view —
+    // whichever value that part is mostly reached for: a resistance, a knob's
+    // position, a servo's angle, a battery's charge.
     if (e.evt.ctrlKey || e.evt.metaKey) {
       const world = {
         x: (pointer.x - stagePos.x) / oldScale,
         y: (pointer.y - stagePos.y) / oldScale,
       };
-      const under = [...components]
-        .reverse()
-        .find(
-          (comp) =>
-            (comp.type === 'resistor' || comp.type === 'potentiometer') &&
-            (() => {
-              const box = getComponentWorldBounds(comp);
-              return (
-                world.x >= box.left &&
-                world.x <= box.right &&
-                world.y >= box.top &&
-                world.y <= box.bottom
-              );
-            })()
-        );
 
-      if (under) {
-        const current = getNumericValue(under.properties.resistance, 220);
-        const next = stepResistance(current, e.evt.deltaY > 0 ? -1 : 1);
-        if (next !== current) {
-          updateComponentProperty(under.id, 'resistance', next);
-        }
+      // Topmost first, so the part drawn over the others is the one that answers.
+      const under = [...components].reverse().find((comp) => {
+        const box = getComponentWorldBounds(comp);
+        return (
+          world.x >= box.left &&
+          world.x <= box.right &&
+          world.y >= box.top &&
+          world.y <= box.bottom
+        );
+      });
+
+      const key = under ? getPrimaryProperty(under.type, under.properties) : null;
+      if (under && key) {
+        const current = getNumericValue(under.properties[key], 0);
+        const next = stepPropertyValue(under.type, key, current, e.evt.deltaY > 0 ? -1 : 1);
+        if (next !== current) updateComponentProperty(under.id, key, next);
         return;
       }
     }
@@ -4987,8 +5036,12 @@ const CircuitCanvas: React.FC = () => {
           {components
             .filter((comp) => comp.type === 'multimeter')
             .map((comp) => {
-              const blackTip = getMultimeterProbeWorldPosition(comp, 'black');
-              const redTip = getMultimeterProbeWorldPosition(comp, 'red');
+              const fanned = fanOutProbeTips(
+                getMultimeterProbeWorldPosition(comp, 'black'),
+                getMultimeterProbeWorldPosition(comp, 'red')
+              );
+              const blackTip = fanned.black;
+              const redTip = fanned.red;
               const blackAnchor = getMultimeterProbeAnchorWorldPosition(comp, 'black');
               const redAnchor = getMultimeterProbeAnchorWorldPosition(comp, 'red');
               const mode = getMultimeterMode(comp.properties.mode);

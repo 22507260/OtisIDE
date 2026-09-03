@@ -1759,6 +1759,349 @@ void loop() {
   });
 });
 
+describe('current read off the cables themselves', () => {
+  const secondResistor = (): CircuitComponent => ({ ...resistor(), id: 'resistor-2' });
+  const secondLed = (): CircuitComponent => ({ ...led(), id: 'led-2' });
+
+  const flowOf = async (components: CircuitComponent[], wires: Wire[]) => {
+    const seen: Array<Record<string, number>> = [];
+
+    await new Promise<void>((resolve) => {
+      startMockArduinoRuntime(
+        `void setup() { pinMode(9, OUTPUT); digitalWrite(9, HIGH); }
+         void loop() { delay(50); }`,
+        components,
+        wires,
+        BOARD_PINS,
+        5,
+        {
+          addSerialOutput: () => {},
+          pushOscilloscopeSample: () => {},
+          setLedState: () => {},
+          clearLedStates: () => {},
+          setComponentState: () => {},
+          clearComponentStates: () => {},
+          setPinStates: () => {},
+          setWireFlow: (flow) => seen.push({ ...flow }),
+        }
+      );
+
+      setTimeout(() => {
+        stopMockArduinoRuntime();
+        resolve();
+      }, 800);
+    });
+
+    return seen[seen.length - 1] ?? {};
+  };
+
+  const SERIES = [
+    wire('s1', ARDUINO_COMPONENT_ID, 'D9', 'resistor-1', 'pin1'),
+    wire('s2', 'resistor-1', 'pin2', 'led-1', 'anode'),
+    wire('s3', 'led-1', 'cathode', ARDUINO_COMPONENT_ID, 'GND'),
+  ];
+
+  it('gives every cable in a loop the same current', async () => {
+    const flow = await flowOf([resistor(), led()], SERIES);
+
+    // One loop, one current: about (5 - 2) / (220 + 68).
+    for (const id of ['s1', 's2', 's3']) {
+      expect(flow[id]).toBeGreaterThan(0.008);
+      expect(flow[id]).toBeLessThan(0.013);
+    }
+    expect(flow.s1).toBeCloseTo(flow.s3, 5);
+  });
+
+  it('splits the current between parallel branches and adds it back up', async () => {
+    // Two branches off one pin, one of them ten times the resistance.
+    const parallel = [
+      wire('p1', ARDUINO_COMPONENT_ID, 'D9', 'resistor-1', 'pin1'),
+      wire('p2', 'resistor-1', 'pin2', 'led-1', 'anode'),
+      wire('p3', 'led-1', 'cathode', ARDUINO_COMPONENT_ID, 'GND'),
+      wire('p4', ARDUINO_COMPONENT_ID, 'D9', 'resistor-2', 'pin1'),
+      wire('p5', 'resistor-2', 'pin2', 'led-2', 'anode'),
+      wire('p6', 'led-2', 'cathode', ARDUINO_COMPONENT_ID, 'GND'),
+    ];
+
+    const flow = await flowOf(
+      [
+        resistor(),
+        { ...secondResistor(), properties: { resistance: 2200, unit: 'ohm' } },
+        led(),
+        secondLed(),
+      ],
+      parallel
+    );
+
+    for (const id of ['p1', 'p2', 'p3', 'p4', 'p5', 'p6']) {
+      expect(Math.abs(flow[id] ?? 0)).toBeGreaterThan(0);
+    }
+
+    // The stiffer branch carries less, and the two together are what left the pin.
+    expect(flow.p4).toBeLessThan(flow.p1);
+    expect(flow.p1 + flow.p4).toBeCloseTo(flow.p3 + flow.p6, 4);
+  });
+
+  it('points every cable the way the current actually runs', async () => {
+    const flow = await flowOf([resistor(), led()], SERIES);
+    for (const id of ['s1', 's2', 's3']) expect(flow[id]).toBeGreaterThan(0);
+
+    // Same circuit, two cables drawn back to front: only their signs flip.
+    const reversed = [
+      wire('s1', 'resistor-1', 'pin1', ARDUINO_COMPONENT_ID, 'D9'),
+      wire('s2', 'resistor-1', 'pin2', 'led-1', 'anode'),
+      wire('s3', ARDUINO_COMPONENT_ID, 'GND', 'led-1', 'cathode'),
+    ];
+    const flipped = await flowOf([resistor(), led()], reversed);
+
+    expect(flipped.s1).toBeLessThan(0);
+    expect(flipped.s2).toBeGreaterThan(0);
+    expect(flipped.s3).toBeLessThan(0);
+    expect(Math.abs(flipped.s1)).toBeCloseTo(Math.abs(flow.s1), 5);
+  });
+
+  it('lights every cable of a circuit fed through a chain of them', async () => {
+    // Cables daisy-chained through breadboard holes, so two of them touch
+    // neither a feed nor a drain — the ones the old walk lost.
+    const breadboard = (): CircuitComponent => ({
+      id: BREADBOARD_COMPONENT_ID,
+      type: 'breadboard',
+      x: BB_X,
+      y: BB_Y,
+      rotation: 0,
+      pins: [],
+      properties: {},
+    });
+
+    const chained = [
+      wire('c1', ARDUINO_COMPONENT_ID, 'D9', BREADBOARD_COMPONENT_ID, 'bb-a-1'),
+      wire('c2', BREADBOARD_COMPONENT_ID, 'bb-b-1', 'resistor-1', 'pin1'),
+      wire('c3', 'resistor-1', 'pin2', 'led-1', 'anode'),
+      wire('c4', 'led-1', 'cathode', BREADBOARD_COMPONENT_ID, 'bb-a-20'),
+      wire('c5', BREADBOARD_COMPONENT_ID, 'bb-c-20', ARDUINO_COMPONENT_ID, 'GND'),
+    ];
+
+    const flow = await flowOf([breadboard(), resistor(), led()], chained);
+
+    for (const id of ['c1', 'c2', 'c3', 'c4', 'c5']) {
+      expect(Math.abs(flow[id] ?? 0)).toBeGreaterThan(0.008);
+    }
+  });
+
+  it('reports nothing on a circuit that is switched off', async () => {
+    const seen: Array<Record<string, number>> = [];
+    await new Promise<void>((resolve) => {
+      startMockArduinoRuntime(
+        `void setup() { pinMode(9, OUTPUT); digitalWrite(9, LOW); }
+         void loop() { delay(50); }`,
+        [resistor(), led()],
+        SERIES,
+        BOARD_PINS,
+        5,
+        {
+          addSerialOutput: () => {},
+          pushOscilloscopeSample: () => {},
+          setLedState: () => {},
+          clearLedStates: () => {},
+          setComponentState: () => {},
+          clearComponentStates: () => {},
+          setPinStates: () => {},
+          setWireFlow: (flow) => seen.push({ ...flow }),
+        }
+      );
+      setTimeout(() => {
+        stopMockArduinoRuntime();
+        resolve();
+      }, 800);
+    });
+
+    const flow = seen[seen.length - 1] ?? {};
+    for (const id of ['s1', 's2', 's3']) {
+      expect(Math.abs(flow[id] ?? 0)).toBeLessThan(1e-6);
+    }
+  });
+});
+
+describe('a burned part can be rescued', () => {
+  const WIRES = [
+    wire('d1', ARDUINO_COMPONENT_ID, 'D9', 'resistor-1', 'pin1'),
+    wire('d2', 'resistor-1', 'pin2', 'led-1', 'anode'),
+    wire('d3', 'led-1', 'cathode', ARDUINO_COMPONENT_ID, 'GND'),
+  ];
+
+  const ON = `
+void setup() {
+  pinMode(9, OUTPUT);
+  digitalWrite(9, HIGH);
+}
+
+void loop() {
+  delay(40);
+}
+`;
+
+  const partsWith = (ohms: number) => [
+    { ...resistor(), properties: { resistance: ohms, unit: 'ohm' } },
+    led(),
+  ];
+
+  /** Whether the LED is reported burned, sampled after each change. */
+  const runWithChanges = async (
+    startOhms: number,
+    changes: Array<{ at: number; ohms: number }>,
+    readAt: number[]
+  ) => {
+    const damageAt: boolean[] = [];
+
+    await new Promise<void>((resolve) => {
+      const latest = new Map<string, boolean>();
+
+      startMockArduinoRuntime(ON, partsWith(startOhms), WIRES, BOARD_PINS, 5, {
+        addSerialOutput: () => {},
+        pushOscilloscopeSample: () => {},
+        setLedState: () => {},
+        clearLedStates: () => {},
+        setComponentState: (id, state) => {
+          if (id === 'led-1' && 'damaged' in state) {
+            latest.set(id, state.damaged === true);
+          }
+        },
+        clearComponentStates: () => {},
+        setPinStates: () => {},
+      });
+
+      for (const change of changes) {
+        setTimeout(() => {
+          updateMockArduinoCircuit(partsWith(change.ohms), WIRES, BOARD_PINS);
+        }, change.at);
+      }
+
+      for (const at of readAt) {
+        setTimeout(() => damageAt.push(latest.get('led-1') === true), at);
+      }
+
+      setTimeout(() => {
+        stopMockArduinoRuntime();
+        resolve();
+      }, Math.max(...readAt) + 300);
+    });
+
+    return damageAt;
+  };
+
+  it('burns an LED with nothing to limit it', async () => {
+    const [burned] = await runWithChanges(1, [], [500]);
+    expect(burned).toBe(true);
+  });
+
+  it('works again once a big enough resistor is put in front of it', async () => {
+    const [burned, rescued] = await runWithChanges(
+      1,
+      [{ at: 500, ohms: 1000 }],
+      [400, 900]
+    );
+
+    expect(burned).toBe(true);
+    // Used to stay dead until the run was stopped and started again.
+    expect(rescued).toBe(false);
+  });
+
+  it('burns again if the resistor is taken back down', async () => {
+    const [burned, rescued, burnedAgain] = await runWithChanges(
+      1,
+      [
+        { at: 400, ohms: 1000 },
+        { at: 900, ohms: 1 },
+      ],
+      [300, 800, 1300]
+    );
+
+    expect(burned).toBe(true);
+    expect(rescued).toBe(false);
+    expect(burnedAgain).toBe(true);
+  });
+
+  it('leaves a properly limited LED alone throughout', async () => {
+    const readings = await runWithChanges(220, [], [400, 800]);
+    expect(readings.every((damaged) => damaged === false)).toBe(true);
+  });
+});
+
+describe('telling the meter how it should be wired', () => {
+  const meter = (
+    mode: string,
+    red: [string, string],
+    black: [string, string]
+  ): CircuitComponent => ({
+    id: 'meter-1',
+    type: 'multimeter',
+    x: 400,
+    y: 300,
+    rotation: 0,
+    pins: [],
+    properties: {
+      mode,
+      autoRange: true,
+      redProbeTargetComponentId: red[0],
+      redProbeTargetPinId: red[1],
+      blackProbeTargetComponentId: black[0],
+      blackProbeTargetPinId: black[1],
+    },
+  });
+
+  const WHOLE = [
+    wire('n1', ARDUINO_COMPONENT_ID, 'D9', 'resistor-1', 'pin1'),
+    wire('n2', 'resistor-1', 'pin2', 'led-1', 'anode'),
+    wire('n3', 'led-1', 'cathode', ARDUINO_COMPONENT_ID, 'GND'),
+  ];
+
+  // The same circuit with the feed left open for the meter to stand in.
+  const BROKEN = [
+    wire('n2', 'resistor-1', 'pin2', 'led-1', 'anode'),
+    wire('n3', 'led-1', 'cathode', ARDUINO_COMPONENT_ID, 'GND'),
+  ];
+
+  const kinds = (components: CircuitComponent[], wires: Wire[]) =>
+    getCircuitWiringIssues(components, wires, BOARD_PINS).map((issue) => issue.type);
+
+  it('asks for series when an ammeter is clipped across a joined-up circuit', () => {
+    const issues = kinds(
+      [resistor(), led(), meter('current', [ARDUINO_COMPONENT_ID, 'D9'], ['resistor-1', 'pin1'])],
+      WHOLE
+    );
+
+    expect(issues).toContain('meter-needs-series');
+  });
+
+  it('says nothing when the ammeter is actually in the circuit', () => {
+    const issues = kinds(
+      [resistor(), led(), meter('current', [ARDUINO_COMPONENT_ID, 'D9'], ['resistor-1', 'pin1'])],
+      BROKEN
+    );
+
+    expect(issues).not.toContain('meter-needs-series');
+  });
+
+  it('asks for two points when a voltmeter has both probes on one', () => {
+    const issues = kinds(
+      [resistor(), led(), meter('voltage', ['led-1', 'anode'], ['resistor-1', 'pin2'])],
+      WHOLE
+    );
+
+    // Anode and pin2 are the same joint, so there is nothing across the probes.
+    expect(issues).toContain('meter-needs-parallel');
+  });
+
+  it('says nothing about a voltmeter across a part', () => {
+    const issues = kinds(
+      [resistor(), led(), meter('voltage', ['led-1', 'anode'], ['led-1', 'cathode'])],
+      WHOLE
+    );
+
+    expect(issues).not.toContain('meter-needs-parallel');
+  });
+});
+
 describe('RGB LED', () => {
   /**
    * Each channel gets its own series resistor, the way the datasheet asks for

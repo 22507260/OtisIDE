@@ -276,6 +276,10 @@ const UI_STRINGS = {
     compileErrorEmptyIfCondition: 'an if() condition is empty (line {{line}})',
     compileErrorDanglingOperator: "an expression is left hanging on an operator like +, -, or && (line {{line}})",
     circuitWarningDeadShort: "Dead short: a power source's + and − terminals are wired straight together with nothing in between.",
+  circuitWarningMeterSeries:
+    '{{name}}: an ammeter goes in line with the circuit. Break the connection and put the two probes in the gap.',
+  circuitWarningMeterParallel:
+    '{{name}}: both probes are on the same point, so there is nothing between them to measure. Put them either side of the part.',
     circuitWarningFloatingPart: "{{name}} isn't connected to any power source — it will never do anything.",
     circuitWarningPartNoResistor: '{{name}} is wired straight to power with no resistor — it may burn out almost immediately. Add a resistor (220–1k ohm) in series.',
     circuitWarningModuleMissingSupply: '{{name}} has no supply: its VCC and GND pins must reach power and ground.',
@@ -573,6 +577,10 @@ const UI_STRINGS = {
     compileErrorEmptyIfCondition: 'bir if() koşulu boş (satır {{line}})',
     compileErrorDanglingOperator: 'bir ifade +, -, && gibi bir işleçle yarım kalmış (satır {{line}})',
     circuitWarningDeadShort: 'Kısa devre: bir güç kaynağının + ve − uçları arada hiçbir şey olmadan doğrudan bağlanmış.',
+  circuitWarningMeterSeries:
+    '{{name}}: ampermetre devreye seri bağlanır. Bağlantıyı ayırıp iki probu araya koy.',
+  circuitWarningMeterParallel:
+    '{{name}}: iki prob da aynı noktada, aralarında ölçecek bir şey yok. Parçanın iki yanına tak.',
     circuitWarningFloatingPart: '{{name}} hiçbir güç kaynağına bağlı değil — hiçbir şey yapmayacak.',
     circuitWarningPartNoResistor: '{{name}} güce doğrudan, direnç olmadan bağlanmış — hemen yanabilir. Seriye bir direnç (220–1k ohm) eklenmeli.',
     circuitWarningModuleMissingSupply: '{{name}} beslenmiyor: VCC ve GND uçları güce ve toprağa bağlanmalı.',

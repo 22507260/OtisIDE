@@ -36,7 +36,10 @@ function resolveIconPath() {
 
 async function loadApplication(window, isDev) {
   if (isDev) {
-    await window.loadURL('http://localhost:5173');
+    // Vite's usual port, unless something else already has it — a second
+    // project running its own dev server pushes this one along, and the window
+    // would otherwise load whatever is sitting on 5173.
+    await window.loadURL(process.env.OTISIDE_DEV_URL || 'http://localhost:5173');
     window.webContents.openDevTools();
     return;
   }

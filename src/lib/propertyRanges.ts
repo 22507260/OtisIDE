@@ -11,6 +11,8 @@
  * no honest upper bound to give it.
  */
 
+import { stepResistance } from './resistanceSteps';
+
 export type PropertyRange = {
   min: number;
   max: number;
@@ -67,4 +69,74 @@ export function clampPropertyValue(
   if (!range) return value;
   if (!Number.isFinite(value)) return range.min;
   return Math.min(range.max, Math.max(range.min, value));
+}
+
+/**
+ * The value a part is most likely to be reached for.
+ *
+ * The wheel needs one answer per part: a resistor's resistance, a knob's
+ * position, a servo's angle. Where a part has several adjustable numbers this
+ * says which one the wheel gets; the rest stay in the panel where they can be
+ * picked out by name.
+ */
+const PRIMARY_PROPERTY: Record<string, string> = {
+  resistor: 'resistance',
+  potentiometer: 'position',
+  ldr: 'lightLevel',
+  servo: 'angle',
+  buzzer: 'frequency',
+  'flame-sensor': 'sensitivity',
+  joystick: 'xAxis',
+  dht11: 'temperature',
+  bme280: 'temperature',
+  lm35: 'temperature',
+  mq2: 'gasLevel',
+  vl53l0x: 'distance',
+  'rgb-led': 'red',
+  'l298n-driver': 'pwmA',
+  'bts7960-driver': 'pwmR',
+  capacitor: 'capacitance',
+};
+
+/** Anything with a charge level is adjusted by that before anything else. */
+const CHARGE_KEY = 'chargePercent';
+
+export function getPrimaryProperty(
+  componentType: string,
+  properties: Record<string, unknown>
+): string | null {
+  if (typeof properties[CHARGE_KEY] === 'number') return CHARGE_KEY;
+
+  const named = PRIMARY_PROPERTY[componentType];
+  if (named && typeof properties[named] === 'number') return named;
+
+  // Nothing named: the first number that has an honest range to move along.
+  for (const [key, value] of Object.entries(properties)) {
+    if (typeof value === 'number' && getPropertyRange(componentType, key)) return key;
+  }
+
+  return typeof properties.resistance === 'number' ? 'resistance' : null;
+}
+
+/**
+ * One wheel notch on a property. A resistance walks the E12 ladder, because
+ * nothing else gets from 220 to ten kilohm in a sane number of turns; anything
+ * with a range moves by its own step and stops at its ends.
+ */
+export function stepPropertyValue(
+  componentType: string,
+  key: string,
+  current: number,
+  direction: number
+): number {
+  if (direction === 0) return current;
+
+  const range = getPropertyRange(componentType, key);
+  if (!range) {
+    // Resistances, capacitances and the like: multiplicative, not additive.
+    return stepResistance(current, direction);
+  }
+
+  const next = current + range.step * (direction > 0 ? 1 : -1);
+  return clampPropertyValue(componentType, key, Number(next.toFixed(4)));
 }

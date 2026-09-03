@@ -1,5 +1,9 @@
 import React from 'react';
-import { clampPropertyValue, getPropertyRange } from '../lib/propertyRanges';
+import {
+  clampPropertyValue,
+  getPropertyRange,
+  stepPropertyValue,
+} from '../lib/propertyRanges';
 import { useCircuitStore } from '../store/circuitStore';
 import {
   COMPONENT_CATALOG,
@@ -277,6 +281,24 @@ const PropertiesPanel: React.FC = () => {
   // Shown as one red line of its own rather than three raw rows.
   const damageKeys = new Set(['damaged', 'damageReason', 'damageDetail']);
   const numericRange = (key: string) => getPropertyRange(selectedComp.type, key);
+
+  /**
+   * Turning the wheel over a value changes it, without having to click in first.
+   * Stops the page scrolling under the pointer at the same time, which is what
+   * an unattended wheel over a form control does otherwise.
+   */
+  const wheelToStep = (key: string, value: number) => (event: React.WheelEvent) => {
+    event.preventDefault();
+    const next = stepPropertyValue(
+      displayComp.type,
+      key,
+      value,
+      event.deltaY > 0 ? -1 : 1
+    );
+    if (next !== value) {
+      updateComponentProperty(selectedComp.id, key, next, { recordHistory: false });
+    }
+  };
   const liveProperties = simulation.componentStates[selectedComp.id] ?? null;
   const displayComp =
     simulation.running && liveProperties
@@ -595,7 +617,7 @@ const PropertiesPanel: React.FC = () => {
             ) : typeof value === 'number' && numericRange(key)?.slider ? (
               // A knob, a dimmer, a charge level: worth dragging. Typing a
               // number into these let a potentiometer sit at 5000 percent.
-              <span className="property-slider">
+              <span className="property-slider" onWheel={wheelToStep(key, value)}>
                 <input
                   type="range"
                   min={numericRange(key)!.min}
@@ -621,6 +643,7 @@ const PropertiesPanel: React.FC = () => {
                 className="property-input"
                 type={typeof value === 'number' ? 'number' : 'text'}
                 value={value as string | number}
+                onWheel={typeof value === 'number' ? wheelToStep(key, value) : undefined}
                 min={typeof value === 'number' ? numericRange(key)?.min : undefined}
                 max={typeof value === 'number' ? numericRange(key)?.max : undefined}
                 step={typeof value === 'number' ? numericRange(key)?.step : undefined}

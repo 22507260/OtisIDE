@@ -174,6 +174,17 @@ const BottomPanel: React.FC = () => {
   const components = useCircuitStore((s) => s.components);
   const selectedComponentId = useCircuitStore((s) => s.selectedComponentId);
   const code = useCircuitStore((s) => s.code);
+  /**
+   * Bumped whenever a different project is loaded — and used here to give the
+   * editor a new file to hold.
+   *
+   * Monaco keys its text model by `path`, and a model owns its own undo stack.
+   * With one fixed path the same model carried on from project to project, so
+   * Ctrl+Z with the cursor in the editor wound its buffer back into the code of
+   * whatever was open before and wrote that into the store. Clearing the
+   * circuit's own history could not reach it: this is Monaco's, not ours.
+   */
+  const viewResetToken = useCircuitStore((s) => s.viewResetToken);
   const setCode = useCircuitStore((s) => s.setCode);
   const serialOutput = useCircuitStore((s) => s.simulation.serialOutput);
   const oscilloscopeTraces = useCircuitStore((s) => s.simulation.oscilloscopeTraces);
@@ -576,7 +587,7 @@ const BottomPanel: React.FC = () => {
                     tabSize: 2,
                     wordWrap: 'on',
                   }}
-                  path="sketch.ino"
+                  path={`sketch-${viewResetToken}.ino`}
                   theme="ai-circuit-dark"
                   value={code}
                 />
