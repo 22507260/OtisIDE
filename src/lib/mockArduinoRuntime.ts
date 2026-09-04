@@ -4011,8 +4011,36 @@ function solveConductingVoltages(
   return { voltages: solved, edges: live };
 }
 
-/** What a cable looks like to the solver: as close to nothing as makes no odds. */
-const WIRE_RESISTANCE = 0.001;
+/**
+ * What a cable looks like to the solver.
+ *
+ * Small enough to be invisible next to anything it is wired to — twenty
+ * milliohms against a 220 ohm resistor is a hundredth of a percent — but not
+ * so small that the voltage across it disappears into the solver's own
+ * rounding. At a milliohm it did: the elimination mixes conductances a
+ * hundred thousand apart, its answers are good to about a nanovolt, and a
+ * nanovolt across a milliohm is a microamp of pure noise, sign and all.
+ */
+const WIRE_RESISTANCE = 0.02;
+
+/**
+ * Currents smaller than this share of the largest one are called zero.
+ *
+ * Peeling gets an exact answer for every cable it can reach; what is left over
+ * is read from a voltage difference, and those come with rounding attached.
+ * Below a part per hundred thousand of the biggest current in the circuit there
+ * is nothing being measured any more.
+ */
+const FLOW_RELATIVE_NOISE = 1e-5;
+
+/**
+ * ...and an absolute one, for a circuit that is entirely noise.
+ *
+ * With nothing completing a loop, every current in the solve is rounding dust,
+ * and a share of the largest piece of dust is still dust. A nanoamp is orders
+ * below anything this simulates and orders above what the arithmetic invents.
+ */
+const FLOW_ABSOLUTE_NOISE = 1e-9;
 
 /**
  * How much current is running through every cable and every part, and which way.
@@ -4098,26 +4126,120 @@ function computeWireFlow(
     solveVoltagesForEdges(edges, netState)
   );
 
-  for (const edge of conducting) {
+  // Every branch a part has gets an entry, whether it is carrying anything or
+  // not: a leg with nothing through it is a fact worth drawing, and it has to
+  // be told apart from a leg nobody looked at.
+  for (const edge of edges) {
+    if (edge.componentType === 'wire' || edge.componentType === 'board-pull') continue;
+    partFlow[`${edge.componentId}|${edge.pinIds[0]}|${edge.pinIds[1]}`] = 0;
+  }
+
+  /** What a branch carries, read off the voltages either side of it. */
+  const currentAcross = (edge: ResistiveEdge): number | null => {
     const fromVolts = voltages.get(edge.fromNet);
     const toVolts = voltages.get(edge.toNet);
-    if (fromVolts === undefined || toVolts === undefined) continue;
+    if (fromVolts === undefined || toVolts === undefined) return null;
 
     const driving = fromVolts - toVolts - (edge.forwardDrop ?? 0);
     const current = driving / Math.max(edge.resistance, 1e-12);
-    if (!Number.isFinite(current)) continue;
+    if (!Number.isFinite(current)) return null;
 
     // A diode does not conduct backwards, whatever the linear branch says.
-    if ((edge.forwardDrop ?? 0) > 0 && current <= 0) continue;
+    if ((edge.forwardDrop ?? 0) > 0 && current <= 0) return 0;
+
+    return current;
+  };
+
+  // Parts are read straight off the solve. Their resistances are real ohms, so
+  // the voltage across them is a real voltage and the answer is trustworthy.
+  const resolved: Array<number | null> = conducting.map((edge) =>
+    edge.componentType === 'wire' ? null : currentAcross(edge)
+  );
+
+  // Cables are not. Twenty milliohms is a hundredth of a volt at half an amp,
+  // and far less than that in any circuit worth building here, so reading a
+  // cable's current from the difference between two solved voltages is asking
+  // the solver for a digit it does not have — which is how arrows came out
+  // backwards on the branches carrying almost nothing.
+  //
+  // So they are not read, they are deduced. Everything meeting at a junction
+  // has to add up to nothing; where that leaves exactly one cable unaccounted
+  // for, its current is whatever balances the books — sign included, no
+  // subtraction of near-equal numbers anywhere. Peeling one junction frees up
+  // the next, and on ordinary wiring, which branches rather than loops, it
+  // runs until every cable is known.
+  const incident = new Map<number, number[]>();
+  const addIncident = (net: number, index: number) => {
+    const list = incident.get(net);
+    if (list) list.push(index);
+    else incident.set(net, [index]);
+  };
+  conducting.forEach((edge, index) => {
+    addIncident(edge.fromNet, index);
+    addIncident(edge.toNet, index);
+  });
+
+  // A net held at a fixed voltage is fed by the supply, and how much it is fed
+  // is exactly what nothing here knows — so those junctions cannot be balanced.
+  const supplyNets = netState.voltages;
+
+  let peeled = true;
+  while (peeled) {
+    peeled = false;
+
+    for (const [net, indices] of incident) {
+      if (supplyNets.has(net)) continue;
+
+      let unknownIndex = -1;
+      let unknownCount = 0;
+      let leaving = 0;
+
+      for (const index of indices) {
+        const current = resolved[index];
+        if (current === null) {
+          unknownCount += 1;
+          if (unknownCount > 1) break;
+          unknownIndex = index;
+          continue;
+        }
+        leaving += conducting[index].fromNet === net ? current : -current;
+      }
+
+      if (unknownCount !== 1) continue;
+
+      // Out of this junction along the unknown cable: whatever the rest leaves
+      // over, turned around.
+      const sign = conducting[unknownIndex].fromNet === net ? 1 : -1;
+      resolved[unknownIndex] = -leaving * sign;
+      peeled = true;
+    }
+  }
+
+  // Whatever is left sits in a loop of cables, where conservation alone cannot
+  // say how the current divides. Those come from the voltages after all — but
+  // a loop of cables is a redundant path, and the error there is a rounding
+  // error on a number that was small to begin with.
+  conducting.forEach((edge, index) => {
+    if (resolved[index] === null) resolved[index] = currentAcross(edge) ?? 0;
+  });
+
+  const largest = resolved.reduce<number>(
+    (biggest, current) => Math.max(biggest, Math.abs(current ?? 0)),
+    0
+  );
+  const floor = Math.max(FLOW_ABSOLUTE_NOISE, largest * FLOW_RELATIVE_NOISE);
+
+  conducting.forEach((edge, index) => {
+    const current = Math.abs(resolved[index] ?? 0) < floor ? 0 : resolved[index] ?? 0;
 
     if (edge.componentType === 'wire') {
       flow[edge.componentId] = current;
-      continue;
+      return;
     }
 
-    if (edge.componentType === 'board-pull') continue;
+    if (edge.componentType === 'board-pull') return;
     partFlow[`${edge.componentId}|${edge.pinIds[0]}|${edge.pinIds[1]}`] = current;
-  }
+  });
 
   publish();
 }
@@ -5337,11 +5459,31 @@ function updateActuatorStates(
     callbacks.setComponentState(componentId, { conducting: on });
   }
 
+  // Damage is judged before anything is lit, not after.
+  //
+  // It used to run at the end of the pass, so everything downstream read the
+  // *previous* pass's verdict. On the pass where a fault cleared — the moment
+  // you turned a resistor up past the point that was cooking an LED — the LED
+  // was still published dark, the char mark vanished, the serial line said it
+  // was fine, and it stayed off. With an empty loop() there was no next pass to
+  // put it right, so "it never comes back" was exactly true.
+  const damagedBefore = new Set(damaged.keys());
+  computeComponentDamage(measurementConnectivity, voltages, resistiveEdges, damaged, callbacks);
+
+  // What the parts themselves are told: dead only if it was dead coming into
+  // this pass and still is. Recovery therefore shows the instant the circuit is
+  // within limits again, while a part that has just burned out is still lit for
+  // the pass that burned it — which is what happens in life, and is the only
+  // reason an LED straight off a pin is ever seen to glow before it goes.
+  const damagedForParts = new Map(
+    [...damaged].filter(([componentId]) => damagedBefore.has(componentId))
+  );
+
   computeLedStates(
     connectivity,
     netState,
     callbacks,
-    damaged,
+    damagedForParts,
     measurementConnectivity,
     voltages,
     fullDriveVoltages,
@@ -5357,11 +5499,11 @@ function updateActuatorStates(
     resistiveEdges,
     toneRuntime,
     callbacks,
-    damaged
+    damagedForParts
   );
   computeServoStates(connectivity, servoRuntime, netState, callbacks);
   computeLcdStates(connectivity, lcdRuntime, netState, callbacks);
-  computeDcMotorStates(connectivity, netState, callbacks, damaged);
+  computeDcMotorStates(connectivity, netState, callbacks, damagedForParts);
 
   computeWireFlow(
     wires,
@@ -5374,7 +5516,6 @@ function updateActuatorStates(
     damaged,
     callbacks
   );
-  computeComponentDamage(measurementConnectivity, voltages, resistiveEdges, damaged, callbacks);
   computeProbeDrivenMultimeterStates(measurementConnectivity, voltages, resistiveEdges, callbacks);
   computeOscilloscopeStates(measurementConnectivity, voltages, callbacks, clockMs);
 }

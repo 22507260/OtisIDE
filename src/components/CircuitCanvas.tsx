@@ -75,6 +75,7 @@ import {
 import { isCircuitScreenTarget, isTextEntryTarget } from '../lib/keyboardTarget';
 import { getSolderedPinKeys, pinKey } from '../lib/solderedPins';
 import { getPrimaryProperty, stepPropertyValue } from '../lib/propertyRanges';
+import { roundWirePoints } from '../lib/wireGeometry';
 import { applyBuzzerVoices, stopAllBuzzers } from '../lib/buzzerAudio';
 import multimeterProbeRedSvg from '../assets/components/multimeter-probe-red.svg';
 import multimeterProbeBlackSvg from '../assets/components/multimeter-probe-black.svg';
@@ -100,15 +101,23 @@ const PROBE_IMAGE_HEIGHT = 72;
 const MARQUEE_THRESHOLD = 4;
 /** How near a wire has to be to level before it is pulled straight. */
 const WIRE_STRAIGHTEN_TOLERANCE = 6;
+/** Wheel notches this close together count as one turn, for undo. */
+const WHEEL_UNDO_GROUPING_MS = 600;
 /** Below this there is nothing worth drawing as a flow. */
 const FLOW_MIN_CURRENT = 1e-6;
 /** How fast the marks travel, in canvas units per second at one amp. */
 const FLOW_SPEED = 260;
 /** …and the pace a barely-conducting circuit still crawls along at. */
 const FLOW_MIN_SPEED = 22;
-/** How far apart the arrowheads sit along a cable. */
-/** Closer than this and two probes are drawn on top of one another. */
-const PROBE_FAN_DISTANCE = 58;
+/**
+ * Closer than this and two probes are drawn on top of one another.
+ *
+ * Only just far enough to tell them apart: the probe body is about fourteen
+ * units across and the grab circle eight, so eighteen clears both. Further than
+ * that and the probes stop looking clipped to the leg they are measuring —
+ * fifty-eight, which is what this used to be, is five breadboard holes.
+ */
+const PROBE_FAN_DISTANCE = 18;
 
 /**
  * Nudges two probe tips apart when they land on the same spot.
@@ -139,9 +148,16 @@ function fanOutProbeTips(
   };
 }
 
-const FLOW_ARROW_SPACING = 46;
-const FLOW_ARROW_LENGTH = 4.2;
-const FLOW_ARROW_WIDTH = 3.4;
+/** How far apart the arrowheads sit along a cable. */
+const FLOW_ARROW_SPACING = 140;
+const FLOW_ARROW_LENGTH = 3;
+const FLOW_ARROW_WIDTH = 2.4;
+/** How round a cable turns a corner. */
+const WIRE_CORNER_RADIUS = 7;
+/** Marks on a cable carrying nothing: grey, still, and pointing nowhere. */
+const FLOW_IDLE_DASH = [2, 10];
+const FLOW_IDLE_COLOR = '#8fa3b0';
+const FLOW_IDLE_OPACITY = 0.45;
 
 /**
  * Arrowheads marching along a cable, pointing the way the current runs.
@@ -181,11 +197,16 @@ function drawFlowArrows(
 
   if (segments.length === 0 || total < FLOW_ARROW_LENGTH * 2) return;
 
-  // Where the first mark sits this frame; the rest follow at a fixed spacing.
-  const start =
-    (((direction * travelled) % FLOW_ARROW_SPACING) + FLOW_ARROW_SPACING) % FLOW_ARROW_SPACING;
+  // Marks this far apart, except on a cable shorter than that: there the
+  // spacing closes up to the cable's own length, which leaves exactly one mark
+  // still travelling. Sparse everywhere else must not mean blank on the short
+  // links, and a mark parked in the middle would not read as flow at all.
+  const spacing = Math.min(FLOW_ARROW_SPACING, total);
 
-  for (let distance = start; distance < total; distance += FLOW_ARROW_SPACING) {
+  // Where the first mark sits this frame; the rest follow at a fixed spacing.
+  const start = (((direction * travelled) % spacing) + spacing) % spacing;
+
+  for (let distance = start; distance < total; distance += spacing) {
     let remaining = distance;
     let segment = segments[0];
     for (const candidate of segments) {
@@ -2936,6 +2957,20 @@ const CircuitCanvas: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [clearTransientCanvasState, selectComponent, selectWire]);
 
+  /**
+   * One undo point per turn of the wheel.
+   *
+   * A notch at a time would bury the circuit under a snapshot for every click
+   * of the wheel, so the first notch of a turn records one and the rest ride
+   * along; a pause long enough to have let go starts a fresh one.
+   */
+  const wheelUndoAtRef = useRef(0);
+  const captureWheelUndoSnapshot = useCallback(() => {
+    const now = Date.now();
+    if (now - wheelUndoAtRef.current > WHEEL_UNDO_GROUPING_MS) captureUndoSnapshot();
+    wheelUndoAtRef.current = now;
+  }, [captureUndoSnapshot]);
+
   // Wheel zoom
   const handleWheel = useCallback((e: Konva.KonvaEventObject<WheelEvent>) => {
     e.evt.preventDefault();
@@ -2946,49 +2981,59 @@ const CircuitCanvas: React.FC = () => {
     const pointer = stage.getPointerPosition();
     if (!pointer) return;
 
-    // Ctrl and the wheel over a part turns its value instead of the view —
-    // whichever value that part is mostly reached for: a resistance, a knob's
-    // position, a servo's angle, a battery's charge.
-    if (e.evt.ctrlKey || e.evt.metaKey) {
-      const world = {
-        x: (pointer.x - stagePos.x) / oldScale,
-        y: (pointer.y - stagePos.y) / oldScale,
-      };
-
-      // Topmost first, so the part drawn over the others is the one that answers.
-      const under = [...components].reverse().find((comp) => {
-        const box = getComponentWorldBounds(comp);
-        return (
-          world.x >= box.left &&
-          world.x <= box.right &&
-          world.y >= box.top &&
-          world.y <= box.bottom
-        );
-      });
-
-      const key = under ? getPrimaryProperty(under.type, under.properties) : null;
-      if (under && key) {
-        const current = getNumericValue(under.properties[key], 0);
-        const next = stepPropertyValue(under.type, key, current, e.evt.deltaY > 0 ? -1 : 1);
-        if (next !== current) updateComponentProperty(under.id, key, next);
-        return;
-      }
-    }
-
-    const mousePointTo = {
+    // The wheel over a part turns its value instead of the view — whichever
+    // value that part is mostly reached for: a resistance, a knob's position, a
+    // servo's angle, a battery's charge. Ctrl does the same, so the habit from
+    // before still works; over empty board it is the view that moves.
+    const world = {
       x: (pointer.x - stagePos.x) / oldScale,
       y: (pointer.y - stagePos.y) / oldScale,
     };
 
+    // Topmost first, so the part drawn over the others is the one that answers
+    // — and boards are always drawn underneath whatever sits on them, whatever
+    // order they happen to occupy in the list. A part with no value to turn is
+    // looked straight past, down to the one below it.
+    const under = components.filter((comp) => {
+      const box = getComponentWorldBounds(comp);
+      return (
+        world.x >= box.left &&
+        world.x <= box.right &&
+        world.y >= box.top &&
+        world.y <= box.bottom
+      );
+    });
+    const inPaintOrder = [
+      ...under.filter((comp) => isBreadboardType(comp.type)),
+      ...under.filter((comp) => !isBreadboardType(comp.type)),
+    ].reverse();
+
+    for (const comp of inPaintOrder) {
+      const key = getPrimaryProperty(comp.type, comp.properties);
+      if (!key) continue;
+
+      const current = getNumericValue(comp.properties[key], 0);
+      const next = stepPropertyValue(comp.type, key, current, e.evt.deltaY > 0 ? -1 : 1);
+      if (next !== current) {
+        // One snapshot for the whole turn of the wheel, not one per notch:
+        // undo should step back to before you started turning it.
+        captureWheelUndoSnapshot();
+        updateComponentProperty(comp.id, key, next, { recordHistory: false });
+      }
+      return;
+    }
+
+    // Over empty board: the view moves instead, anchored on whatever is under
+    // the pointer so it stays under the pointer.
     const direction = e.evt.deltaY > 0 ? -1 : 1;
     const newScale = Math.max(0.2, Math.min(3, oldScale + direction * 0.1));
 
     setZoom(newScale);
     setStagePos({
-      x: pointer.x - mousePointTo.x * newScale,
-      y: pointer.y - mousePointTo.y * newScale,
+      x: pointer.x - world.x * newScale,
+      y: pointer.y - world.y * newScale,
     });
-  }, [components, stagePos, updateComponentProperty, zoom]);
+  }, [captureWheelUndoSnapshot, components, stagePos, updateComponentProperty, zoom]);
 
   // Drop handler for palette drag
   const handleDrop = useCallback((e: React.DragEvent) => {
@@ -4722,6 +4767,9 @@ const CircuitCanvas: React.FC = () => {
           {wires.map((wire) => {
             const isWireSelected = selectedWireId === wire.id;
             const wireWidth = wire.width ?? WIRE_DEFAULT_WIDTH;
+            // Every layer of the cable, and the arrows over it, draw from the
+            // same rounded run so nothing drifts off the corners.
+            const drawPoints = roundWirePoints(wire.points, WIRE_CORNER_RADIUS);
             const bendIndices: number[] = [];
             for (let i = 2; i + 2 < wire.points.length; i += 2) {
               bendIndices.push(i);
@@ -4729,9 +4777,9 @@ const CircuitCanvas: React.FC = () => {
             return (
               <Group key={wire.id}>
                 {/* Shadow */}
-                <Line points={wire.points.map((v, i) => i % 2 === 1 ? v + 1.5 : v)} stroke="#000" strokeWidth={wireWidth + 0.8} opacity={0.2} lineCap="round" lineJoin="miter" listening={false} />
+                <Line points={drawPoints.map((v, i) => i % 2 === 1 ? v + 1.5 : v)} stroke="#000" strokeWidth={wireWidth + 0.8} opacity={0.2} lineCap="round" lineJoin="round" listening={false} />
                 {/* Main cable */}
-                <Line points={wire.points} stroke={wire.color} strokeWidth={wireWidth} lineCap="round" lineJoin="miter" hitStrokeWidth={Math.max(12, wireWidth + 8)}
+                <Line points={drawPoints} stroke={wire.color} strokeWidth={wireWidth} lineCap="round" lineJoin="round" hitStrokeWidth={Math.max(12, wireWidth + 8)}
                   onClick={() => {
                     if (toolMode === 'delete') { removeWire(wire.id); }
                     else {
@@ -4750,7 +4798,7 @@ const CircuitCanvas: React.FC = () => {
                   }}
                 />
                 {/* Highlight stripe */}
-                <Line points={wire.points.map((v, i) => i % 2 === 1 ? v - 0.6 : v)} stroke="#fff" strokeWidth={wireWidth * 0.25} opacity={0.25} lineCap="round" lineJoin="miter" listening={false} />
+                <Line points={drawPoints.map((v, i) => i % 2 === 1 ? v - 0.6 : v)} stroke="#fff" strokeWidth={wireWidth * 0.25} opacity={0.25} lineCap="round" lineJoin="round" listening={false} />
                 {/* Where the current is going, while Shift is held. Round dashes
                     marching along the cable: the offset runs backwards so they
                     travel from the supply towards ground, which is the way the
@@ -4758,7 +4806,26 @@ const CircuitCanvas: React.FC = () => {
                 {(() => {
                   if (!flowRunning) return null;
                   const current = simulation.wireFlow[wire.id] ?? 0;
-                  if (Math.abs(current) < FLOW_MIN_CURRENT) return null;
+
+                  // Carrying nothing — a cable to nowhere, a branch that is
+                  // switched off. It still gets marked, because "show the
+                  // current everywhere" has to answer for the cables with none;
+                  // grey and still, and pointing nowhere, because inventing a
+                  // direction for a zero is how arrows come out backwards.
+                  if (Math.abs(current) < FLOW_MIN_CURRENT) {
+                    return (
+                      <Line
+                        points={drawPoints}
+                        stroke={FLOW_IDLE_COLOR}
+                        strokeWidth={Math.max(1, wireWidth * 0.5)}
+                        dash={FLOW_IDLE_DASH}
+                        opacity={FLOW_IDLE_OPACITY}
+                        lineCap="round"
+                        lineJoin="round"
+                        listening={false}
+                      />
+                    );
+                  }
 
                   const direction = current > 0 ? 1 : -1;
 
@@ -4779,7 +4846,7 @@ const CircuitCanvas: React.FC = () => {
                         drawFlowArrows(
                           context,
                           shape,
-                          wire.points,
+                          drawPoints,
                           direction,
                           Number(shape.getAttr('flowTravelled')) || 0
                         );
@@ -4789,7 +4856,7 @@ const CircuitCanvas: React.FC = () => {
                 })()}
                 {/* Selection indicator */}
                 {isWireSelected && (
-                  <Line points={wire.points} stroke="#fff" strokeWidth={wireWidth + 1.8} dash={[4, 4]} opacity={0.5} lineCap="round" lineJoin="miter" listening={false} />
+                  <Line points={drawPoints} stroke="#fff" strokeWidth={wireWidth + 1.8} dash={[4, 4]} opacity={0.5} lineCap="round" lineJoin="round" listening={false} />
                 )}
                 {/* Bend handles: drag to reshape, double-click to remove */}
                 {isWireSelected && toolMode === 'select' &&
@@ -4949,17 +5016,14 @@ const CircuitCanvas: React.FC = () => {
 
           {/* Wiring preview line */}
           {wiringStart && wiringMouse && (() => {
-            const previewPoints = [
-              wiringStart.x,
-              wiringStart.y,
-              ...wiringPath,
-              wiringMouse.x,
-              wiringMouse.y,
-            ];
+            const previewPoints = roundWirePoints(
+              [wiringStart.x, wiringStart.y, ...wiringPath, wiringMouse.x, wiringMouse.y],
+              WIRE_CORNER_RADIUS
+            );
             return (
               <Group listening={false}>
-                <Line points={previewPoints} stroke="#000" strokeWidth={4} opacity={0.15} lineCap="round" lineJoin="miter" listening={false} />
-                <Line points={previewPoints} stroke={wireColor} strokeWidth={2.5} dash={[6, 4]} lineCap="round" lineJoin="miter" listening={false} />
+                <Line points={previewPoints} stroke="#000" strokeWidth={4} opacity={0.15} lineCap="round" lineJoin="round" listening={false} />
+                <Line points={previewPoints} stroke={wireColor} strokeWidth={2.5} dash={[6, 4]} lineCap="round" lineJoin="round" listening={false} />
                 {/* Bends placed so far */}
                 {Array.from({ length: wiringPath.length / 2 }, (_, index) => (
                   <Circle
@@ -4988,9 +5052,8 @@ const CircuitCanvas: React.FC = () => {
               arrow, which is exactly the bit worth seeing. */}
           {flowRunning &&
             components.map((comp) => {
-              const branches = Object.entries(simulation.partFlow).filter(
-                ([key, current]) =>
-                  Math.abs(current) >= FLOW_MIN_CURRENT && key.startsWith(`${comp.id}|`)
+              const branches = Object.entries(simulation.partFlow).filter(([key]) =>
+                key.startsWith(`${comp.id}|`)
               );
               if (branches.length === 0) return null;
 
@@ -5001,6 +5064,24 @@ const CircuitCanvas: React.FC = () => {
                     const from = getComponentPinWorldPosition(comp, fromPin);
                     const to = getComponentPinWorldPosition(comp, toPin);
                     if (!from || !to) return null;
+
+                    // Nothing through this leg: marked the same grey as a dead
+                    // cable, so a switched-off part reads as part of the circuit
+                    // rather than as something the display forgot.
+                    if (Math.abs(current) < FLOW_MIN_CURRENT) {
+                      return (
+                        <Line
+                          key={key}
+                          points={[from.x, from.y, to.x, to.y]}
+                          stroke={FLOW_IDLE_COLOR}
+                          strokeWidth={1.4}
+                          dash={FLOW_IDLE_DASH}
+                          opacity={FLOW_IDLE_OPACITY}
+                          lineCap="round"
+                          listening={false}
+                        />
+                      );
+                    }
 
                     const direction = current > 0 ? 1 : -1;
                     return (

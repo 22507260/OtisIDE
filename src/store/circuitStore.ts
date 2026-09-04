@@ -227,10 +227,18 @@ interface CircuitStore {
   };
 }
 
+/**
+ * What undo puts back.
+ *
+ * The sketch is deliberately not in here. The editor keeps its own history of
+ * the text — that is what ctrl-Z does with the cursor in the code — and having
+ * a second one over the same string meant undoing a wire could quietly rewind
+ * the sketch to whatever it said the last time a part was moved. Circuit
+ * history belongs to the circuit; text history belongs to the editor.
+ */
 type ProjectSnapshot = {
   components: CircuitComponent[];
   wires: Wire[];
-  code: string;
   boardType: ControllerBoardType;
   boardPosition: { x: number; y: number };
   selectedComponentId: string | null;
@@ -489,7 +497,6 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
     return {
       components: cloneComponents(state.components),
       wires: cloneWires(state.wires),
-      code: state.code,
       boardType: state.boardType,
       boardPosition: { ...state.boardPosition },
       selectedComponentId: state.selectedComponentId,
@@ -684,7 +691,6 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
     set((state) => ({
       components: cloneComponents(snapshot.components),
       wires: cloneWires(snapshot.wires),
-      code: snapshot.code,
       boardType: snapshot.boardType,
       boardPosition: { ...snapshot.boardPosition },
       selectedComponentId: snapshot.selectedComponentId,
@@ -1433,13 +1439,19 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
   clearProject: () => {
     clearHistory();
     stopMockArduinoRuntime();
-    set({
+    set((s) => ({
       components: [createDefaultBreadboard()],
       wires: [],
       selectedComponentId: null,
       selectedComponentIds: [],
       selectedWireId: null,
       code: DEFAULT_CODE,
+      // Travels with the code, in the same set, and never in a later one. The
+      // editor keys its buffer off this: if a render ever sees the new code
+      // under the old token, the new text is written into the outgoing buffer
+      // as an undoable edit, and one press of ctrl-Z pulls the last project's
+      // sketch back up.
+      viewResetToken: s.viewResetToken + 1,
       boardType: DEFAULT_CONTROLLER_BOARD_TYPE,
       boardPosition: { ...DEFAULT_CONTROLLER_BOARD_POSITION },
       simulation: {
@@ -1453,16 +1465,12 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
         oscilloscopeTraces: {},
         runtimeError: null,
       },
-    });
+    }));
 
     // A second set, because the subscription that marks the project dirty runs
     // inside the first one. A fresh project belongs to no file and has nothing
     // unsaved in it.
-    set((s) => ({
-      projectFilePath: null,
-      projectDirty: false,
-      viewResetToken: s.viewResetToken + 1,
-    }));
+    set({ projectFilePath: null, projectDirty: false });
   },
 
   loadProject: (data) => {
@@ -1471,10 +1479,12 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
 
     clearHistory();
     stopMockArduinoRuntime();
-    set({
+    set((s) => ({
       components: withMigratedBreadboard(project.components, project.breadboardPosition),
       wires: project.wires,
       code: project.code,
+      // In the same set as the code — see clearProject.
+      viewResetToken: s.viewResetToken + 1,
       boardType: getControllerBoardDefinition(project.boardType).type,
       boardPosition: project.boardPosition,
       selectedComponentId: null,
@@ -1491,9 +1501,9 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
         oscilloscopeTraces: {},
         runtimeError: null,
       },
-    });
+    }));
 
-    set((s) => ({ projectDirty: false, viewResetToken: s.viewResetToken + 1 }));
+    set({ projectDirty: false });
 
     return true;
   },

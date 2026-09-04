@@ -48,6 +48,9 @@ import {
  *  simulation reports back, so it is worth a unit to type it in. */
 const UNIT_AWARE_RESISTANCE_TYPES = new Set(['resistor', 'potentiometer']);
 
+/** Wheel notches this close together count as one turn, for undo. */
+const WHEEL_UNDO_GROUPING_MS = 600;
+
 /**
  * The resistance value, written in whichever unit is picked on the row below.
  *
@@ -69,7 +72,8 @@ const ResistanceRow: React.FC<{
   unit: ResistanceUnit;
   onCommit: (ohms: number) => void;
   onFocus: () => void;
-}> = ({ label, ohms, unit, onCommit, onFocus }) => {
+  onWheel: (event: React.WheelEvent) => void;
+}> = ({ label, ohms, unit, onCommit, onFocus, onWheel }) => {
   const [draft, setDraft] = React.useState<string | null>(null);
   const shown = draft ?? String(fromOhms(ohms, unit));
 
@@ -95,6 +99,13 @@ const ResistanceRow: React.FC<{
           }
         }}
         onBlur={() => setDraft(null)}
+        // The wheel walks the E12 ladder, the same as everywhere else. Without
+        // this the resistance was the one number in the panel that ignored it —
+        // and on a resistor it is the only number there is.
+        onWheel={(event) => {
+          setDraft(null);
+          onWheel(event);
+        }}
       />
     </div>
   );
@@ -120,6 +131,7 @@ const PropertiesPanel: React.FC = () => {
   // while it runs. Its values are inputs and stay live.
   const circuitLocked = useCircuitStore((s) => s.simulation.running);
   const captureUndoSnapshot = useCircuitStore((s) => s.captureUndoSnapshot);
+  const wheelUndoAtRef = React.useRef(0);
   const language = useCircuitStore((s) => s.language);
   const selectedComponentIds = useCircuitStore((s) => s.selectedComponentIds);
 
@@ -296,6 +308,12 @@ const PropertiesPanel: React.FC = () => {
       event.deltaY > 0 ? -1 : 1
     );
     if (next !== value) {
+      // One undo point for the whole turn: clicking in records one on focus,
+      // but the wheel needs no focus, so a turn that starts here records its own.
+      const now = Date.now();
+      if (now - wheelUndoAtRef.current > WHEEL_UNDO_GROUPING_MS) captureUndoSnapshot();
+      wheelUndoAtRef.current = now;
+
       updateComponentProperty(selectedComp.id, key, next, { recordHistory: false });
     }
   };
@@ -508,6 +526,10 @@ const PropertiesPanel: React.FC = () => {
                     recordHistory: false,
                   })
                 }
+                onWheel={wheelToStep(
+                  'resistance',
+                  Number.isFinite(resistanceOhms) ? resistanceOhms : 0
+                )}
               />
             );
           }

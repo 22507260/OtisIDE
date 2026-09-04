@@ -1,5 +1,6 @@
 import '../lib/monacoSetup';
 import Editor, { type Monaco } from '@monaco-editor/react';
+import type { editor } from 'monaco-editor';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useCircuitStore } from '../store/circuitStore';
 import AIPanel from './AIPanel';
@@ -41,6 +42,23 @@ const configureEditorTheme = (monaco: Monaco) => {
       'editorGutter.background': '#07111a',
     },
   });
+};
+
+/**
+ * Throws away every sketch buffer except the one on screen.
+ *
+ * Monaco keeps its text buffers in a registry keyed by path, hands back an
+ * existing one before it makes a new one, and disposes only the buffer an
+ * editor was holding when it unmounts. Each project opened left another one
+ * behind with its undo history in it — a leak, and a loaded gun: any path that
+ * came round again would arrive with the previous project's sketch one ctrl-Z
+ * away.
+ */
+const disposeStaleModels = (editor: editor.IStandaloneCodeEditor, monaco: Monaco) => {
+  const keep = editor.getModel();
+  for (const model of monaco.editor.getModels()) {
+    if (model !== keep && model.uri.path.includes('sketch-')) model.dispose();
+  }
 };
 
 const DEFAULT_PANEL_HEIGHT = 360;
@@ -560,8 +578,15 @@ const BottomPanel: React.FC = () => {
               </div>
               <div className="code-editor-body">
                 <Editor
+                  // Remounted for every project, so the old buffer is disposed
+                  // rather than left in monaco's registry with its history
+                  // intact. Keying the path alone was not enough: the editor
+                  // looks a buffer up by path before it creates one, and never
+                  // throws away the one it stops using.
+                  key={viewResetToken}
                   beforeMount={configureEditorTheme}
                   defaultLanguage="cpp"
+                  onMount={disposeStaleModels}
                   loading={
                     <div className="code-editor-loading">{t(language, 'editorLoading')}</div>
                   }
