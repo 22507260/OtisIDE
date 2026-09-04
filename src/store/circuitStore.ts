@@ -24,6 +24,7 @@ import {
   type AppLanguage,
   getDefaultConversationTitle,
 } from '../lib/i18n';
+import type { AppTheme } from '../lib/canvasTheme';
 import {
   DEFAULT_CONTROLLER_BOARD_TYPE,
   DEFAULT_CONTROLLER_BOARD_POSITION,
@@ -85,6 +86,9 @@ interface CircuitStore {
   clearErrorLog: () => void;
   language: AppLanguage;
   setLanguage: (language: AppLanguage) => void;
+  /** Light or dark, for the whole window — canvas, panels and editor alike. */
+  theme: AppTheme;
+  setTheme: (theme: AppTheme) => void;
 
   // Canvas
   zoom: number;
@@ -348,6 +352,7 @@ const MAX_STORED_AI_CONVERSATIONS = 50;
 const AI_CONVERSATIONS_STORAGE_KEY = 'ai_conversations';
 const AI_CURRENT_CONVERSATION_STORAGE_KEY = 'ai_currentConversationId';
 const APP_LANGUAGE_STORAGE_KEY = 'app_language';
+const APP_THEME_STORAGE_KEY = 'app_theme';
 const AI_PROVIDER_STORAGE_KEY = 'ai_provider';
 const PROJECT_DRAFT_STORAGE_KEY = 'project_draft';
 /** How long the circuit has to sit still before it is written back. */
@@ -375,6 +380,23 @@ const loadProjectDraft = (): ProjectData | null => {
 const loadLanguage = (): AppLanguage => {
   const stored = readStorage(APP_LANGUAGE_STORAGE_KEY);
   return stored === 'tr' ? 'tr' : 'en';
+};
+
+/**
+ * Dark unless someone has said otherwise.
+ *
+ * Read and applied before React mounts (see applyAppTheme below), so the window
+ * never flashes the wrong colour on the way in.
+ */
+const loadAppTheme = (): AppTheme => {
+  const stored = readStorage(APP_THEME_STORAGE_KEY);
+  return stored === 'light' ? 'light' : 'dark';
+};
+
+/** Puts the theme where CSS can see it. */
+export const applyAppTheme = (theme: AppTheme): void => {
+  if (typeof document === 'undefined') return;
+  document.documentElement.dataset.theme = theme;
 };
 
 const loadAIProvider = (): AIProvider => {
@@ -480,6 +502,8 @@ const persistAIConversationState = (
 
 export const useCircuitStore = create<CircuitStore>((set, get) => {
   const initialLanguage = loadLanguage();
+  const initialTheme = loadAppTheme();
+  applyAppTheme(initialTheme);
   const initialAIConversations = loadAIConversations(
     getDefaultConversationTitle(initialLanguage)
   );
@@ -805,6 +829,13 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
   setLanguage: (language) => {
     writeStorage(APP_LANGUAGE_STORAGE_KEY, language);
     set({ language });
+  },
+
+  theme: initialTheme,
+  setTheme: (theme) => {
+    writeStorage(APP_THEME_STORAGE_KEY, theme);
+    applyAppTheme(theme);
+    set({ theme });
   },
 
   // Canvas

@@ -168,7 +168,9 @@ export const SVG_CONFIGS: Record<ComponentType, SvgConfig> = {
   diode:          { url: diodeSvg,         raw: diodeSvgRaw,         width: 80,  height: 19, offsetX: 40,  offsetY: 10 },
   button:         { url: buttonSvg,        raw: buttonSvgRaw,        width: 28,  height: 38, offsetX: 14,  offsetY: 16 },
   switch:         { url: switchSvg,        raw: switchSvgRaw,        width: 36,  height: 37, offsetX: 18,  offsetY: 18 },
-  potentiometer:  { url: potentiometerSvg, raw: potentiometerSvgRaw, width: 28,  height: 56, offsetX: 14,  offsetY: 20 },
+  // Drawn one-to-one with its viewBox, so the artwork's numbers are the
+  // board's numbers and the legs land exactly one hole pitch apart.
+  potentiometer:  { url: potentiometerSvg, raw: potentiometerSvgRaw, width: 38,  height: 46, offsetX: 19,  offsetY: 17 },
   joystick:       { url: joystickSvg,      raw: joystickSvgRaw,      width: 58,  height: 58, offsetX: 29,  offsetY: 22 },
   'hc-05':        { url: hc05Svg,          raw: hc05SvgRaw,          width: 170, height: 74, offsetX: 85,  offsetY: 24 },
   buzzer:         { url: buzzerSvg,        raw: buzzerSvgRaw,        width: 38,  height: 38, offsetX: 19,  offsetY: 14 },

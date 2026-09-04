@@ -22,6 +22,105 @@
   --radius: 16px;
   --radius-sm: 12px;
   --transition: 0.18s ease;
+
+  /* The four backdrops that used to be written out in full wherever they were
+     needed, which is why the palette on its own could not change the look. */
+  --page-glow-a: rgba(94, 234, 212, 0.14);
+  --page-glow-b: rgba(255, 140, 66, 0.16);
+  --page-from: #09131c;
+  --page-to: #040b11;
+  --page-rule: rgba(99, 179, 255, 0.08);
+  --page-rule-opacity: 0.18;
+  --page-vignette: rgba(0, 0, 0, 0.3);
+  --canvas-glow: rgba(94, 234, 212, 0.08);
+  --canvas-from: #112536;
+  --canvas-to: #07111a;
+  --canvas-inset: rgba(255, 255, 255, 0.03);
+  --panel-from: rgba(10, 25, 37, 0.98);
+  --panel-to: rgba(4, 11, 18, 0.98);
+
+  /* The surfaces the chrome is made of: the bars and panels, the fields sunk
+     into them, and the faint lift on a header. Named for the same reason as
+     the backdrops above — written out in place, they could not be themed. */
+  --chrome-from: rgba(18, 42, 60, 0.92);
+  --chrome-to: rgba(9, 20, 32, 0.92);
+  --surface-from: rgba(14, 33, 47, 0.96);
+  --surface-to: rgba(7, 17, 26, 0.96);
+  --titlebar-from: rgba(10, 21, 31, 0.96);
+  --titlebar-to: rgba(7, 16, 25, 0.92);
+  --sunken: rgba(8, 18, 28, 0.92);
+  --sunken-strong: rgba(4, 11, 18, 0.86);
+  --raise: rgba(255, 255, 255, 0.02);
+  --raise-strong: rgba(255, 255, 255, 0.03);
+  --editor-bg: #07111a;
+  --overlay: rgba(5, 14, 21, 0.7);
+  --accent-tint: rgba(255, 140, 66, 0.16);
+  --accent-tint-border: rgba(255, 140, 66, 0.34);
+  --accent-on-tint: #ffd7bf;
+  --placeholder: rgba(189, 213, 234, 0.54);
+}
+
+/*
+ * Light mode.
+ *
+ * Only the palette moves; every rule below reads these and nothing else, which
+ * is what the four --page/--canvas/--panel variables above are for. Greys and
+ * whites, with the same accents so the app is still recognisably itself.
+ */
+:root[data-theme='light'] {
+  --bg-primary: #eef2f6;
+  --bg-secondary: rgba(255, 255, 255, 0.94);
+  --bg-tertiary: #dbe4ec;
+  --bg-panel: rgba(255, 255, 255, 0.9);
+  --bg-hover: rgba(15, 40, 62, 0.07);
+  --bg-active: rgba(214, 106, 26, 0.14);
+  --bg-soft: rgba(15, 40, 62, 0.05);
+  --text-primary: #16232e;
+  --text-secondary: #47606f;
+  --text-muted: #7b8e9c;
+  --accent: #d4650f;
+  --accent-hover: #b8560c;
+  --accent-green: #0f8f7d;
+  --accent-blue: #1f6fc4;
+  --accent-yellow: #b58207;
+  --accent-orange: #d4650f;
+  --border: rgba(31, 63, 88, 0.16);
+  --border-strong: rgba(31, 63, 88, 0.28);
+  --shadow: rgba(31, 63, 88, 0.12);
+  --shadow-strong: rgba(31, 63, 88, 0.2);
+
+  --page-glow-a: rgba(15, 143, 125, 0.1);
+  --page-glow-b: rgba(212, 101, 15, 0.1);
+  --page-from: #f4f7fa;
+  --page-to: #e4eaf0;
+  --page-rule: rgba(31, 63, 88, 0.07);
+  --page-rule-opacity: 0.5;
+  --page-vignette: rgba(31, 63, 88, 0.06);
+  --canvas-glow: rgba(15, 143, 125, 0.06);
+  --canvas-from: #ffffff;
+  --canvas-to: #e9eef3;
+  --canvas-inset: rgba(31, 63, 88, 0.05);
+  --panel-from: rgba(255, 255, 255, 0.97);
+  --panel-to: rgba(238, 243, 247, 0.97);
+
+  --chrome-from: rgba(255, 255, 255, 0.96);
+  --chrome-to: rgba(233, 239, 245, 0.96);
+  --surface-from: rgba(255, 255, 255, 0.97);
+  --surface-to: rgba(236, 242, 247, 0.97);
+  --titlebar-from: rgba(252, 253, 255, 0.97);
+  --titlebar-to: rgba(235, 241, 246, 0.95);
+  --sunken: rgba(255, 255, 255, 0.95);
+  --sunken-strong: rgba(255, 255, 255, 0.92);
+  /* A lift on white has to be a shadow, not more white. */
+  --raise: rgba(31, 63, 88, 0.04);
+  --raise-strong: rgba(31, 63, 88, 0.06);
+  --editor-bg: #ffffff;
+  --overlay: rgba(255, 255, 255, 0.86);
+  --accent-tint: rgba(212, 101, 15, 0.12);
+  --accent-tint-border: rgba(212, 101, 15, 0.36);
+  /* Dark enough to read on its own tint, which the pale one never was. */
+  --accent-on-tint: #8a3f06;
+  --placeholder: rgba(71, 96, 111, 0.66);
 }
 
 * {
@@ -43,9 +142,9 @@ body {
   color: var(--text-primary);
   user-select: none;
   background:
-    radial-gradient(circle at top left, rgba(94, 234, 212, 0.14), transparent 28%),
-    radial-gradient(circle at top right, rgba(255, 140, 66, 0.16), transparent 26%),
-    linear-gradient(180deg, #09131c 0%, #040b11 100%);
+    radial-gradient(circle at top left, var(--page-glow-a), transparent 28%),
+    radial-gradient(circle at top right, var(--page-glow-b), transparent 26%),
+    linear-gradient(180deg, var(--page-from) 0%, var(--page-to) 100%);
 }
 
 body::before {
@@ -53,10 +152,10 @@ body::before {
   position: fixed;
   inset: 0;
   pointer-events: none;
-  opacity: 0.18;
+  opacity: var(--page-rule-opacity);
   background-image:
-    linear-gradient(rgba(99, 179, 255, 0.08) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(99, 179, 255, 0.08) 1px, transparent 1px);
+    linear-gradient(var(--page-rule) 1px, transparent 1px),
+    linear-gradient(90deg, var(--page-rule) 1px, transparent 1px);
   background-size: 48px 48px;
 }
 
@@ -65,7 +164,7 @@ body::after {
   position: fixed;
   inset: 0;
   pointer-events: none;
-  background: radial-gradient(circle at center, transparent 55%, rgba(0, 0, 0, 0.3) 100%);
+  background: radial-gradient(circle at center, transparent 55%, var(--page-vignette) 100%);
 }
 
 ::-webkit-scrollbar {
@@ -113,7 +212,7 @@ body::after {
   padding: 8px 10px 8px 14px;
   border-bottom: 1px solid rgba(145, 185, 214, 0.1);
   background:
-    linear-gradient(180deg, rgba(10, 21, 31, 0.96), rgba(7, 16, 25, 0.92)),
+    linear-gradient(180deg, var(--titlebar-from), var(--titlebar-to)),
     var(--bg-secondary);
   box-shadow: 0 12px 30px rgba(2, 10, 18, 0.18);
   position: relative;
@@ -221,7 +320,7 @@ body::after {
   min-height: 28px;
   border: 1px solid rgba(145, 185, 214, 0.12);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--raise-strong);
 }
 
 .desktop-meta-value {
@@ -356,7 +455,7 @@ body::after {
   border: 1px solid var(--border);
   border-radius: 20px;
   background:
-    linear-gradient(180deg, rgba(18, 42, 60, 0.92), rgba(9, 20, 32, 0.92)),
+    linear-gradient(180deg, var(--chrome-from), var(--chrome-to)),
     var(--bg-secondary);
   box-shadow: 0 18px 40px var(--shadow);
   z-index: 100;
@@ -394,7 +493,7 @@ body::after {
   padding: 8px 10px;
   border: 1px solid var(--border);
   border-radius: 12px;
-  background: rgba(8, 18, 28, 0.92);
+  background: var(--sunken);
   color: var(--text-primary);
   font-size: 12px;
   outline: none;
@@ -473,9 +572,9 @@ body::after {
 }
 
 .toolbar-btn.active {
-  background: rgba(255, 140, 66, 0.16);
-  border-color: rgba(255, 140, 66, 0.34);
-  color: #ffd7bf;
+  background: var(--accent-tint);
+  border-color: var(--accent-tint-border);
+  color: var(--accent-on-tint);
   box-shadow: 0 10px 22px rgba(255, 140, 66, 0.18);
 }
 
@@ -513,7 +612,7 @@ body::after {
   border: 1px solid var(--border);
   border-radius: 20px;
   background:
-    linear-gradient(180deg, rgba(14, 33, 47, 0.96), rgba(7, 17, 26, 0.96)),
+    linear-gradient(180deg, var(--surface-from), var(--surface-to)),
     var(--bg-panel);
   box-shadow: 0 16px 34px var(--shadow);
 }
@@ -531,7 +630,7 @@ body::after {
 .panel-header {
   padding: 12px 14px;
   border-bottom: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--raise);
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
@@ -554,10 +653,10 @@ body::after {
   border: 1px solid var(--border);
   border-radius: 24px;
   background:
-    radial-gradient(circle at top, rgba(94, 234, 212, 0.08), transparent 30%),
-    linear-gradient(180deg, #112536 0%, #07111a 100%);
+    radial-gradient(circle at top, var(--canvas-glow), transparent 30%),
+    linear-gradient(180deg, var(--canvas-from) 0%, var(--canvas-to) 100%);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.03),
+    inset 0 1px 0 var(--canvas-inset),
     0 18px 38px var(--shadow);
 }
 
@@ -571,7 +670,7 @@ body::after {
   border: 1px solid var(--border);
   border-radius: 20px;
   background:
-    linear-gradient(180deg, rgba(10, 25, 37, 0.98), rgba(4, 11, 18, 0.98));
+    linear-gradient(180deg, var(--panel-from), var(--panel-to));
   box-shadow: 0 16px 34px var(--shadow);
 }
 
@@ -612,7 +711,7 @@ body::after {
   padding: 10px 14px;
   min-height: 56px;
   border-bottom: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--raise);
   cursor: pointer;
 }
 
@@ -630,7 +729,7 @@ body::after {
   height: 30px;
   border: 1px solid var(--border);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--raise-strong);
   color: var(--text-secondary);
   font-size: 12px;
   cursor: pointer;
@@ -650,7 +749,7 @@ body::after {
   padding: 6px 10px;
   border: 1px solid var(--border);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--raise-strong);
   color: var(--text-secondary);
   font-size: 11px;
   line-height: 1;
@@ -671,7 +770,7 @@ body::after {
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 18px;
-  background: rgba(4, 11, 18, 0.86);
+  background: var(--sunken-strong);
 }
 
 .code-toolbar,
@@ -682,7 +781,7 @@ body::after {
   gap: 12px;
   padding: 10px 14px;
   border-bottom: 1px solid var(--border);
-  background: linear-gradient(180deg, rgba(16, 39, 56, 0.78), rgba(8, 17, 26, 0.82));
+  background: linear-gradient(180deg, var(--chrome-from), var(--chrome-to));
 }
 
 .code-toolbar-title,
@@ -728,13 +827,13 @@ body::after {
 .code-editor-body {
   flex: 1;
   min-height: 0;
-  background: #07111a;
+  background: var(--editor-bg);
 }
 
 .code-editor-body .monaco-editor,
 .code-editor-body .monaco-editor-background,
 .code-editor-body .margin {
-  background: #07111a !important;
+  background: var(--editor-bg) !important;
 }
 
 .code-editor-loading {
@@ -762,7 +861,7 @@ body::after {
   padding: 12px;
   border-bottom: 1px solid rgba(145, 185, 214, 0.12);
   background:
-    linear-gradient(180deg, rgba(7, 18, 30, 0.98), rgba(7, 18, 30, 0.92));
+    linear-gradient(180deg, var(--surface-from), var(--surface-to));
   backdrop-filter: blur(10px);
 }
 
@@ -791,7 +890,7 @@ body::after {
 }
 
 .palette-search-input::placeholder {
-  color: rgba(189, 213, 234, 0.54);
+  color: var(--placeholder);
 }
 
 .palette-search-input:focus {
@@ -805,7 +904,7 @@ body::after {
   padding: 14px 12px;
   border: 1px dashed rgba(145, 185, 214, 0.16);
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--raise);
   font-size: 12px;
   color: var(--text-secondary);
   text-align: center;
@@ -824,7 +923,7 @@ body::after {
 }
 
 .palette-category-header:hover {
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--raise-strong);
   color: #ffffff;
 }
 
@@ -851,7 +950,7 @@ body::after {
 
 .palette-item:hover {
   transform: translateX(2px);
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--raise-strong);
   border-color: rgba(145, 185, 214, 0.16);
   color: var(--text-primary);
 }
@@ -881,7 +980,7 @@ body::after {
   justify-content: center;
   border: 1px solid var(--border);
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--raise-strong);
   /* Labels run up to five characters, so they have to stay inside the badge. */
   font-size: 10px;
   font-weight: 700;
@@ -901,7 +1000,7 @@ body::after {
   padding: 12px;
   border: 1px solid rgba(145, 185, 214, 0.12);
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--raise);
 }
 
 .property-group-title {
@@ -945,7 +1044,7 @@ body::after {
   gap: 8px;
   padding: 12px 14px;
   border-bottom: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--raise);
 }
 
 .ai-panel-title-wrap {
@@ -1026,7 +1125,7 @@ body::after {
   padding: 10px;
   border: 1px solid transparent;
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--raise-strong);
   transition: border-color var(--transition), background var(--transition);
 }
 
@@ -1123,7 +1222,7 @@ body::after {
   border: 1px solid var(--border);
   border-radius: 14px;
   padding: 9px 10px;
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--raise-strong);
   color: var(--text-secondary);
   font-size: 11px;
   text-align: left;
@@ -1166,7 +1265,7 @@ body::after {
   gap: 8px;
   padding: 10px 12px;
   border-top: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--raise);
 }
 
 .ai-input-actions {
@@ -1180,7 +1279,7 @@ body::after {
   padding: 10px 12px;
   border: 1px solid var(--border);
   border-radius: 14px;
-  background: rgba(8, 18, 28, 0.94);
+  background: var(--sunken);
   color: var(--text-primary);
   font-size: 13px;
   outline: none;
@@ -1256,7 +1355,7 @@ body::after {
   display: flex;
   padding: 8px 8px 0;
   gap: 6px;
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--raise);
   border-bottom: 1px solid var(--border);
 }
 
@@ -1273,11 +1372,11 @@ body::after {
 
 .tab-btn:hover {
   color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--raise-strong);
 }
 
 .tab-btn.active {
-  color: #ffd7bf;
+  color: var(--accent-on-tint);
   background: rgba(255, 140, 66, 0.12);
   border-color: rgba(255, 140, 66, 0.2);
 }
@@ -1290,7 +1389,7 @@ body::after {
   padding: 6px 10px;
   border: 1px solid var(--border);
   border-radius: 999px;
-  background: rgba(5, 14, 21, 0.7);
+  background: var(--overlay);
   color: var(--text-secondary);
   font-size: 11px;
 }
@@ -1307,7 +1406,7 @@ body::after {
   border-radius: 12px;
   background: rgba(32, 16, 9, 0.92);
   backdrop-filter: blur(6px);
-  color: #ffd7bf;
+  color: var(--accent-on-tint);
   font-size: 12px;
   box-shadow: 0 12px 26px rgba(0, 0, 0, 0.35);
   animation: circuit-warnings-in 0.18s ease-out;
@@ -1342,7 +1441,7 @@ body::after {
 .circuit-warnings-dismiss {
   border: none;
   background: transparent;
-  color: #ffd7bf;
+  color: var(--accent-on-tint);
   opacity: 0.6;
   font-size: 15px;
   line-height: 1;
@@ -1497,7 +1596,7 @@ body::after {
   padding: 12px;
   border: 1px solid rgba(145, 185, 214, 0.12);
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--raise-strong);
 }
 
 .oscilloscope-stat-label {
@@ -1716,7 +1815,7 @@ body::after {
 .update-notes {
   border: 1px solid var(--border);
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--raise-strong);
   padding: 12px 14px;
   margin-bottom: 18px;
   max-height: 190px;
@@ -1923,7 +2022,7 @@ body::after {
   width: min(520px, 100%);
   border: 1px solid var(--border);
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--raise-strong);
   padding: 28px;
 }
 

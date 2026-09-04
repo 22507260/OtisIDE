@@ -321,10 +321,12 @@ export function getDefaultPins(type: ComponentType): Pin[] {
         { id: 'nc', name: 'NC', type: 'passive', x: 20, y: 8 },
       ]);
     case 'potentiometer':
+      // One hole pitch apart, matching the artwork; the wiper is the middle
+      // leg, as it is on the real part.
       return withSvgLayout([
-        { id: 'pin1', name: 'Pin 1', type: 'passive', x: -20, y: 0 },
-        { id: 'wiper', name: 'Wiper', type: 'passive', x: 0, y: -15 },
-        { id: 'pin2', name: 'Pin 2', type: 'passive', x: 20, y: 0 },
+        { id: 'pin1', name: 'Pin 1', type: 'passive', x: -11.5, y: 22.5 },
+        { id: 'wiper', name: 'Wiper', type: 'passive', x: 0, y: 22.5 },
+        { id: 'pin2', name: 'Pin 2', type: 'passive', x: 11.5, y: 22.5 },
       ]);
     case 'joystick':
       return withSvgLayout([

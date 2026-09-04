@@ -43,13 +43,21 @@ const board = (overrides: Partial<CircuitComponent> = {}): CircuitComponent => (
   ...overrides,
 });
 
-/** What a contact on the default board looks like. */
-const on = (pinId: string, holeId: string, componentId = 'resistor-1') => ({
-  componentId,
-  pinId,
-  breadboardId: BREADBOARD_COMPONENT_ID,
-  holeId,
-});
+/**
+ * What a contact on the default board looks like.
+ *
+ * Matched on identity alone — which leg, which hole. A contact also carries
+ * where the leg and the hole each are, so the canvas can draw the lead between
+ * them, and pinning those coordinates here would only make these tests about
+ * artwork measurements.
+ */
+const on = (pinId: string, holeId: string, componentId = 'resistor-1') =>
+  expect.objectContaining({
+    componentId,
+    pinId,
+    breadboardId: BREADBOARD_COMPONENT_ID,
+    holeId,
+  });
 
 describe('getBreadboardContacts', () => {
   it('seats legs that land on holes', () => {
@@ -86,6 +94,39 @@ describe('getBreadboardContacts', () => {
 
   it('finds nothing for a part sitting away from the board', () => {
     expect(getBreadboardContacts([board(), part({ x: 900, y: 900 })])).toEqual([]);
+  });
+
+  it('says where the leg is and where its hole is, so the lead can be drawn', () => {
+    // The same 7.46-pitch resistor: one leg lands dead on its hole, the other
+    // is left short by the artwork's own leg spacing. Both are connected; only
+    // one of them looks it, which is what the drawn lead is for.
+    const awkward = part({
+      pins: [
+        { id: 'pin1', name: '1', type: 'passive', x: 0, y: 0 },
+        { id: 'pin2', name: '2', type: 'passive', x: 7.46 * HOLE_SP, y: 0 },
+      ],
+    });
+
+    const [near, far] = getBreadboardContacts([board(), awkward]);
+
+    expect(near.pinX).toBeCloseTo(near.holeX, 6);
+    expect(near.pinY).toBeCloseTo(near.holeY, 6);
+
+    // Its hole is the eighth column; the leg stops short of it.
+    expect(far.holeX).toBeCloseTo(A1.x + 7 * HOLE_SP, 6);
+    expect(far.pinX).toBeCloseTo(A1.x + 7.46 * HOLE_SP, 6);
+    expect(Math.hypot(far.pinX - far.holeX, far.pinY - far.holeY)).toBeGreaterThan(1);
+  });
+
+  it('puts every hole it names where it says it is', () => {
+    for (const contact of getBreadboardContacts([board(), part()])) {
+      const hole = getBreadboardHoleOn(
+        { id: BREADBOARD_COMPONENT_ID, x: BB_X, y: BB_Y, variant: 'full' },
+        contact.holeId
+      );
+      expect(contact.holeX).toBeCloseTo(hole!.x, 6);
+      expect(contact.holeY).toBeCloseTo(hole!.y, 6);
+    }
   });
 
   it('follows a part through a rotation', () => {
@@ -172,13 +213,17 @@ describe('getBreadboardContacts', () => {
     it('seats each part on the board it is over', () => {
       const contacts = getBreadboardContacts([board(), secondBoard, part(), partOnSecond]);
 
-      expect(contacts).toContainEqual(on('pin1', 'bb-a-1'));
-      expect(contacts).toContainEqual({
-        componentId: 'resistor-1',
-        pinId: 'pin1',
-        breadboardId: 'board-2',
-        holeId: 'bb-a-1',
-      });
+      expect(contacts).toEqual(expect.arrayContaining([on('pin1', 'bb-a-1')]));
+      expect(contacts).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            componentId: 'resistor-1',
+            pinId: 'pin1',
+            breadboardId: 'board-2',
+            holeId: 'bb-a-1',
+          }),
+        ])
+      );
     });
 
     it('keeps the two boards' + String.fromCharCode(39) + ' identical hole ids apart', () => {
@@ -249,12 +294,16 @@ describe('the mini board', () => {
     const seated = part({ x: a1!.x, y: a1!.y });
     const contacts = getBreadboardContacts([miniBoard(), seated]);
 
-    expect(contacts).toContainEqual({
-      componentId: 'resistor-1',
-      pinId: 'pin1',
-      breadboardId: 'mini-1',
-      holeId: 'bb-a-1',
-    });
+    expect(contacts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          componentId: 'resistor-1',
+          pinId: 'pin1',
+          breadboardId: 'mini-1',
+          holeId: 'bb-a-1',
+        }),
+      ])
+    );
   });
 
   it('has no column 18, however far a leg reaches', () => {

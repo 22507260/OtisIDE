@@ -45,6 +45,19 @@ export type BreadboardContact = {
   /** Which board the hole belongs to; hole ids repeat from board to board. */
   breadboardId: string;
   holeId: string;
+  /**
+   * Where the leg is and where its hole is, both in world coordinates.
+   *
+   * Rarely the same point. Seating a part translates it until *one* leg is
+   * exactly on a hole and leaves the others wherever the artwork's leg spacing
+   * puts them — a resistor's legs are 7.46 holes apart, so its far leg lands
+   * about five pixels to the side of the hole it is connected to. The canvas
+   * draws the lead across that gap, which is what a real part's bent leg does.
+   */
+  pinX: number;
+  pinY: number;
+  holeX: number;
+  holeY: number;
 };
 
 /**
@@ -67,22 +80,30 @@ export function getBreadboardContacts(components: CircuitComponent[]): Breadboar
     // hole pitch could otherwise claim the same hole twice, shorting
     // themselves out through a hole that in reality only fits one of them.
     // Keyed by board as well as hole, since hole ids repeat across boards.
-    const claimed = new Map<string, { pinId: string; distSq: number }>();
+    const claimed = new Map<
+      string,
+      { pinId: string; distSq: number; pinX: number; pinY: number; holeX: number; holeY: number }
+    >();
 
     for (const pin of component.pins) {
       const moved = transformPoint(pin.x, pin.y, transform);
-      const nearest = getNearestHoleAcrossBreadboards(
-        component.x + moved.x,
-        component.y + moved.y,
-        boards
-      );
+      const pinX = component.x + moved.x;
+      const pinY = component.y + moved.y;
+      const nearest = getNearestHoleAcrossBreadboards(pinX, pinY, boards);
 
       if (!nearest || nearest.distSq > CONTACT_RADIUS_SQ) continue;
 
       const key = `${nearest.breadboardId}::${nearest.hole.id}`;
       const current = claimed.get(key);
       if (!current || nearest.distSq < current.distSq) {
-        claimed.set(key, { pinId: pin.id, distSq: nearest.distSq });
+        claimed.set(key, {
+          pinId: pin.id,
+          distSq: nearest.distSq,
+          pinX,
+          pinY,
+          holeX: nearest.hole.x,
+          holeY: nearest.hole.y,
+        });
       }
     }
 
@@ -93,6 +114,10 @@ export function getBreadboardContacts(components: CircuitComponent[]): Breadboar
         pinId: seated.pinId,
         breadboardId: key.slice(0, separator),
         holeId: key.slice(separator + 2),
+        pinX: seated.pinX,
+        pinY: seated.pinY,
+        holeX: seated.holeX,
+        holeY: seated.holeY,
       });
     }
   }

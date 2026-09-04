@@ -28,6 +28,8 @@ const Toolbar: React.FC = () => {
   const code = useCircuitStore((s) => s.code);
   const language = useCircuitStore((s) => s.language);
   const setLanguage = useCircuitStore((s) => s.setLanguage);
+  const theme = useCircuitStore((s) => s.theme);
+  const setTheme = useCircuitStore((s) => s.setTheme);
   const preparingHardwareIde = useHardwareStore((s) => s.preparing);
   const hardwareCliAvailable = useHardwareStore((s) => s.cliAvailable);
   const hardwareCliVersion = useHardwareStore((s) => s.cliVersion);
@@ -422,6 +424,15 @@ const Toolbar: React.FC = () => {
             {language === 'tr' ? 'Masaüstü' : 'Desktop'}
           </span>
         )}
+        <span className="toolbar-label">{t(language, 'appearance')}</span>
+        <select
+          className="toolbar-select toolbar-select-compact"
+          value={theme}
+          onChange={(event) => setTheme(event.target.value as 'dark' | 'light')}
+        >
+          <option value="dark">{t(language, 'themeDark')}</option>
+          <option value="light">{t(language, 'themeLight')}</option>
+        </select>
         <span className="toolbar-label">{t(language, 'language')}</span>
         <select
           className="toolbar-select toolbar-select-compact"

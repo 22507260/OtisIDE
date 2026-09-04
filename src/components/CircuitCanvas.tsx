@@ -74,8 +74,17 @@ import {
 } from '../lib/componentTransform';
 import { isCircuitScreenTarget, isTextEntryTarget } from '../lib/keyboardTarget';
 import { getSolderedPinKeys, pinKey } from '../lib/solderedPins';
+import { getBreadboardContacts } from '../lib/breadboardContacts';
+import { getCanvasTheme } from '../lib/canvasTheme';
 import { getPrimaryProperty, stepPropertyValue } from '../lib/propertyRanges';
 import { roundWirePoints } from '../lib/wireGeometry';
+import {
+  WIRE_DOUBLE_CLICK_MS,
+  findWireBendInsertion,
+  isSameGesture,
+  withWireBendAt,
+  type WireClick,
+} from '../lib/wireBend';
 import { applyBuzzerVoices, stopAllBuzzers } from '../lib/buzzerAudio';
 import multimeterProbeRedSvg from '../assets/components/multimeter-probe-red.svg';
 import multimeterProbeBlackSvg from '../assets/components/multimeter-probe-black.svg';
@@ -103,6 +112,8 @@ const MARQUEE_THRESHOLD = 4;
 const WIRE_STRAIGHTEN_TOLERANCE = 6;
 /** Wheel notches this close together count as one turn, for undo. */
 const WHEEL_UNDO_GROUPING_MS = 600;
+/** Dragging a cable this far breaks it there rather than counting as a click. */
+const WIRE_DRAG_BEND_THRESHOLD = 4;
 /** Below this there is nothing worth drawing as a flow. */
 const FLOW_MIN_CURRENT = 1e-6;
 /** How fast the marks travel, in canvas units per second at one amp. */
@@ -152,11 +163,22 @@ function fanOutProbeTips(
 const FLOW_ARROW_SPACING = 140;
 const FLOW_ARROW_LENGTH = 3;
 const FLOW_ARROW_WIDTH = 2.4;
+/**
+ * The knob's pointer. A panel pot turns about 270 degrees, from seven o'clock
+ * anticlockwise-most round to five o'clock, and stops there.
+ */
+const POT_MIN_ANGLE = -135;
+const POT_SWEEP = 270;
+const POT_POINTER_INNER = 2.5;
+const POT_POINTER_OUTER = 8;
+
+/** A component leg, where it has to be bent to reach its hole. */
+const LEAD_COLOR = '#8c8c8c';
+const LEAD_WIDTH = 2.2;
 /** How round a cable turns a corner. */
 const WIRE_CORNER_RADIUS = 7;
-/** Marks on a cable carrying nothing: grey, still, and pointing nowhere. */
+/** Marks on a cable carrying nothing: still, and pointing nowhere. */
 const FLOW_IDLE_DASH = [2, 10];
-const FLOW_IDLE_COLOR = '#8fa3b0';
 const FLOW_IDLE_OPACITY = 0.45;
 
 /**
@@ -533,36 +555,6 @@ function getResistorBandColors(value: unknown): string[] {
     RESISTOR_MULTIPLIER_COLORS[multiplier] ?? RESISTOR_MULTIPLIER_COLORS[0],
     RESISTOR_TOLERANCE_COLOR,
   ];
-}
-
-/** Index of the segment closest to (x, y), for inserting a new bend there. */
-function findClosestSegmentIndex(points: number[], x: number, y: number): number {
-  let bestIndex = 0;
-  let bestDistance = Infinity;
-
-  for (let i = 0; i + 3 < points.length; i += 2) {
-    const ax = points[i];
-    const ay = points[i + 1];
-    const bx = points[i + 2];
-    const by = points[i + 3];
-    const dx = bx - ax;
-    const dy = by - ay;
-    const lengthSq = dx * dx + dy * dy;
-    const t =
-      lengthSq === 0
-        ? 0
-        : Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / lengthSq));
-    const px = ax + t * dx;
-    const py = ay + t * dy;
-    const distance = (x - px) ** 2 + (y - py) ** 2;
-
-    if (distance < bestDistance) {
-      bestDistance = distance;
-      bestIndex = i;
-    }
-  }
-
-  return bestIndex;
 }
 
 function snapToGrid(val: number): number {
@@ -1528,10 +1520,46 @@ const ComponentShape: React.FC<{
         </>
       )}
 
-      {/* Potentiometer position */}
-      {comp.type === 'potentiometer' && (
-        <Text text={`${(comp.properties.position as number) ?? 50}%`} x={-12} y={-28} width={24} align="center" fontSize={8} fill="#aaa" listening={false} />
-      )}
+      {/* Potentiometer: the knob's pointer, turned to the wiper's setting.
+          Drawn here rather than baked into the artwork so that turning the knob
+          actually turns something — before this the only sign a pot had moved
+          was the percentage above it. */}
+      {comp.type === 'potentiometer' && (() => {
+        const position = getNumericValue(comp.properties.position, 50);
+        // Panel pots sweep about 270°, from seven o'clock round to five.
+        const sweptDegrees = POT_MIN_ANGLE + (POT_SWEEP * Math.min(100, Math.max(0, position))) / 100;
+        const radians = ((sweptDegrees - 90) * Math.PI) / 180;
+
+        return (
+          <>
+            <Line
+              points={[
+                Math.cos(radians) * POT_POINTER_INNER,
+                Math.sin(radians) * POT_POINTER_INNER,
+                Math.cos(radians) * POT_POINTER_OUTER,
+                Math.sin(radians) * POT_POINTER_OUTER,
+              ]}
+              stroke="#f2f6fa"
+              strokeWidth={1.8}
+              lineCap="round"
+              shadowColor="#000"
+              shadowBlur={2}
+              listening={false}
+              perfectDrawEnabled={false}
+            />
+            <Text
+              text={`${Math.round(position)}%`}
+              x={-19}
+              y={-30}
+              width={38}
+              align="center"
+              fontSize={8}
+              fill="#aaa"
+              listening={false}
+            />
+          </>
+        );
+      })()}
 
       {/* Joystick axes */}
       {comp.type === 'joystick' && (
@@ -2312,6 +2340,32 @@ const CircuitCanvas: React.FC = () => {
   const wires = useCircuitStore((s) => s.wires);
   const selectedComponentId = useCircuitStore((s) => s.selectedComponentId);
   const selectedWireId = useCircuitStore((s) => s.selectedWireId);
+
+  /** Konva cannot read a stylesheet, so the board's own colours come from here. */
+  const canvasTheme = getCanvasTheme(useCircuitStore((s) => s.theme));
+
+  /**
+   * Whether a selected cable's bend and plug handles will answer the mouse yet.
+   *
+   * They only exist while the cable is selected, so the first click of a
+   * double-click — the one that selects it — drops new targets under a cursor
+   * that is about to be clicked again. The second click then landed on a handle
+   * instead of the cable: it deleted a bend, or pulled a plug out of its
+   * socket, or simply broke the double-click in half so nothing happened at
+   * all. Holding them back until the gesture is over lets the cable answer both
+   * halves of its own double-click.
+   */
+  const [wireHandlesArmed, setWireHandlesArmed] = useState(false);
+  useEffect(() => {
+    if (!selectedWireId) {
+      setWireHandlesArmed(false);
+      return;
+    }
+
+    setWireHandlesArmed(false);
+    const timer = window.setTimeout(() => setWireHandlesArmed(true), WIRE_DOUBLE_CLICK_MS);
+    return () => window.clearTimeout(timer);
+  }, [selectedWireId]);
   const toolMode = useCircuitStore((s) => s.toolMode);
   const zoom = useCircuitStore((s) => s.zoom);
   const stagePos = useCircuitStore((s) => s.stagePos);
@@ -2392,6 +2446,24 @@ const CircuitCanvas: React.FC = () => {
   const solderedPinKeys = useMemo(
     () => getSolderedPinKeys(components, wires),
     [components, wires]
+  );
+
+  /**
+   * The bent bit of a leg: from where the artwork leaves it to the hole it is
+   * actually in.
+   *
+   * Seating a part lands one leg exactly on a hole and leaves the rest wherever
+   * the artwork's own leg spacing puts them — a resistor's legs are 7.46 holes
+   * apart, so its far leg stops about five pixels short of the hole it is
+   * connected to. It was connected all along; it just did not look it. A real
+   * part's legs are bent to reach, and now these are drawn bent too.
+   */
+  const breadboardLeads = useMemo(
+    () =>
+      getBreadboardContacts(components).filter(
+        (contact) => Math.hypot(contact.pinX - contact.holeX, contact.pinY - contact.holeY) > 0.5
+      ),
+    [components]
   );
 
   const [dismissedWarningsKey, setDismissedWarningsKey] = useState<string | null>(null);
@@ -3062,14 +3134,16 @@ const CircuitCanvas: React.FC = () => {
     const stage = stageRef.current;
     if (!stage) return null;
 
-    const pointer = stage.getPointerPosition();
-    if (!pointer) return null;
+    // Asked of the stage itself rather than worked out from the stored pan and
+    // zoom. Middle-button panning moves the Konva node before the store hears
+    // about it, and a wheel burst reads one stale anchor for the whole batch —
+    // either way the two disagree for a few frames, and anything placed from
+    // this during them landed offset by exactly that disagreement.
+    const pointer = stage.getRelativePointerPosition();
+    if (!pointer || !Number.isFinite(pointer.x) || !Number.isFinite(pointer.y)) return null;
 
-    return {
-      x: (pointer.x - stagePos.x) / zoom,
-      y: (pointer.y - stagePos.y) / zoom,
-    };
-  }, [stagePos, zoom]);
+    return { x: pointer.x, y: pointer.y };
+  }, []);
 
   /** Latest pointer reader, so the window key handler can use it without being
    *  torn down and rebuilt every time the view is panned or zoomed. */
@@ -3632,21 +3706,139 @@ const CircuitCanvas: React.FC = () => {
     [captureUndoSnapshot, updateWirePoints]
   );
 
+  /**
+   * Where the last click on a cable landed, so a double-click can be checked.
+   *
+   * Konva's own double-click window is global and takes no account of where the
+   * two clicks were, and it is not cleared once it has fired — so two ordinary
+   * clicks anywhere on the same cable within four hundred milliseconds counted
+   * as a double-click and put a bend in, and a third quick click put in
+   * another. That is where the bends nobody asked for came from.
+   */
+  /**
+   * The click before this one, kept apart from this one.
+   *
+   * Konva fires `click` and then `dblclick` off the same button release, so a
+   * single ref would be overwritten by the second click before the check ran —
+   * and the second click always agrees with itself.
+   */
+  const wireClicksRef = useRef<{ previous: WireClick | null; latest: WireClick | null }>({
+    previous: null,
+    latest: null,
+  });
+
+  const noteWireClick = useCallback(
+    (wireId: string) => {
+      const pointer = getWorldPointerPosition();
+      if (!pointer) return;
+      wireClicksRef.current = {
+        previous: wireClicksRef.current.latest,
+        latest: { wireId, x: pointer.x, y: pointer.y, at: Date.now() },
+      };
+    },
+    [getWorldPointerPosition]
+  );
+
+  /** Whether the click before this one was the other half of the same gesture. */
+  const isDeliberateDoubleClick = useCallback(
+    (wireId: string, x: number, y: number) =>
+      isSameGesture(wireClicksRef.current.previous, { wireId, x, y, at: Date.now() }),
+    []
+  );
+
+  /**
+   * Dragging a cable's body breaks it there and drags the new bend.
+   *
+   * The double-click is kept, but it can never be the only way in: a gesture
+   * that has to be recognised from timing is a gesture that fires when you did
+   * not mean it. Pulling the cable where you want it to go cannot be mistaken
+   * for anything else, and it shows you the result as you make it.
+   */
+  const wireDragBendRef = useRef<{
+    wireId: string;
+    startX: number;
+    startY: number;
+    pointIndex: number | null;
+  } | null>(null);
+
+  const beginWireDragBend = useCallback(
+    (wireId: string, event: Konva.KonvaEventObject<MouseEvent>) => {
+      if (event.evt.button !== 0) return;
+      const pointer = getWorldPointerPosition();
+      if (!pointer) return;
+
+      // Dragging from the cable must not also start a pan or a selection box.
+      event.cancelBubble = true;
+      wireDragBendRef.current = { wireId, startX: pointer.x, startY: pointer.y, pointIndex: null };
+    },
+    [getWorldPointerPosition]
+  );
+
+  useEffect(() => {
+    const handleMove = () => {
+      const drag = wireDragBendRef.current;
+      if (!drag) return;
+
+      const pointer = getWorldPointerPosition();
+      if (!pointer) return;
+
+      if (drag.pointIndex === null) {
+        const travelled = Math.hypot(pointer.x - drag.startX, pointer.y - drag.startY);
+        if (travelled < WIRE_DRAG_BEND_THRESHOLD) return;
+
+        const wire = useCircuitStore.getState().wires.find((item) => item.id === drag.wireId);
+        if (!wire) return;
+
+        // The bend goes in where the drag *started* — the point on the cable
+        // the user took hold of — and follows the pointer from there.
+        const insertion = findWireBendInsertion(wire.points, drag.startX, drag.startY);
+        if (!insertion) return;
+
+        captureUndoSnapshot();
+        const nextPoints = [...wire.points];
+        nextPoints.splice(insertion.index + 2, 0, insertion.x, insertion.y);
+        updateWirePoints(drag.wireId, nextPoints);
+        selectWire(drag.wireId);
+        drag.pointIndex = insertion.index + 2;
+      }
+
+      handleWireBendDrag(drag.wireId, drag.pointIndex, pointer.x, pointer.y);
+    };
+
+    const handleUp = () => {
+      if (!wireDragBendRef.current) return;
+      wireDragBendRef.current = null;
+      setAlignGuides([]);
+    };
+
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', handleUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMove);
+      window.removeEventListener('mouseup', handleUp);
+    };
+  }, [captureUndoSnapshot, getWorldPointerPosition, handleWireBendDrag, selectWire, updateWirePoints]);
+
   /** Double-clicking a cable adds a bend on the segment nearest the pointer. */
   const handleWireAddBend = useCallback(
     (wireId: string) => {
       const wire = useCircuitStore.getState().wires.find((item) => item.id === wireId);
       const pointer = getWorldPointerPosition();
       if (!wire || !pointer) return;
+      if (!isDeliberateDoubleClick(wireId, pointer.x, pointer.y)) return;
 
-      const segmentIndex = findClosestSegmentIndex(wire.points, pointer.x, pointer.y);
+      // Spent: whatever happens next is a new gesture, not a third click of
+      // this one.
+      wireClicksRef.current = { previous: null, latest: null };
+
+      const nextPoints = withWireBendAt(wire.points, pointer.x, pointer.y);
+      if (!nextPoints) return;
+
       captureUndoSnapshot();
-      const nextPoints = [...wire.points];
-      nextPoints.splice(segmentIndex + 2, 0, pointer.x, pointer.y);
       updateWirePoints(wireId, nextPoints);
       selectWire(wireId);
     },
-    [captureUndoSnapshot, getWorldPointerPosition, selectComponent, selectWire, updateWirePoints]
+    [captureUndoSnapshot, getWorldPointerPosition, isDeliberateDoubleClick, selectWire, updateWirePoints]
   );
 
   const handleWireEndDragMove = useCallback(
@@ -4176,7 +4368,10 @@ const CircuitCanvas: React.FC = () => {
     return board ? getBreadboardHoleGlobal(wiringStart.pinId, board, board.variant) : null;
   })();
 
-  // One canvas shape instead of 8000 Konva nodes
+  // One canvas shape instead of 8000 Konva nodes. Redrawn when the theme
+  // changes, which the dependency below is the whole reason for: the shape is
+  // memoised, so without it the dots would keep the colour they were born with.
+  const gridColor = canvasTheme.grid;
   const gridDots = useMemo(
     () => (
       <Shape
@@ -4192,12 +4387,12 @@ const CircuitCanvas: React.FC = () => {
               context.arc(x, y, GRID_DOT_RADIUS, 0, Math.PI * 2, false);
             }
           }
-          context.fillStyle = '#1e1e3a';
+          context.fillStyle = gridColor;
           context.fill();
         }}
       />
     ),
-    []
+    [gridColor]
   );
 
   const componentTarget: Extract<ContextMenuTarget, { kind: 'component' }> | null =
@@ -4549,7 +4744,7 @@ const CircuitCanvas: React.FC = () => {
                             width={60}
                             height={13}
                             cornerRadius={3}
-                            fill="rgba(8, 20, 16, 0.88)"
+                            fill={canvasTheme.pinLabelFill}
                             stroke="#4ecca3"
                             strokeWidth={0.6}
                             listening={false}
@@ -4657,7 +4852,7 @@ const CircuitCanvas: React.FC = () => {
             y={-5000}
             width={10000}
             height={10000}
-            fill="#0e0e1e"
+            fill={canvasTheme.background}
           />
 
           {/* Grid dots */}
@@ -4763,6 +4958,21 @@ const CircuitCanvas: React.FC = () => {
             .filter((comp) => isBreadboardType(comp.type))
             .map(renderComponent)}
 
+          {/* Legs bent to reach their holes. Over the board, under the parts:
+              the lead comes out from beneath the body, the way it does on a
+              real one. */}
+          {breadboardLeads.map((lead) => (
+            <Line
+              key={`lead-${lead.componentId}-${lead.pinId}`}
+              points={[lead.pinX, lead.pinY, lead.holeX, lead.holeY]}
+              stroke={LEAD_COLOR}
+              strokeWidth={LEAD_WIDTH}
+              lineCap="round"
+              listening={false}
+              perfectDrawEnabled={false}
+            />
+          ))}
+
           {/* Wires - 3D style */}
           {wires.map((wire) => {
             const isWireSelected = selectedWireId === wire.id;
@@ -4780,9 +4990,21 @@ const CircuitCanvas: React.FC = () => {
                 <Line points={drawPoints.map((v, i) => i % 2 === 1 ? v + 1.5 : v)} stroke="#000" strokeWidth={wireWidth + 0.8} opacity={0.2} lineCap="round" lineJoin="round" listening={false} />
                 {/* Main cable */}
                 <Line points={drawPoints} stroke={wire.color} strokeWidth={wireWidth} lineCap="round" lineJoin="round" hitStrokeWidth={Math.max(12, wireWidth + 8)}
+                  // A cable stops listening while wiring, the same as a board
+                  // does. Its click band is wider than a hole pitch and sits
+                  // right on the hole it ends in, so it was catching the click
+                  // meant for that hole — which is why a second cable could not
+                  // be plugged in beside the first one. The hole even lit up
+                  // green, because the highlight never asked the hit test.
+                  listening={toolMode !== 'wire'}
+                  onMouseDown={(e) => {
+                    if (toolMode !== 'select') return;
+                    beginWireDragBend(wire.id, e);
+                  }}
                   onClick={() => {
                     if (toolMode === 'delete') { removeWire(wire.id); }
                     else {
+                      noteWireClick(wire.id);
                       selectWire(wire.id);
                     }
                   }}
@@ -4816,7 +5038,7 @@ const CircuitCanvas: React.FC = () => {
                     return (
                       <Line
                         points={drawPoints}
-                        stroke={FLOW_IDLE_COLOR}
+                        stroke={canvasTheme.flowIdle}
                         strokeWidth={Math.max(1, wireWidth * 0.5)}
                         dash={FLOW_IDLE_DASH}
                         opacity={FLOW_IDLE_OPACITY}
@@ -4833,10 +5055,10 @@ const CircuitCanvas: React.FC = () => {
                     <Shape
                       id={`flow-${wire.id}`}
                       name="flow-mark"
-                      fill="#9ef7ff"
-                      stroke="#0b2233"
+                      fill={canvasTheme.flowFill}
+                      stroke={canvasTheme.flowStroke}
                       strokeWidth={0.5}
-                      shadowColor="#4aa3ff"
+                      shadowColor={canvasTheme.flowGlow}
                       shadowBlur={5}
                       opacity={0.98}
                       perfectDrawEnabled={false}
@@ -4870,6 +5092,7 @@ const CircuitCanvas: React.FC = () => {
                       stroke={wire.color}
                       strokeWidth={1.6}
                       hitStrokeWidth={14}
+                      listening={wireHandlesArmed}
                       draggable
                       onDragStart={(e) => {
                         e.cancelBubble = true;
@@ -4919,6 +5142,7 @@ const CircuitCanvas: React.FC = () => {
                         x={wire.points[index]}
                         y={wire.points[index + 1]}
                         radius={WIRE_PLUG_HANDLE_RADIUS}
+                        listening={wireHandlesArmed}
                         fill={dragging ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.14)'}
                         stroke="#fff"
                         strokeWidth={1.8}
@@ -5073,7 +5297,7 @@ const CircuitCanvas: React.FC = () => {
                         <Line
                           key={key}
                           points={[from.x, from.y, to.x, to.y]}
-                          stroke={FLOW_IDLE_COLOR}
+                          stroke={canvasTheme.flowIdle}
                           strokeWidth={1.4}
                           dash={FLOW_IDLE_DASH}
                           opacity={FLOW_IDLE_OPACITY}
@@ -5089,10 +5313,10 @@ const CircuitCanvas: React.FC = () => {
                         key={key}
                         id={`partflow-${key}`}
                         name="flow-mark"
-                        fill="#9ef7ff"
-                        stroke="#0b2233"
+                        fill={canvasTheme.flowFill}
+                        stroke={canvasTheme.flowStroke}
                         strokeWidth={0.5}
-                        shadowColor="#4aa3ff"
+                        shadowColor={canvasTheme.flowGlow}
                         shadowBlur={5}
                         opacity={0.98}
                         perfectDrawEnabled={false}
@@ -5296,7 +5520,7 @@ const CircuitCanvas: React.FC = () => {
               y={Math.min(marquee.y1, marquee.y2)}
               width={Math.abs(marquee.x2 - marquee.x1)}
               height={Math.abs(marquee.y2 - marquee.y1)}
-              fill="rgba(94, 160, 255, 0.12)"
+              fill={canvasTheme.marqueeFill}
               stroke="#5ea0ff"
               strokeWidth={1}
               dash={[4, 4]}
