@@ -8,7 +8,7 @@ export const LANGUAGE_OPTIONS: Array<{ value: AppLanguage; label: string }> = [
   { value: 'tr', label: 'Türkçe' },
 ];
 
-const UI_STRINGS = {
+export const UI_STRINGS = {
   en: {
     appTitle: 'OtisIDE',
     componentsPanel: 'Components',
@@ -48,7 +48,7 @@ const UI_STRINGS = {
     preparing: 'Preparing...',
     detectedBoard: 'Detected',
     language: 'Language',
-    appearance: 'Appearance',
+    appearance: 'Canvas',
     themeDark: 'Dark',
     themeLight: 'Light',
     zoomReset: 'Reset zoom',
@@ -158,6 +158,7 @@ const UI_STRINGS = {
     historyTitleFallback: 'New chat',
     circuitEmpty: 'The circuit is empty - no components have been added yet.',
     currentCircuit: 'Current circuit:',
+    flowHint: 'Hint: press Shift to see the current flow',
     componentsLabel: 'Components',
     wiresLabel: 'Wires',
     noWiresYet: 'No wires yet',
@@ -352,7 +353,7 @@ const UI_STRINGS = {
     preparing: 'Hazırlanıyor...',
     detectedBoard: 'Algılanan',
     language: 'Dil',
-    appearance: 'Görünüm',
+    appearance: 'Tuval',
     themeDark: 'Koyu',
     themeLight: 'Açık',
     zoomReset: 'Yakınlaştırmayı sıfırla',
@@ -462,6 +463,7 @@ const UI_STRINGS = {
     historyTitleFallback: 'Yeni sohbet',
     circuitEmpty: 'Devre boş - henüz bileşen eklenmedi.',
     currentCircuit: 'Mevcut devre:',
+    flowHint: 'İpucu: akımı görmek için Shift\'e bas',
     componentsLabel: 'Bileşenler',
     wiresLabel: 'Kablolar',
     noWiresYet: 'Henüz kablo yok',

@@ -12,18 +12,7 @@
         background: #1a1a2e;
         color: #e0e0e0;
       }
-      html[data-theme='light'] body { background: #f4f7fa; color: #16232e; }
     </style>
-    <script>
-      // Before the first paint, so opening in light mode does not start dark.
-      // The store reads the same key and takes over from here.
-      try {
-        document.documentElement.dataset.theme =
-          localStorage.getItem('app_theme') === 'light' ? 'light' : 'dark';
-      } catch (error) {
-        document.documentElement.dataset.theme = 'dark';
-      }
-    </script>
   </head>
   <body>
     <div id="root"></div>

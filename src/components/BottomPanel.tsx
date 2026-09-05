@@ -17,32 +17,6 @@ import {
 } from '../lib/i18n';
 
 const configureEditorTheme = (monaco: Monaco) => {
-  monaco.editor.defineTheme('ai-circuit-light', {
-    base: 'vs',
-    inherit: true,
-    rules: [
-      { token: 'comment', foreground: '6b7f8c', fontStyle: 'italic' },
-      { token: 'keyword', foreground: 'b4530a' },
-      { token: 'number', foreground: '8a6100' },
-      { token: 'string', foreground: '0b6d5f' },
-      { token: 'type.identifier', foreground: '1a5fa8' },
-    ],
-    colors: {
-      'editor.background': '#ffffff',
-      'editor.foreground': '#16232e',
-      'editor.lineHighlightBackground': '#eef3f8',
-      'editorLineNumber.foreground': '#9aacb9',
-      'editorLineNumber.activeForeground': '#d4650f',
-      'editorCursor.foreground': '#0f8f7d',
-      'editor.selectionBackground': '#cfe4f5',
-      'editor.inactiveSelectionBackground': '#e6eef5',
-      'editorIndentGuide.background1': '#e2e9ef',
-      'editorIndentGuide.activeBackground1': '#b9c7d3',
-      'editorWhitespace.foreground': '#dbe3ea',
-      'editorGutter.background': '#ffffff',
-    },
-  });
-
   monaco.editor.defineTheme('ai-circuit-dark', {
     base: 'vs-dark',
     inherit: true,
@@ -229,7 +203,6 @@ const BottomPanel: React.FC = () => {
    * circuit's own history could not reach it: this is Monaco's, not ours.
    */
   const viewResetToken = useCircuitStore((s) => s.viewResetToken);
-  const theme = useCircuitStore((s) => s.theme);
   const setCode = useCircuitStore((s) => s.setCode);
   const serialOutput = useCircuitStore((s) => s.simulation.serialOutput);
   const oscilloscopeTraces = useCircuitStore((s) => s.simulation.oscilloscopeTraces);
@@ -640,7 +613,7 @@ const BottomPanel: React.FC = () => {
                     wordWrap: 'on',
                   }}
                   path={`sketch-${viewResetToken}.ino`}
-                  theme={theme === 'light' ? 'ai-circuit-light' : 'ai-circuit-dark'}
+                  theme="ai-circuit-dark"
                   value={code}
                 />
               </div>

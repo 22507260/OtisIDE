@@ -60,69 +60,6 @@
   --placeholder: rgba(189, 213, 234, 0.54);
 }
 
-/*
- * Light mode.
- *
- * Only the palette moves; every rule below reads these and nothing else, which
- * is what the four --page/--canvas/--panel variables above are for. Greys and
- * whites, with the same accents so the app is still recognisably itself.
- */
-:root[data-theme='light'] {
-  --bg-primary: #eef2f6;
-  --bg-secondary: rgba(255, 255, 255, 0.94);
-  --bg-tertiary: #dbe4ec;
-  --bg-panel: rgba(255, 255, 255, 0.9);
-  --bg-hover: rgba(15, 40, 62, 0.07);
-  --bg-active: rgba(214, 106, 26, 0.14);
-  --bg-soft: rgba(15, 40, 62, 0.05);
-  --text-primary: #16232e;
-  --text-secondary: #47606f;
-  --text-muted: #7b8e9c;
-  --accent: #d4650f;
-  --accent-hover: #b8560c;
-  --accent-green: #0f8f7d;
-  --accent-blue: #1f6fc4;
-  --accent-yellow: #b58207;
-  --accent-orange: #d4650f;
-  --border: rgba(31, 63, 88, 0.16);
-  --border-strong: rgba(31, 63, 88, 0.28);
-  --shadow: rgba(31, 63, 88, 0.12);
-  --shadow-strong: rgba(31, 63, 88, 0.2);
-
-  --page-glow-a: rgba(15, 143, 125, 0.1);
-  --page-glow-b: rgba(212, 101, 15, 0.1);
-  --page-from: #f4f7fa;
-  --page-to: #e4eaf0;
-  --page-rule: rgba(31, 63, 88, 0.07);
-  --page-rule-opacity: 0.5;
-  --page-vignette: rgba(31, 63, 88, 0.06);
-  --canvas-glow: rgba(15, 143, 125, 0.06);
-  --canvas-from: #ffffff;
-  --canvas-to: #e9eef3;
-  --canvas-inset: rgba(31, 63, 88, 0.05);
-  --panel-from: rgba(255, 255, 255, 0.97);
-  --panel-to: rgba(238, 243, 247, 0.97);
-
-  --chrome-from: rgba(255, 255, 255, 0.96);
-  --chrome-to: rgba(233, 239, 245, 0.96);
-  --surface-from: rgba(255, 255, 255, 0.97);
-  --surface-to: rgba(236, 242, 247, 0.97);
-  --titlebar-from: rgba(252, 253, 255, 0.97);
-  --titlebar-to: rgba(235, 241, 246, 0.95);
-  --sunken: rgba(255, 255, 255, 0.95);
-  --sunken-strong: rgba(255, 255, 255, 0.92);
-  /* A lift on white has to be a shadow, not more white. */
-  --raise: rgba(31, 63, 88, 0.04);
-  --raise-strong: rgba(31, 63, 88, 0.06);
-  --editor-bg: #ffffff;
-  --overlay: rgba(255, 255, 255, 0.86);
-  --accent-tint: rgba(212, 101, 15, 0.12);
-  --accent-tint-border: rgba(212, 101, 15, 0.36);
-  /* Dark enough to read on its own tint, which the pale one never was. */
-  --accent-on-tint: #8a3f06;
-  --placeholder: rgba(71, 96, 111, 0.66);
-}
-
 * {
   margin: 0;
   padding: 0;
@@ -1379,6 +1316,39 @@ body::after {
   color: var(--accent-on-tint);
   background: rgba(255, 140, 66, 0.12);
   border-color: rgba(255, 140, 66, 0.2);
+}
+
+/* The same pill as the zoom badge, in the opposite corner. */
+.flow-hint {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  z-index: 10;
+  max-width: min(300px, 40%);
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--overlay);
+  color: var(--text-secondary);
+  font-size: 11px;
+  pointer-events: none;
+  animation: flow-hint-in 0.2s ease-out;
+}
+
+/* Clear of the warnings bar, which is tall enough for three lines of them. */
+.flow-hint.below-warnings {
+  top: 104px;
+}
+
+@keyframes flow-hint-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .zoom-info {

@@ -76,6 +76,8 @@ import { isCircuitScreenTarget, isTextEntryTarget } from '../lib/keyboardTarget'
 import { getSolderedPinKeys, pinKey } from '../lib/solderedPins';
 import { getBreadboardContacts } from '../lib/breadboardContacts';
 import { getCanvasTheme } from '../lib/canvasTheme';
+import { getFlowPace } from '../lib/flowPace';
+import { getProbeFanAngles, rotateAround } from '../lib/probeFan';
 import { getPrimaryProperty, stepPropertyValue } from '../lib/propertyRanges';
 import { roundWirePoints } from '../lib/wireGeometry';
 import {
@@ -106,6 +108,16 @@ const MULTIMETER_RED_V_ANCHOR = { x: 36, y: 103 };
 const MULTIMETER_RED_A_ANCHOR = { x: -36, y: 103 };
 const PROBE_IMAGE_WIDTH = 24;
 const PROBE_IMAGE_HEIGHT = 72;
+/**
+ * Where a probe is picked up: the middle of the handle, not the needle.
+ *
+ * The grab circle used to sit on the tip, so two probes on one leg had exactly
+ * coincident hit areas — leaning the bodies apart would have made them look
+ * separate while the one underneath stayed impossible to catch. The handle runs
+ * from about fourteen units above the tip to sixty; halfway up is both where
+ * the drawing is and where a hand would go.
+ */
+const PROBE_GRIP_OFFSET = -34;
 /** How far the pointer must travel before a click becomes a selection box. */
 const MARQUEE_THRESHOLD = 4;
 /** How near a wire has to be to level before it is pulled straight. */
@@ -116,50 +128,6 @@ const WHEEL_UNDO_GROUPING_MS = 600;
 const WIRE_DRAG_BEND_THRESHOLD = 4;
 /** Below this there is nothing worth drawing as a flow. */
 const FLOW_MIN_CURRENT = 1e-6;
-/** How fast the marks travel, in canvas units per second at one amp. */
-const FLOW_SPEED = 260;
-/** …and the pace a barely-conducting circuit still crawls along at. */
-const FLOW_MIN_SPEED = 22;
-/**
- * Closer than this and two probes are drawn on top of one another.
- *
- * Only just far enough to tell them apart: the probe body is about fourteen
- * units across and the grab circle eight, so eighteen clears both. Further than
- * that and the probes stop looking clipped to the leg they are measuring —
- * fifty-eight, which is what this used to be, is five breadboard holes.
- */
-const PROBE_FAN_DISTANCE = 18;
-
-/**
- * Nudges two probe tips apart when they land on the same spot.
- *
- * Clipped to the same leg — or to two legs a couple of pixels apart — the two
- * probes cover each other completely and there is no telling which is which,
- * nor any way to grab the one underneath. Pushing them to opposite sides of
- * where they actually are keeps both visible and both grabbable; it is only the
- * drawing that moves, never what they are measuring.
- */
-function fanOutProbeTips(
-  black: { x: number; y: number },
-  red: { x: number; y: number }
-): { black: { x: number; y: number }; red: { x: number; y: number } } {
-  const dx = red.x - black.x;
-  const dy = red.y - black.y;
-  const distance = Math.hypot(dx, dy);
-  if (distance >= PROBE_FAN_DISTANCE) return { black, red };
-
-  // Sitting exactly on top of each other gives no line to push along, so pick
-  // one: sideways, which is how you would lay two probes down by hand.
-  const [ux, uy] = distance < 0.01 ? [1, 0] : [dx / distance, dy / distance];
-  const push = (PROBE_FAN_DISTANCE - distance) / 2;
-
-  return {
-    black: { x: black.x - ux * push, y: black.y - uy * push },
-    red: { x: red.x + ux * push, y: red.y + uy * push },
-  };
-}
-
-/** How far apart the arrowheads sit along a cable. */
 const FLOW_ARROW_SPACING = 140;
 const FLOW_ARROW_LENGTH = 3;
 const FLOW_ARROW_WIDTH = 2.4;
@@ -196,7 +164,8 @@ function drawFlowArrows(
   shape: Konva.Shape,
   points: number[],
   direction: number,
-  travelled: number
+  travelled: number,
+  requestedSpacing: number
 ): void {
   if (points.length < 4) return;
 
@@ -223,7 +192,7 @@ function drawFlowArrows(
   // spacing closes up to the cable's own length, which leaves exactly one mark
   // still travelling. Sparse everywhere else must not mean blank on the short
   // links, and a mark parked in the middle would not read as flow at all.
-  const spacing = Math.min(FLOW_ARROW_SPACING, total);
+  const spacing = Math.min(requestedSpacing > 0 ? requestedSpacing : FLOW_ARROW_SPACING, total);
 
   // Where the first mark sits this frame; the rest follow at a fixed spacing.
   const start = (((direction * travelled) % spacing) + spacing) % spacing;
@@ -2319,6 +2288,15 @@ const CircuitCanvas: React.FC = () => {
   const [alignGuides, setAlignGuides] = useState<AlignGuide[]>([]);
   /** Shift shows where the current is going, for as long as it is held. */
   const [flowVisible, setFlowVisible] = useState(false);
+
+  /**
+   * Whether the "press Shift" hint has been answered this run.
+   *
+   * Deliberately not `flowVisible`: that is a toggle, so reading it would bring
+   * the hint back the moment someone turned the arrows off again — which is
+   * exactly when they have proved they did not need telling.
+   */
+  const [flowHintAnswered, setFlowHintAnswered] = useState(false);
   /** Bend points placed since the wire was started, as a flat x,y list. */
   const [wiringPath, setWiringPath] = useState<number[]>([]);
   /** Mirror of the wiring state so the keyboard handler can read it. */
@@ -2818,6 +2796,7 @@ const CircuitCanvas: React.FC = () => {
       if (!isCircuitScreenTarget(e.target, containerRef.current)) return;
 
       setFlowVisible((visible) => !visible);
+      setFlowHintAnswered(true);
     };
 
     window.addEventListener('keydown', down);
@@ -2825,6 +2804,14 @@ const CircuitCanvas: React.FC = () => {
   }, []);
 
   const flowRunning = flowVisible && simulation.running;
+
+  // Every run asks again. Someone who knows the shortcut dismisses it with the
+  // shortcut itself, which costs them nothing; someone who does not gets told
+  // every time until they do.
+  const simulationRunning = simulation.running;
+  useEffect(() => {
+    if (simulationRunning) setFlowHintAnswered(false);
+  }, [simulationRunning]);
 
   // The latest currents, for the animation to read without being restarted.
   const wireFlowRef = useRef(simulation.wireFlow);
@@ -2857,11 +2844,15 @@ const CircuitCanvas: React.FC = () => {
           ? partFlowRef.current[id.slice('partflow-'.length)] ?? 0
           : wireFlowRef.current[id.slice('flow-'.length)] ?? 0;
         if (current === 0) continue;
-        const speed = Math.max(
-          FLOW_MIN_SPEED,
-          Math.min(FLOW_SPEED, Math.abs(current) * FLOW_SPEED)
-        );
-        node.setAttr('flowTravelled', phase * speed);
+
+        // Speed and spacing come from the same reading on the same frame, so
+        // they can never describe two different currents. The spacing rides
+        // along as an attribute for the same reason the phase does: putting it
+        // in React state would redraw every part on the canvas sixty times a
+        // second to move an arrowhead.
+        const pace = getFlowPace(current);
+        node.setAttr('flowTravelled', phase * pace.speed);
+        node.setAttr('flowSpacing', pace.spacing);
       }
 
       layer.batchDraw();
@@ -5070,7 +5061,8 @@ const CircuitCanvas: React.FC = () => {
                           shape,
                           drawPoints,
                           direction,
-                          Number(shape.getAttr('flowTravelled')) || 0
+                          Number(shape.getAttr('flowTravelled')) || 0,
+                          Number(shape.getAttr('flowSpacing')) || 0
                         );
                       }}
                     />
@@ -5328,7 +5320,8 @@ const CircuitCanvas: React.FC = () => {
                             shape,
                             [from.x, from.y, to.x, to.y],
                             direction,
-                            Number(shape.getAttr('flowTravelled')) || 0
+                            Number(shape.getAttr('flowTravelled')) || 0,
+                            Number(shape.getAttr('flowSpacing')) || 0
                           );
                         }}
                       />
@@ -5341,21 +5334,23 @@ const CircuitCanvas: React.FC = () => {
           {components
             .filter((comp) => comp.type === 'multimeter')
             .map((comp) => {
-              const fanned = fanOutProbeTips(
-                getMultimeterProbeWorldPosition(comp, 'black'),
-                getMultimeterProbeWorldPosition(comp, 'red')
-              );
-              const blackTip = fanned.black;
-              const redTip = fanned.red;
+              // Straight from the pin: a tip sits on what it is measuring and
+              // stays there. Only the bodies move.
+              const blackTip = getMultimeterProbeWorldPosition(comp, 'black');
+              const redTip = getMultimeterProbeWorldPosition(comp, 'red');
+              const fan = getProbeFanAngles(blackTip, redTip);
               const blackAnchor = getMultimeterProbeAnchorWorldPosition(comp, 'black');
               const redAnchor = getMultimeterProbeAnchorWorldPosition(comp, 'red');
               const mode = getMultimeterMode(comp.properties.mode);
               const blackRotation =
                 (Math.atan2(blackTip.y - blackAnchor.y, blackTip.x - blackAnchor.x) * 180) /
                   Math.PI -
-                90;
+                90 +
+                fan.black;
               const redRotation =
-                (Math.atan2(redTip.y - redAnchor.y, redTip.x - redAnchor.x) * 180) / Math.PI - 90;
+                (Math.atan2(redTip.y - redAnchor.y, redTip.x - redAnchor.x) * 180) / Math.PI -
+                90 +
+                fan.red;
 
               /**
                * Where the lead actually joins the probe: the boot at the back of
@@ -5378,8 +5373,10 @@ const CircuitCanvas: React.FC = () => {
                 return { x: tip.x - (dx / length) * back, y: tip.y - (dy / length) * back };
               };
 
-              const blackCable = cableEnd(blackTip, blackAnchor);
-              const redCable = cableEnd(redTip, redAnchor);
+              // Turned with the body it joins, or the lead would hang in mid
+              // air where the handle used to be.
+              const blackCable = rotateAround(cableEnd(blackTip, blackAnchor), blackTip, fan.black);
+              const redCable = rotateAround(cableEnd(redTip, redAnchor), redTip, fan.red);
 
               return (
                 <Group key={`${comp.id}-multimeter-probes`}>
@@ -5470,7 +5467,11 @@ const CircuitCanvas: React.FC = () => {
                       event.cancelBubble = true;
                     }}
                   >
-                    <Circle radius={8} fill="rgba(255,255,255,0.001)" />
+                    <Circle
+                      y={PROBE_GRIP_OFFSET}
+                      radius={11}
+                      fill="rgba(255,255,255,0.001)"
+                    />
                     {multimeterBlackProbeImage && (
                       <KonvaImage
                         image={multimeterBlackProbeImage}
@@ -5498,7 +5499,11 @@ const CircuitCanvas: React.FC = () => {
                       event.cancelBubble = true;
                     }}
                   >
-                    <Circle radius={8} fill="rgba(255,255,255,0.001)" />
+                    <Circle
+                      y={PROBE_GRIP_OFFSET}
+                      radius={11}
+                      fill="rgba(255,255,255,0.001)"
+                    />
                     {multimeterRedProbeImage && (
                       <KonvaImage
                         image={multimeterRedProbeImage}
@@ -5529,6 +5534,17 @@ const CircuitCanvas: React.FC = () => {
           )}
         </Layer>
       </Stage>
+
+      {/* How to see the current. Dropped below the warnings bar when there is
+          one: that sits top-centre and grows to nine tenths of a narrow canvas,
+          so the two would meet. Hiding the hint instead would have meant nobody
+          with a warning on screen — which is most people, most of the time —
+          ever saw it. */}
+      {simulation.running && !flowHintAnswered && (
+        <div className={`flow-hint${visibleWarnings.length > 0 ? ' below-warnings' : ''}`}>
+          {t(language, 'flowHint')}
+        </div>
+      )}
 
       {/* Zoom indicator */}
       <div className="zoom-info">

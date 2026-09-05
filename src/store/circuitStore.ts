@@ -86,7 +86,7 @@ interface CircuitStore {
   clearErrorLog: () => void;
   language: AppLanguage;
   setLanguage: (language: AppLanguage) => void;
-  /** Light or dark, for the whole window — canvas, panels and editor alike. */
+  /** Light or dark, for the canvas only; the chrome around it stays dark. */
   theme: AppTheme;
   setTheme: (theme: AppTheme) => void;
 
@@ -385,18 +385,13 @@ const loadLanguage = (): AppLanguage => {
 /**
  * Dark unless someone has said otherwise.
  *
- * Read and applied before React mounts (see applyAppTheme below), so the window
- * never flashes the wrong colour on the way in.
+ * This is the canvas's own setting and nothing else's: the chrome around it —
+ * toolbar, panels, editor — is dark whatever this says. A light workspace is
+ * for looking at a circuit; a light IDE was not what was wanted.
  */
 const loadAppTheme = (): AppTheme => {
   const stored = readStorage(APP_THEME_STORAGE_KEY);
   return stored === 'light' ? 'light' : 'dark';
-};
-
-/** Puts the theme where CSS can see it. */
-export const applyAppTheme = (theme: AppTheme): void => {
-  if (typeof document === 'undefined') return;
-  document.documentElement.dataset.theme = theme;
 };
 
 const loadAIProvider = (): AIProvider => {
@@ -503,7 +498,6 @@ const persistAIConversationState = (
 export const useCircuitStore = create<CircuitStore>((set, get) => {
   const initialLanguage = loadLanguage();
   const initialTheme = loadAppTheme();
-  applyAppTheme(initialTheme);
   const initialAIConversations = loadAIConversations(
     getDefaultConversationTitle(initialLanguage)
   );
@@ -834,7 +828,6 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
   theme: initialTheme,
   setTheme: (theme) => {
     writeStorage(APP_THEME_STORAGE_KEY, theme);
-    applyAppTheme(theme);
     set({ theme });
   },
 
