@@ -1260,12 +1260,11 @@ export const COMPONENT_CATALOG: ComponentInfo[] = [
   { type: 'motor-driver', name: 'Motor Driver', category: 'Other', icon: 'DRV' },
 ];
 
-export const WIRE_COLORS = [
-  { name: 'Red', value: '#e74c3c' },
-  { name: 'Black', value: '#2c3e50' },
-  { name: 'Green', value: '#27ae60' },
-  { name: 'Blue', value: '#3498db' },
-  { name: 'Yellow', value: '#f1c40f' },
-  { name: 'Orange', value: '#e67e22' },
-  { name: 'White', value: '#ecf0f1' },
-];
+/**
+ * What a cable is until someone says otherwise.
+ *
+ * There used to be a fixed palette of seven here and a picker on the toolbar
+ * to choose between them. The colour is a free `#rrggbb` now, so all that is
+ * left of the palette is the one a new cable starts as.
+ */
+export const WIRE_DEFAULT_COLOR = '#e74c3c';

@@ -158,7 +158,9 @@ export const UI_STRINGS = {
     historyTitleFallback: 'New chat',
     circuitEmpty: 'The circuit is empty - no components have been added yet.',
     currentCircuit: 'Current circuit:',
-    flowHint: 'Hint: press Shift to see the current flow',
+    flowHint: 'Hint: press Shift to see which way the current is going',
+    stepUp: 'Increase (hold to keep going)',
+    stepDown: 'Decrease (hold to keep going)',
     componentsLabel: 'Components',
     wiresLabel: 'Wires',
     noWiresYet: 'No wires yet',
@@ -463,7 +465,9 @@ export const UI_STRINGS = {
     historyTitleFallback: 'Yeni sohbet',
     circuitEmpty: 'Devre boş - henüz bileşen eklenmedi.',
     currentCircuit: 'Mevcut devre:',
-    flowHint: 'İpucu: akımı görmek için Shift\'e bas',
+    flowHint: 'İpucu: Shift\'e basarak akım yönünü görebilirsiniz',
+    stepUp: 'Artır (basılı tutunca devam eder)',
+    stepDown: 'Azalt (basılı tutunca devam eder)',
     componentsLabel: 'Bileşenler',
     wiresLabel: 'Kablolar',
     noWiresYet: 'Henüz kablo yok',
@@ -942,16 +946,6 @@ const PROPERTY_NAME_TR: Partial<Record<string, string>> = {
   timeWindowMs: 'Zaman Penceresi (ms)',
 };
 
-const WIRE_COLOR_NAME_TR: Record<string, string> = {
-  Red: 'Kırmızı',
-  Black: 'Siyah',
-  Green: 'Yeşil',
-  Blue: 'Mavi',
-  Yellow: 'Sarı',
-  Orange: 'Turuncu',
-  White: 'Beyaz',
-};
-
 export function t(
   language: AppLanguage,
   key: TranslationKey,
@@ -1053,17 +1047,6 @@ export function getPropertyDisplayName(
   }
 
   return PROPERTY_NAME_EN[key] ?? key;
-}
-
-export function getWireColorDisplayName(
-  language: AppLanguage,
-  fallback: string
-): string {
-  if (language === 'tr') {
-    return WIRE_COLOR_NAME_TR[fallback] ?? fallback;
-  }
-
-  return fallback;
 }
 
 export function getMultimeterModeLabel(

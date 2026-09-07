@@ -1,4 +1,4 @@
-﻿import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react';
+﻿import React, { useRef, useState, useCallback, useEffect, useLayoutEffect, useMemo } from 'react';
 import { Stage, Layer, Group, Rect, Line, Circle, Shape, Text, Image as KonvaImage } from 'react-konva';
 import { useCircuitStore } from '../store/circuitStore';
 import { useHardwareStore } from '../store/hardwareStore';
@@ -82,11 +82,11 @@ import { getPrimaryProperty, stepPropertyValue } from '../lib/propertyRanges';
 import { roundWirePoints } from '../lib/wireGeometry';
 import {
   WIRE_DOUBLE_CLICK_MS,
-  findWireBendInsertion,
   isSameGesture,
   withWireBendAt,
   type WireClick,
 } from '../lib/wireBend';
+import { FLOW_HINT_TOP, getFlowHintTop } from '../lib/hintPlacement';
 import { applyBuzzerVoices, stopAllBuzzers } from '../lib/buzzerAudio';
 import multimeterProbeRedSvg from '../assets/components/multimeter-probe-red.svg';
 import multimeterProbeBlackSvg from '../assets/components/multimeter-probe-black.svg';
@@ -2297,6 +2297,9 @@ const CircuitCanvas: React.FC = () => {
    * exactly when they have proved they did not need telling.
    */
   const [flowHintAnswered, setFlowHintAnswered] = useState(false);
+  const flowHintRef = useRef<HTMLDivElement | null>(null);
+  const circuitWarningsRef = useRef<HTMLDivElement | null>(null);
+  const [flowHintTop, setFlowHintTop] = useState(FLOW_HINT_TOP);
   /** Bend points placed since the wire was started, as a flat x,y list. */
   const [wiringPath, setWiringPath] = useState<number[]>([]);
   /** Mirror of the wiring state so the keyboard handler can read it. */
@@ -2782,6 +2785,14 @@ const CircuitCanvas: React.FC = () => {
     }
   }, [resolveWireEndpointPosition, wireDrag, wires]);
 
+  const simulationRunning = simulation.running;
+
+  /** The two the key handler needs, without being rebuilt on every change. */
+  const flowVisibleRef = useRef(flowVisible);
+  flowVisibleRef.current = flowVisible;
+  const simulationRunningRef = useRef(simulationRunning);
+  simulationRunningRef.current = simulationRunning;
+
   // Shift switches the arrows on, and Shift again switches them off. Holding it
   // down would have meant keeping a finger on the key to watch anything.
   useEffect(() => {
@@ -2794,24 +2805,59 @@ const CircuitCanvas: React.FC = () => {
       if (e.ctrlKey || e.metaKey || e.altKey) return;
       if (isTextEntryTarget(e.target)) return;
       if (!isCircuitScreenTarget(e.target, containerRef.current)) return;
+      // Nothing to switch on when nothing is running — and this is where the
+      // feature came apart. Shift is also how you add to a selection, so it
+      // got pressed while stopped, flipped this on with nothing to show for
+      // it, and the next run began with the arrows already lit. Doing what the
+      // hint then said turned them off.
+      if (!simulationRunningRef.current) return;
 
-      setFlowVisible((visible) => !visible);
-      setFlowHintAnswered(true);
+      const showing = !flowVisibleRef.current;
+      setFlowVisible(showing);
+      // Answered when the arrows come on: that is the moment the hint has been
+      // read and acted on. Switching them off again is a second press, and
+      // bringing the hint back then would be telling someone what they have
+      // just demonstrated they know.
+      if (showing) setFlowHintAnswered(true);
     };
 
     window.addEventListener('keydown', down);
     return () => window.removeEventListener('keydown', down);
   }, []);
 
-  const flowRunning = flowVisible && simulation.running;
+  const flowRunning = flowVisible && simulationRunning;
 
-  // Every run asks again. Someone who knows the shortcut dismisses it with the
-  // shortcut itself, which costs them nothing; someone who does not gets told
-  // every time until they do.
-  const simulationRunning = simulation.running;
+  // Every run starts with the arrows off and the hint back, so what the hint
+  // says is always true of the run it is shown during.
   useEffect(() => {
-    if (simulationRunning) setFlowHintAnswered(false);
+    setFlowVisible(false);
+    setFlowHintAnswered(false);
   }, [simulationRunning]);
+
+  // Keep the hint clear of the warnings bar by measuring the bar, not by
+  // guessing how tall it gets. It has no height limit, so any guess is one
+  // warning away from being wrong — and being wrong here is invisible, because
+  // the hint stays in the page and keeps reporting its text while covered.
+  useLayoutEffect(() => {
+    const measure = () => {
+      setFlowHintTop(
+        getFlowHintTop({
+          canvasWidth: containerRef.current?.clientWidth ?? 0,
+          warningsWidth: circuitWarningsRef.current?.offsetWidth ?? 0,
+          warningsHeight: circuitWarningsRef.current?.offsetHeight ?? 0,
+          hintWidth: flowHintRef.current?.offsetWidth ?? 0,
+        })
+      );
+    };
+
+    measure();
+
+    const bar = circuitWarningsRef.current;
+    if (!bar || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(bar);
+    return () => observer.disconnect();
+  }, [stageSize.width, visibleWarnings.length, simulationRunning, flowHintAnswered, language]);
 
   // The latest currents, for the animation to read without being restarted.
   const wireFlowRef = useRef(simulation.wireFlow);
@@ -3134,6 +3180,31 @@ const CircuitCanvas: React.FC = () => {
     if (!pointer || !Number.isFinite(pointer.x) || !Number.isFinite(pointer.y)) return null;
 
     return { x: pointer.x, y: pointer.y };
+  }, []);
+
+  /**
+   * The same world point, but worked out from a raw screen position.
+   *
+   * Konva only refreshes the pointer it reports from listeners on its own
+   * container, so the moment the cursor crosses onto a panel it keeps handing
+   * back the last place it saw inside the canvas. A drag tracked on `window`
+   * reads that stale value and freezes at the canvas edge. Going through the
+   * stage's own transform costs nothing and works wherever the cursor is.
+   */
+  const getWorldPointFromClient = useCallback((clientX: number, clientY: number) => {
+    const stage = stageRef.current;
+    if (!stage) return null;
+    if (!Number.isFinite(clientX) || !Number.isFinite(clientY)) return null;
+
+    const rect = stage.container().getBoundingClientRect();
+    const point = stage
+      .getAbsoluteTransform()
+      .copy()
+      .invert()
+      .point({ x: clientX - rect.left, y: clientY - rect.top });
+    if (!Number.isFinite(point.x) || !Number.isFinite(point.y)) return null;
+
+    return { x: point.x, y: point.y };
   }, []);
 
   /** Latest pointer reader, so the window key handler can use it without being
@@ -3766,11 +3837,13 @@ const CircuitCanvas: React.FC = () => {
   );
 
   useEffect(() => {
-    const handleMove = () => {
+    const handleMove = (event: MouseEvent) => {
       const drag = wireDragBendRef.current;
       if (!drag) return;
 
-      const pointer = getWorldPointerPosition();
+      // From the event, not from Konva: this listener carries on firing once
+      // the cursor is over a panel, and Konva's own reading does not.
+      const pointer = getWorldPointFromClient(event.clientX, event.clientY);
       if (!pointer) return;
 
       if (drag.pointIndex === null) {
@@ -3780,17 +3853,18 @@ const CircuitCanvas: React.FC = () => {
         const wire = useCircuitStore.getState().wires.find((item) => item.id === drag.wireId);
         if (!wire) return;
 
-        // The bend goes in where the drag *started* — the point on the cable
-        // the user took hold of — and follows the pointer from there.
-        const insertion = findWireBendInsertion(wire.points, drag.startX, drag.startY);
-        if (!insertion) return;
+        // The bend goes in where the drag started — where the cable was taken
+        // hold of — and follows the pointer from there. Through the same
+        // helper as the double-click, so the same refusals apply: this path
+        // used to skip them and could stack a second vertex on a corner,
+        // which draws as a hard kink.
+        const bend = withWireBendAt(wire.points, drag.startX, drag.startY);
+        if (!bend) return;
 
         captureUndoSnapshot();
-        const nextPoints = [...wire.points];
-        nextPoints.splice(insertion.index + 2, 0, insertion.x, insertion.y);
-        updateWirePoints(drag.wireId, nextPoints);
+        updateWirePoints(drag.wireId, bend.points);
         selectWire(drag.wireId);
-        drag.pointIndex = insertion.index + 2;
+        drag.pointIndex = bend.index;
       }
 
       handleWireBendDrag(drag.wireId, drag.pointIndex, pointer.x, pointer.y);
@@ -3808,9 +3882,9 @@ const CircuitCanvas: React.FC = () => {
       window.removeEventListener('mousemove', handleMove);
       window.removeEventListener('mouseup', handleUp);
     };
-  }, [captureUndoSnapshot, getWorldPointerPosition, handleWireBendDrag, selectWire, updateWirePoints]);
+  }, [captureUndoSnapshot, getWorldPointFromClient, handleWireBendDrag, selectWire, updateWirePoints]);
 
-  /** Double-clicking a cable adds a bend on the segment nearest the pointer. */
+  /** Double-clicking a cable adds a bend where the pointer is. */
   const handleWireAddBend = useCallback(
     (wireId: string) => {
       const wire = useCircuitStore.getState().wires.find((item) => item.id === wireId);
@@ -3822,11 +3896,11 @@ const CircuitCanvas: React.FC = () => {
       // this one.
       wireClicksRef.current = { previous: null, latest: null };
 
-      const nextPoints = withWireBendAt(wire.points, pointer.x, pointer.y);
-      if (!nextPoints) return;
+      const bend = withWireBendAt(wire.points, pointer.x, pointer.y);
+      if (!bend) return;
 
       captureUndoSnapshot();
-      updateWirePoints(wireId, nextPoints);
+      updateWirePoints(wireId, bend.points);
       selectWire(wireId);
     },
     [captureUndoSnapshot, getWorldPointerPosition, isDeliberateDoubleClick, selectWire, updateWirePoints]
@@ -5535,13 +5609,13 @@ const CircuitCanvas: React.FC = () => {
         </Layer>
       </Stage>
 
-      {/* How to see the current. Dropped below the warnings bar when there is
-          one: that sits top-centre and grows to nine tenths of a narrow canvas,
-          so the two would meet. Hiding the hint instead would have meant nobody
-          with a warning on screen — which is most people, most of the time —
-          ever saw it. */}
-      {simulation.running && !flowHintAnswered && (
-        <div className={`flow-hint${visibleWarnings.length > 0 ? ' below-warnings' : ''}`}>
+      {/* How to see the current. Dropped below the warnings bar when that
+          would otherwise cover it: the bar sits top-centre, grows to nine
+          tenths of a narrow canvas, and is stacked higher. Hiding the hint
+          instead would have meant nobody with a warning on screen — which is
+          most people, most of the time — ever saw it. */}
+      {simulationRunning && !flowHintAnswered && (
+        <div className="flow-hint" ref={flowHintRef} style={{ top: flowHintTop }}>
           {t(language, 'flowHint')}
         </div>
       )}
@@ -5553,7 +5627,7 @@ const CircuitCanvas: React.FC = () => {
 
       {/* Circuit warnings — burned parts, a sketch with nothing to run, a failed verify, etc. */}
       {visibleWarnings.length > 0 && (
-        <div className="circuit-warnings">
+        <div className="circuit-warnings" ref={circuitWarningsRef}>
           <div className="circuit-warnings-header">
             <div className="circuit-warnings-title">
               <svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true">

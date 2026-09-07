@@ -2,9 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { askToSaveChanges } from './SaveChangesDialog';
 import { useCircuitStore } from '../store/circuitStore';
 import { useHardwareStore } from '../store/hardwareStore';
-import { WIRE_COLORS } from '../models/types';
+import { ColorField } from './ColorField';
 import { CONTROLLER_BOARD_OPTIONS } from '../models/arduinoUno';
-import { getWireColorDisplayName, t } from '../lib/i18n';
+import { t } from '../lib/i18n';
 
 const Toolbar: React.FC = () => {
   const toolMode = useCircuitStore((s) => s.toolMode);
@@ -238,21 +238,15 @@ const Toolbar: React.FC = () => {
 
       {toolMode === 'wire' && (
         <>
-          <div className="wire-colors">
-            {WIRE_COLORS.map((color) => (
-              <button
-                key={color.value}
-                className={`wire-color-btn ${wireColor === color.value ? 'active' : ''}`}
-                style={{ background: color.value }}
-                onClick={() => {
-                  setWireColor(color.value);
-                  // A selected wire is recoloured straight away.
-                  if (selectedWireId) setWireColorById(selectedWireId, color.value);
-                }}
-                title={getWireColorDisplayName(language, color.name)}
-              />
-            ))}
-          </div>
+          <ColorField
+            value={wireColor}
+            title={t(language, 'wireColorTitle')}
+            onChange={(color) => {
+              setWireColor(color);
+              // A selected wire is recoloured straight away.
+              if (selectedWireId) setWireColorById(selectedWireId, color);
+            }}
+          />
           <div className="toolbar-separator" />
         </>
       )}

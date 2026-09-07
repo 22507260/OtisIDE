@@ -7,7 +7,6 @@ import {
 import { useCircuitStore } from '../store/circuitStore';
 import {
   COMPONENT_CATALOG,
-  WIRE_COLORS,
   WIRE_DEFAULT_WIDTH,
   WIRE_MIN_WIDTH,
   WIRE_MAX_WIDTH,
@@ -18,8 +17,9 @@ import {
   getBreadboardVariantForType,
   isBreadboardType,
 } from '../models/breadboard';
+import { ColorField } from './ColorField';
+import { PropertyStepper } from './PropertyStepper';
 import {
-  getWireColorDisplayName,
   getComponentDisplayName,
   getMultimeterModeLabel,
   getMultimeterStatusLabel,
@@ -73,40 +73,47 @@ const ResistanceRow: React.FC<{
   onCommit: (ohms: number) => void;
   onFocus: () => void;
   onWheel: (event: React.WheelEvent) => void;
-}> = ({ label, ohms, unit, onCommit, onFocus, onWheel }) => {
+  /** The arrows, which walk the same ladder the wheel does. */
+  stepper: React.ReactNode;
+}> = ({ label, ohms, unit, onCommit, onFocus, onWheel, stepper }) => {
   const [draft, setDraft] = React.useState<string | null>(null);
   const shown = draft ?? String(fromOhms(ohms, unit));
 
   return (
     <div className="property-row">
       <span className="property-label">{label}</span>
-      <input
-        className="property-input"
-        type="text"
-        inputMode="decimal"
-        value={shown}
-        onFocus={() => {
-          onFocus();
-          setDraft(String(fromOhms(ohms, unit)));
-        }}
-        onChange={(event) => {
-          const next = event.target.value;
-          setDraft(next);
+      <span className="property-field">
+        <input
+          className="property-input"
+          type="text"
+          inputMode="decimal"
+          value={shown}
+          onFocus={() => {
+            onFocus();
+            setDraft(String(fromOhms(ohms, unit)));
+          }}
+          onChange={(event) => {
+            const next = event.target.value;
+            setDraft(next);
 
-          const parsed = Number(next);
-          if (next.trim() !== '' && Number.isFinite(parsed)) {
-            onCommit(toOhms(parsed, unit));
-          }
-        }}
-        onBlur={() => setDraft(null)}
-        // The wheel walks the E12 ladder, the same as everywhere else. Without
-        // this the resistance was the one number in the panel that ignored it —
-        // and on a resistor it is the only number there is.
-        onWheel={(event) => {
-          setDraft(null);
-          onWheel(event);
-        }}
-      />
+            const parsed = Number(next);
+            if (next.trim() !== '' && Number.isFinite(parsed)) {
+              onCommit(toOhms(parsed, unit));
+            }
+          }}
+          onBlur={() => setDraft(null)}
+          // The wheel walks the E12 ladder, the same as everywhere else. Without
+          // this the resistance was the one number in the panel that ignored it —
+          // and on a resistor it is the only number there is.
+          onWheel={(event) => {
+            setDraft(null);
+            onWheel(event);
+          }}
+        />
+        {/* The draft goes too: an arrow moves the stored value, and half a
+            typed number left on screen would then be showing the old one. */}
+        <span onMouseDown={() => setDraft(null)}>{stepper}</span>
+      </span>
     </div>
   );
 };
@@ -189,18 +196,12 @@ const PropertiesPanel: React.FC = () => {
 
         <div className="property-group">
           <div className="property-group-title">{t(language, 'wireColorTitle')}</div>
-          <div className="wire-colors wire-colors-panel">
-            {WIRE_COLORS.map((color) => (
-              <button
-                key={color.value}
-                className={`wire-color-btn ${selectedWire.color === color.value ? 'active' : ''}`}
-                style={{ background: color.value }}
-                onClick={() => setWireColorById(selectedWire.id, color.value)}
-                title={getWireColorDisplayName(language, color.name)}
-                type="button"
-              />
-            ))}
-          </div>
+          <ColorField
+            value={selectedWire.color}
+            title={t(language, 'wireColorTitle')}
+            showHex
+            onChange={(color) => setWireColorById(selectedWire.id, color)}
+          />
         </div>
 
         <div className="property-group">
@@ -295,27 +296,115 @@ const PropertiesPanel: React.FC = () => {
   const numericRange = (key: string) => getPropertyRange(selectedComp.type, key);
 
   /**
+   * One undo point for a run of small edits.
+   *
+   * Clicking into a field records one on focus, but a wheel and a held arrow
+   * need no focus, so a run that starts from either records its own — and the
+   * whole run is one entry, not one per rung.
+   */
+  const groupUndo = () => {
+    const now = Date.now();
+    if (now - wheelUndoAtRef.current > WHEEL_UNDO_GROUPING_MS) captureUndoSnapshot();
+    wheelUndoAtRef.current = now;
+  };
+
+  /** One rung of a property's own ladder, however the request arrived. */
+  const stepProperty = (key: string, value: number, direction: 1 | -1) => {
+    const next = stepPropertyValue(displayComp.type, key, value, direction);
+    if (next === value) return;
+
+    groupUndo();
+    updateComponentProperty(selectedComp.id, key, next, { recordHistory: false });
+  };
+
+  /** Whether there is anywhere left to go; the arrow is dead if there is not. */
+  const canStepProperty = (key: string, value: number, direction: 1 | -1) =>
+    stepPropertyValue(displayComp.type, key, value, direction) !== value;
+
+  /**
    * Turning the wheel over a value changes it, without having to click in first.
    * Stops the page scrolling under the pointer at the same time, which is what
    * an unattended wheel over a form control does otherwise.
    */
   const wheelToStep = (key: string, value: number) => (event: React.WheelEvent) => {
     event.preventDefault();
-    const next = stepPropertyValue(
-      displayComp.type,
-      key,
-      value,
-      event.deltaY > 0 ? -1 : 1
-    );
-    if (next !== value) {
-      // One undo point for the whole turn: clicking in records one on focus,
-      // but the wheel needs no focus, so a turn that starts here records its own.
-      const now = Date.now();
-      if (now - wheelUndoAtRef.current > WHEEL_UNDO_GROUPING_MS) captureUndoSnapshot();
-      wheelUndoAtRef.current = now;
+    stepProperty(key, value, event.deltaY > 0 ? -1 : 1);
+  };
 
-      updateComponentProperty(selectedComp.id, key, next, { recordHistory: false });
-    }
+  /** The pair of arrows for a property, wired to the same ladder as the wheel. */
+  const propertyStepper = (key: string, value: number) => (
+    <PropertyStepper
+      onStep={(direction) => stepProperty(key, value, direction)}
+      canStepUp={canStepProperty(key, value, 1)}
+      canStepDown={canStepProperty(key, value, -1)}
+      upTitle={t(language, 'stepUp')}
+      downTitle={t(language, 'stepDown')}
+    />
+  );
+
+  /**
+   * A position, angle or size has no ladder behind it — no E12 rungs, no range
+   * table — so it steps by a fixed amount and is clamped where it has bounds.
+   */
+  const transformStep = (
+    value: number,
+    step: number,
+    direction: 1 | -1,
+    bounds?: { min?: number; max?: number }
+  ) => {
+    const raw = Number((value + step * direction).toFixed(4));
+    return Math.min(bounds?.max ?? Infinity, Math.max(bounds?.min ?? -Infinity, raw));
+  };
+
+  /**
+   * One of the four rows under Position. They were the only numbers in the
+   * panel the wheel did not reach, which made them the only ones an arrow
+   * would have been a surprise on; both work here now.
+   */
+  const transformRow = (
+    label: string,
+    value: number,
+    step: number,
+    apply: (next: number) => void,
+    bounds?: { min?: number; max?: number }
+  ) => {
+    const move = (direction: 1 | -1) => {
+      const next = transformStep(value, step, direction, bounds);
+      if (next === value) return;
+      groupUndo();
+      apply(next);
+    };
+
+    return (
+      <div className="property-row">
+        <span className="property-label">{label}</span>
+        <span className="property-field">
+          <input
+            className="property-input"
+            type="number"
+            value={value}
+            step={step}
+            min={bounds?.min}
+            max={bounds?.max}
+            disabled={circuitLocked}
+            onFocus={captureUndoSnapshot}
+            onWheel={(event) => {
+              if (circuitLocked) return;
+              event.preventDefault();
+              move(event.deltaY > 0 ? -1 : 1);
+            }}
+            onChange={(event) => apply(Number(event.target.value))}
+          />
+          <PropertyStepper
+            onStep={move}
+            canStepUp={!circuitLocked && transformStep(value, step, 1, bounds) !== value}
+            canStepDown={!circuitLocked && transformStep(value, step, -1, bounds) !== value}
+            upTitle={t(language, 'stepUp')}
+            downTitle={t(language, 'stepDown')}
+          />
+        </span>
+      </div>
+    );
   };
   const liveProperties = simulation.componentStates[selectedComp.id] ?? null;
   const displayComp =
@@ -403,78 +492,31 @@ const PropertiesPanel: React.FC = () => {
 
       <div className="property-group">
         <div className="property-group-title">{t(language, 'position')}</div>
-        <div className="property-row">
-          <span className="property-label">X</span>
-          <input
-            className="property-input"
-            type="number"
-            value={displayComp.x}
-            disabled={circuitLocked}
-            onFocus={captureUndoSnapshot}
-            onChange={(event) =>
-              updateComponentTransform(
-                selectedComp.id,
-                { x: Number(event.target.value) },
-                { recordHistory: false }
-              )
-            }
-          />
-        </div>
-        <div className="property-row">
-          <span className="property-label">Y</span>
-          <input
-            className="property-input"
-            type="number"
-            value={displayComp.y}
-            disabled={circuitLocked}
-            onFocus={captureUndoSnapshot}
-            onChange={(event) =>
-              updateComponentTransform(
-                selectedComp.id,
-                { y: Number(event.target.value) },
-                { recordHistory: false }
-              )
-            }
-          />
-        </div>
-        <div className="property-row">
-          <span className="property-label">{t(language, 'angle')}</span>
-          <input
-            className="property-input"
-            type="number"
-            value={displayComp.rotation}
-            step={5}
-            disabled={circuitLocked}
-            onFocus={captureUndoSnapshot}
-            onChange={(event) =>
-              updateComponentTransform(
-                selectedComp.id,
-                { rotation: Number(event.target.value) },
-                { recordHistory: false }
-              )
-            }
-          />
-        </div>
-        <div className="property-row">
-          <span className="property-label">{t(language, 'size')}</span>
-          <input
-            className="property-input"
-            type="number"
-            value={displayComp.scale ?? 1}
-            step={0.1}
-            min={MIN_COMPONENT_SCALE}
-            max={MAX_COMPONENT_SCALE}
-            disabled={circuitLocked}
-            onFocus={captureUndoSnapshot}
-            onChange={(event) =>
-              updateComponentTransform(
-                selectedComp.id,
-                { scale: clampComponentScale(Number(event.target.value)) },
-                { recordHistory: false }
-              )
-            }
-          />
-        </div>
+        {transformRow('X', displayComp.x, 1, (next) =>
+          updateComponentTransform(selectedComp.id, { x: next }, { recordHistory: false })
+        )}
+        {transformRow('Y', displayComp.y, 1, (next) =>
+          updateComponentTransform(selectedComp.id, { y: next }, { recordHistory: false })
+        )}
+        {transformRow(t(language, 'angle'), displayComp.rotation, 5, (next) =>
+          updateComponentTransform(
+            selectedComp.id,
+            { rotation: next },
+            { recordHistory: false }
+          )
+        )}
+        {transformRow(
+          t(language, 'size'),
+          displayComp.scale ?? 1,
+          0.1,
+          (next) =>
+            updateComponentTransform(
+              selectedComp.id,
+              { scale: clampComponentScale(next) },
+              { recordHistory: false }
+            ),
+          { min: MIN_COMPONENT_SCALE, max: MAX_COMPONENT_SCALE }
+        )}
         <div className="property-row">
           <span className="property-label">{t(language, 'mirror')}</span>
           <input
@@ -527,6 +569,10 @@ const PropertiesPanel: React.FC = () => {
                   })
                 }
                 onWheel={wheelToStep(
+                  'resistance',
+                  Number.isFinite(resistanceOhms) ? resistanceOhms : 0
+                )}
+                stepper={propertyStepper(
                   'resistance',
                   Number.isFinite(resistanceOhms) ? resistanceOhms : 0
                 )}
@@ -659,27 +705,31 @@ const PropertiesPanel: React.FC = () => {
                 <span className="property-slider-value">
                   {clampPropertyValue(displayComp.type, key, value)}
                 </span>
+                {propertyStepper(key, value)}
               </span>
             ) : (
-              <input
-                className="property-input"
-                type={typeof value === 'number' ? 'number' : 'text'}
-                value={value as string | number}
-                onWheel={typeof value === 'number' ? wheelToStep(key, value) : undefined}
-                min={typeof value === 'number' ? numericRange(key)?.min : undefined}
-                max={typeof value === 'number' ? numericRange(key)?.max : undefined}
-                step={typeof value === 'number' ? numericRange(key)?.step : undefined}
-                onFocus={captureUndoSnapshot}
-                onChange={(event) => {
-                  const newValue =
-                    typeof value === 'number'
-                      ? clampPropertyValue(displayComp.type, key, Number(event.target.value))
-                      : event.target.value;
-                  updateComponentProperty(selectedComp.id, key, newValue, {
-                    recordHistory: false,
-                  });
-                }}
-              />
+              <span className="property-field">
+                <input
+                  className="property-input"
+                  type={typeof value === 'number' ? 'number' : 'text'}
+                  value={value as string | number}
+                  onWheel={typeof value === 'number' ? wheelToStep(key, value) : undefined}
+                  min={typeof value === 'number' ? numericRange(key)?.min : undefined}
+                  max={typeof value === 'number' ? numericRange(key)?.max : undefined}
+                  step={typeof value === 'number' ? numericRange(key)?.step : undefined}
+                  onFocus={captureUndoSnapshot}
+                  onChange={(event) => {
+                    const newValue =
+                      typeof value === 'number'
+                        ? clampPropertyValue(displayComp.type, key, Number(event.target.value))
+                        : event.target.value;
+                    updateComponentProperty(selectedComp.id, key, newValue, {
+                      recordHistory: false,
+                    });
+                  }}
+                />
+                {typeof value === 'number' && propertyStepper(key, value)}
+              </span>
             )}
           </div>
           );

@@ -1,33 +1,31 @@
 import { describe, expect, it } from 'vitest';
-import { findWireBendInsertion, isSameGesture, withWireBendAt } from '../wireBend';
-
-/** Shortest distance from a point to a polyline, for checking a bend landed on it. */
-function distanceToRun(points: number[], x: number, y: number): number {
-  let best = Infinity;
-  for (let i = 0; i + 3 < points.length; i += 2) {
-    const ax = points[i];
-    const ay = points[i + 1];
-    const dx = points[i + 2] - ax;
-    const dy = points[i + 3] - ay;
-    const lengthSq = dx * dx + dy * dy;
-    const t = lengthSq === 0 ? 0 : Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / lengthSq));
-    best = Math.min(best, Math.hypot(x - (ax + t * dx), y - (ay + t * dy)));
-  }
-  return best;
-}
+import {
+  WIRE_BEND_MAX_DISTANCE,
+  findWireBendInsertion,
+  isSameGesture,
+  withWireBendAt,
+} from '../wireBend';
 
 describe('findWireBendInsertion', () => {
   const elbow = [0, 0, 100, 0, 100, 100];
 
-  it('puts the bend on the cable, not where the pointer was', () => {
-    // Nine units to one side of the first leg — inside the click band, well
-    // outside the drawn cable.
+  it('puts the bend where the pointer is', () => {
+    // Nine units to one side of the first leg: inside the click band, well
+    // outside the drawn cable. The previous version moved this onto the cable,
+    // which put the bend a visible distance from the click.
     const insertion = findWireBendInsertion(elbow, 40, 9);
 
     expect(insertion).not.toBeNull();
-    expect(insertion!.x).toBeCloseTo(40, 6);
-    expect(insertion!.y).toBeCloseTo(0, 6);
-    expect(insertion!.distance).toBeCloseTo(9, 6);
+    expect(insertion!.x).toBe(40);
+    expect(insertion!.y).toBe(9);
+  });
+
+  it('still reports the nearest point on the cable, and how far off it was', () => {
+    const insertion = findWireBendInsertion(elbow, 40, 9)!;
+
+    expect(insertion.footX).toBeCloseTo(40, 6);
+    expect(insertion.footY).toBeCloseTo(0, 6);
+    expect(insertion.distance).toBeCloseTo(9, 6);
   });
 
   it('picks the segment the pointer is actually nearest', () => {
@@ -35,12 +33,23 @@ describe('findWireBendInsertion', () => {
     expect(findWireBendInsertion(elbow, 104, 60)!.index).toBe(2);
   });
 
-  it('clamps to the corner rather than running off the end of a segment', () => {
-    // Beyond the elbow on both axes: the foot is the corner itself.
-    const insertion = findWireBendInsertion(elbow, 140, -40);
+  it('refuses a click too far from the cable to have meant it', () => {
+    // The distance was being computed and thrown away, so a click anywhere at
+    // all found the nearest segment of the whole run and bent that.
+    expect(findWireBendInsertion(elbow, 40, WIRE_BEND_MAX_DISTANCE + 1)).toBeNull();
+    expect(findWireBendInsertion(elbow, 400, 400)).toBeNull();
+  });
 
-    expect(insertion!.x).toBeCloseTo(100, 6);
-    expect(insertion!.y).toBeCloseTo(0, 6);
+  it('accepts a click right at the edge of the band', () => {
+    expect(findWireBendInsertion(elbow, 40, WIRE_BEND_MAX_DISTANCE)).not.toBeNull();
+  });
+
+  it('measures a click past a corner from the corner, not from the line extended', () => {
+    const insertion = findWireBendInsertion(elbow, 104, -3)!;
+
+    expect(insertion.footX).toBeCloseTo(100, 6);
+    expect(insertion.footY).toBeCloseTo(0, 6);
+    expect(insertion.distance).toBeCloseTo(5, 6);
   });
 
   it('refuses a run with a non-finite coordinate instead of guessing', () => {
@@ -56,33 +65,54 @@ describe('findWireBendInsertion', () => {
 });
 
 describe('withWireBendAt', () => {
-  it('splices the new point between the ends of its own segment', () => {
-    const next = withWireBendAt([0, 0, 100, 0, 100, 100], 40, 9);
+  const elbow = [0, 0, 100, 0, 100, 100];
 
-    expect(next).toEqual([0, 0, 40, 0, 100, 0, 100, 100]);
+  it('splices the pointer itself between the ends of its own segment', () => {
+    expect(withWireBendAt(elbow, 40, 9)!.points).toEqual([0, 0, 40, 9, 100, 0, 100, 100]);
   });
 
-  it('leaves every added point sitting on the original run', () => {
-    const original = [0, 0, 100, 0, 100, 100, 200, 100];
-    const next = withWireBendAt(original, 150, 112)!;
+  it('reports where it put the new point, for a caller about to drag it', () => {
+    const bend = withWireBendAt(elbow, 40, 9)!;
 
-    // The point that was added, wherever it went in.
-    for (let i = 0; i + 1 < next.length; i += 2) {
-      expect(distanceToRun(original, next[i], next[i + 1])).toBeLessThan(1e-6);
-    }
+    expect(bend.index).toBe(2);
+    expect(bend.points[bend.index]).toBe(40);
+    expect(bend.points[bend.index + 1]).toBe(9);
+  });
+
+  it('bends an elbow that is clicked on its outside corner', () => {
+    // Both segments measure this from the corner, so the foot landed exactly on
+    // a point the cable already had and the guard below threw the bend away.
+    // Double-clicking an elbow did nothing whatsoever.
+    const bend = withWireBendAt(elbow, 101.5, -1.2);
+
+    expect(bend).not.toBeNull();
+    expect(bend!.points).toContain(101.5);
+    expect(bend!.points).toContain(-1.2);
+    expect(bend!.points.length).toBe(elbow.length + 2);
+  });
+
+  it('refuses a click that is nowhere near the cable', () => {
+    expect(withWireBendAt(elbow, 40, 40)).toBeNull();
   });
 
   it('will not stack a bend on a point the cable already has', () => {
     // A vertex on top of a vertex does nothing but wait to be dragged by
-    // accident.
-    expect(withWireBendAt([0, 0, 100, 0, 100, 100], 100.2, 0.1)).toBeNull();
+    // accident. Measured from the pointer now, which is the thing being placed.
+    expect(withWireBendAt(elbow, 100.2, 0.1)).toBeNull();
   });
 
   it('keeps the ends where they were plugged in', () => {
-    const next = withWireBendAt([0, 0, 100, 0, 100, 100], 60, 6)!;
+    const next = withWireBendAt(elbow, 60, 6)!.points;
 
     expect(next.slice(0, 2)).toEqual([0, 0]);
     expect(next.slice(-2)).toEqual([100, 100]);
+  });
+
+  it('adds one point and leaves the rest of the route alone', () => {
+    const original = [0, 0, 100, 0, 100, 100, 200, 100];
+    const next = withWireBendAt(original, 150, 104)!.points;
+
+    expect(next).toEqual([0, 0, 100, 0, 100, 100, 150, 104, 200, 100]);
   });
 });
 

@@ -467,6 +467,74 @@ body::after {
   color: var(--text-primary);
 }
 
+/* A value and its arrows. The arrows sit inside the field's right edge rather
+   than beside it, so the properties column is exactly as wide as it was. */
+.property-field {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+}
+
+.property-field .property-input {
+  padding-right: 24px;
+}
+
+.property-stepper {
+  position: absolute;
+  right: 5px;
+  top: 50%;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  transform: translateY(-50%);
+}
+
+/* Chromium draws its own spinner on a number field, but only once the pointer
+   is already over it — which is no help to anyone who does not know it is
+   there. That is the whole complaint, so ours is always visible and its is
+   gone; two sets of arrows in one field would be worse than none. */
+.property-input[type='number'] {
+  appearance: none;
+}
+
+.property-input[type='number']::-webkit-inner-spin-button,
+.property-input[type='number']::-webkit-outer-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
+.property-stepper-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 9px;
+  padding: 0;
+  border: none;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: color var(--transition), background var(--transition);
+}
+
+.property-stepper-btn:hover:not(:disabled) {
+  background: var(--accent-tint);
+  color: var(--accent-on-tint);
+}
+
+.property-stepper-btn:disabled {
+  opacity: 0.28;
+  cursor: default;
+}
+
+/* On a slider the arrows follow the readout instead of overlaying anything. */
+.property-slider .property-stepper {
+  position: static;
+  transform: none;
+}
+
 .toolbar-select-compact {
   min-width: 118px;
 }
@@ -1267,25 +1335,58 @@ body::after {
   color: #ffb37e;
 }
 
-.wire-colors {
+/* A colour, picked or typed. The swatch is the platform's own colour input
+   wearing a round border; nothing here is a fixed palette any more. */
+.color-field {
   display: flex;
-  gap: 6px;
+  align-items: center;
+  gap: 8px;
   padding: 4px;
 }
 
-.wire-color-btn {
-  width: 22px;
-  height: 22px;
+.color-field-swatch {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  flex: none;
+  overflow: hidden;
+  border: 2px solid rgba(255, 255, 255, 0.35);
   border-radius: 50%;
-  border: 2px solid transparent;
   cursor: pointer;
   transition: transform var(--transition), border-color var(--transition);
 }
 
-.wire-color-btn:hover,
-.wire-color-btn.active {
+.color-field-swatch:hover {
   transform: scale(1.08);
   border-color: #ffffff;
+}
+
+/* The native control draws its own inset swatch and frame; both are in the way
+   of a round well, so they go and the input fills its label instead. */
+.color-field-swatch input[type='color'] {
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  appearance: none;
+}
+
+.color-field-swatch input[type='color']::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.color-field-swatch input[type='color']::-webkit-color-swatch {
+  border: none;
+}
+
+.color-field-hex {
+  width: auto;
+  min-width: 0;
+  flex: 1;
+  padding: 6px 8px;
+  font-family: 'Cascadia Code', 'Consolas', monospace;
 }
 
 .tab-bar {
@@ -1318,7 +1419,8 @@ body::after {
   border-color: rgba(255, 140, 66, 0.2);
 }
 
-/* The same pill as the zoom badge, in the opposite corner. */
+/* The same pill as the zoom badge, in the opposite corner. `top` is set from
+   the component, which measures the warnings bar rather than guessing at it. */
 .flow-hint {
   position: absolute;
   right: 10px;
@@ -1333,11 +1435,6 @@ body::after {
   font-size: 11px;
   pointer-events: none;
   animation: flow-hint-in 0.2s ease-out;
-}
-
-/* Clear of the warnings bar, which is tall enough for three lines of them. */
-.flow-hint.below-warnings {
-  top: 104px;
 }
 
 @keyframes flow-hint-in {
@@ -1964,16 +2061,6 @@ body::after {
   color: #04141b;
   border-color: transparent;
   background: linear-gradient(120deg, var(--accent-green), var(--accent-blue));
-}
-
-.wire-colors-panel {
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.wire-colors-panel .wire-color-btn {
-  width: 24px;
-  height: 24px;
 }
 
 /* ===== Crash screen ===== */

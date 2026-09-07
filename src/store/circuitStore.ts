@@ -14,7 +14,7 @@ import {
   DEFAULT_AI_PROVIDER,
   createComponent,
   ComponentType,
-  WIRE_COLORS,
+  WIRE_DEFAULT_COLOR,
   WIRE_MIN_WIDTH,
   WIRE_MAX_WIDTH,
   WIRE_DEFAULT_WIDTH,
@@ -313,6 +313,9 @@ const MAX_UNDO_HISTORY = 100;
 const MAX_ERROR_LOG_ENTRIES = 200;
 /** How far a pasted copy lands from the part it came from. */
 const PASTE_OFFSET = 24;
+/** How long a stream of colour changes counts as one edit in the history. */
+const WIRE_COLOR_UNDO_GROUPING_MS = 600;
+let lastWireColorUndoAt = 0;
 
 function getBoardLogicHighVoltage(boardType: ControllerBoardType): number {
   switch (boardType) {
@@ -780,7 +783,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
   // Wires
   wires: draft?.wires ?? [],
   selectedWireId: null,
-  wireColor: WIRE_COLORS[0].value,
+  wireColor: WIRE_DEFAULT_COLOR,
 
   // Tool
   toolMode: 'select',
@@ -1175,7 +1178,12 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
     const wire = get().wires.find((item) => item.id === id);
     if (!wire || wire.color === color) return;
 
-    pushUndoSnapshot();
+    // A colour picker reports every shade the pointer crosses, so one drag
+    // across the spectrum is one edit, not two hundred. Same grouping the
+    // properties panel gives a wheel being turned.
+    const now = Date.now();
+    if (now - lastWireColorUndoAt > WIRE_COLOR_UNDO_GROUPING_MS) pushUndoSnapshot();
+    lastWireColorUndoAt = now;
     set((s) => ({
       wires: s.wires.map((item) => (item.id === id ? { ...item, color } : item)),
     }));
