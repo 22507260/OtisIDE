@@ -87,6 +87,7 @@ import {
   type WireClick,
 } from '../lib/wireBend';
 import { FLOW_HINT_TOP, getFlowHintTop } from '../lib/hintPlacement';
+import { appendWiringBend, getWiringAnchor } from '../lib/wiringPath';
 import { applyBuzzerVoices, stopAllBuzzers } from '../lib/buzzerAudio';
 import multimeterProbeRedSvg from '../assets/components/multimeter-probe-red.svg';
 import multimeterProbeBlackSvg from '../assets/components/multimeter-probe-black.svg';
@@ -2286,9 +2287,6 @@ const CircuitCanvas: React.FC = () => {
   const [wiringMouse, setWiringMouse] = useState<{ x: number; y: number } | null>(null);
   /** The axes something has snapped to, so guides can be drawn along them. */
   const [alignGuides, setAlignGuides] = useState<AlignGuide[]>([]);
-  /** Shift shows where the current is going, for as long as it is held. */
-  const [flowVisible, setFlowVisible] = useState(false);
-
   /**
    * Whether the "press Shift" hint has been answered this run.
    *
@@ -2353,6 +2351,7 @@ const CircuitCanvas: React.FC = () => {
   const viewResetToken = useCircuitStore((s) => s.viewResetToken);
   const wireColor = useCircuitStore((s) => s.wireColor);
   const simulation = useCircuitStore((s) => s.simulation);
+  const flowVisible = useCircuitStore((s) => s.flowVisible);
   const code = useCircuitStore((s) => s.code);
   const boardType = useCircuitStore((s) => s.boardType);
   const boardPosition = useCircuitStore((s) => s.boardPosition);
@@ -2726,6 +2725,17 @@ const CircuitCanvas: React.FC = () => {
     };
   }, [wiringStart, wiringPath]);
 
+  /**
+   * The route so far, for the click handler to read.
+   *
+   * The click used to take the position out of React state through a closure,
+   * and its dependency list did not name it — so it was rebuilt only when the
+   * path changed, once per bend, and each bend went in where the pointer had
+   * been at the click before. Reading through a ref cannot go stale.
+   */
+  const wiringPathRef = useRef(wiringPath);
+  wiringPathRef.current = wiringPath;
+
   const clearTransientCanvasState = useCallback(() => {
     setWiringStart(null);
     setWiringMouse(null);
@@ -2787,14 +2797,9 @@ const CircuitCanvas: React.FC = () => {
 
   const simulationRunning = simulation.running;
 
-  /** The two the key handler needs, without being rebuilt on every change. */
-  const flowVisibleRef = useRef(flowVisible);
-  flowVisibleRef.current = flowVisible;
-  const simulationRunningRef = useRef(simulationRunning);
-  simulationRunningRef.current = simulationRunning;
-
   // Shift switches the arrows on, and Shift again switches them off. Holding it
-  // down would have meant keeping a finger on the key to watch anything.
+  // down would have meant keeping a finger on the key to watch anything. The
+  // toolbar button drives the same store action, so the two cannot disagree.
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
       if (e.key !== 'Shift') return;
@@ -2805,20 +2810,11 @@ const CircuitCanvas: React.FC = () => {
       if (e.ctrlKey || e.metaKey || e.altKey) return;
       if (isTextEntryTarget(e.target)) return;
       if (!isCircuitScreenTarget(e.target, containerRef.current)) return;
-      // Nothing to switch on when nothing is running — and this is where the
-      // feature came apart. Shift is also how you add to a selection, so it
-      // got pressed while stopped, flipped this on with nothing to show for
-      // it, and the next run began with the arrows already lit. Doing what the
-      // hint then said turned them off.
-      if (!simulationRunningRef.current) return;
 
-      const showing = !flowVisibleRef.current;
-      setFlowVisible(showing);
-      // Answered when the arrows come on: that is the moment the hint has been
-      // read and acted on. Switching them off again is a second press, and
-      // bringing the hint back then would be telling someone what they have
-      // just demonstrated they know.
-      if (showing) setFlowHintAnswered(true);
+      // Refused while stopped by the store itself — Shift is also how you add
+      // to a selection, and switching this on with nothing to show for it is
+      // what used to leave the next run's arrows already lit.
+      useCircuitStore.getState().toggleFlowVisible();
     };
 
     window.addEventListener('keydown', down);
@@ -2827,10 +2823,15 @@ const CircuitCanvas: React.FC = () => {
 
   const flowRunning = flowVisible && simulationRunning;
 
-  // Every run starts with the arrows off and the hint back, so what the hint
-  // says is always true of the run it is shown during.
+  // Answered the moment the arrows come on, by whichever route — the key or the
+  // button. Not when they go off again: that is someone switching off a thing
+  // they have just demonstrated they know how to switch on.
   useEffect(() => {
-    setFlowVisible(false);
+    if (flowVisible) setFlowHintAnswered(true);
+  }, [flowVisible]);
+
+  // A new run asks again.
+  useEffect(() => {
     setFlowHintAnswered(false);
   }, [simulationRunning]);
 
@@ -3647,11 +3648,20 @@ const CircuitCanvas: React.FC = () => {
         // Wiring in progress: the click bends the cable here instead of
         // dropping it, the way Tinkercad routes wires.
         if (wiringStart) {
-          // Where the preview is drawn, so a bend lands on the straightened
-          // line rather than a pixel off it.
-          const bend = wiringMouse ?? getWorldPointerPosition();
-          if (bend) {
-            setWiringPath((current) => [...current, bend.x, bend.y]);
+          // Read the pointer now. This used to take `wiringMouse` out of the
+          // closure, which this handler's dependencies did not name, so it was
+          // rebuilt once per bend and every bend after the first went in where
+          // the pointer had been at the click before it.
+          const pointer = getWorldPointerPosition();
+          if (pointer) {
+            // Straightened against the same anchor the preview uses, so the
+            // point committed is the point that was on screen. The old
+            // fallback used the raw pointer and put even a correct bend a
+            // little off the line it was drawn on.
+            const anchor = getWiringAnchor(wiringPathRef.current, wiringStart);
+            const bend = snapToAlignment(pointer, [anchor]).point;
+            const next = appendWiringBend(wiringPathRef.current, bend);
+            if (next) setWiringPath(next);
             setAlignGuides([]);
             return;
           }
@@ -3705,11 +3715,9 @@ const CircuitCanvas: React.FC = () => {
         }
 
         // Where this segment starts: the last bend placed, or the pin the
-        // cable came from.
-        const anchor =
-          wiringPath.length >= 2
-            ? { x: wiringPath[wiringPath.length - 2], y: wiringPath[wiringPath.length - 1] }
-            : { x: wiringStart.x, y: wiringStart.y };
+        // cable came from. The click applies the same rule, from the same
+        // helper, so the point that is committed is the point that was shown.
+        const anchor = getWiringAnchor(wiringPath, wiringStart);
 
         const aligned = snapToAlignment(pointer, [anchor]);
         setWiringMouse(aligned.point);

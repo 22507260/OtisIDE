@@ -3,8 +3,9 @@ import { askToSaveChanges } from './SaveChangesDialog';
 import { useCircuitStore } from '../store/circuitStore';
 import { useHardwareStore } from '../store/hardwareStore';
 import { ColorField } from './ColorField';
+import { WIRE_COLORS } from '../models/types';
 import { CONTROLLER_BOARD_OPTIONS } from '../models/arduinoUno';
-import { t } from '../lib/i18n';
+import { getWireColorDisplayName, t } from '../lib/i18n';
 
 const Toolbar: React.FC = () => {
   const toolMode = useCircuitStore((s) => s.toolMode);
@@ -14,7 +15,15 @@ const Toolbar: React.FC = () => {
   const setWireColor = useCircuitStore((s) => s.setWireColor);
   const selectedWireId = useCircuitStore((s) => s.selectedWireId);
   const setWireColorById = useCircuitStore((s) => s.setWireColorById);
+
+  /** Sets what the next cable will be, and recolours the selected one now. */
+  const pickWireColor = (color: string) => {
+    setWireColor(color);
+    if (selectedWireId) setWireColorById(selectedWireId, color);
+  };
   const simulation = useCircuitStore((s) => s.simulation);
+  const flowVisible = useCircuitStore((s) => s.flowVisible);
+  const toggleFlowVisible = useCircuitStore((s) => s.toggleFlowVisible);
   const startSimulation = useCircuitStore((s) => s.startSimulation);
   const requestValidation = useCircuitStore((s) => s.requestValidation);
   const stopSimulation = useCircuitStore((s) => s.stopSimulation);
@@ -238,14 +247,26 @@ const Toolbar: React.FC = () => {
 
       {toolMode === 'wire' && (
         <>
+          <div className="wire-colors">
+            {WIRE_COLORS.map((color) => (
+              <button
+                key={color.value}
+                className={`wire-color-btn ${wireColor === color.value ? 'active' : ''}`}
+                style={{ background: color.value }}
+                onClick={() => pickWireColor(color.value)}
+                title={getWireColorDisplayName(language, color.name)}
+                type="button"
+              />
+            ))}
+          </div>
+          {/* The picker is a different kind of thing from the presets beside
+              it; without this it reads as an eighth colour that happens to
+              change. */}
+          <div className="toolbar-separator" />
           <ColorField
             value={wireColor}
             title={t(language, 'wireColorTitle')}
-            onChange={(color) => {
-              setWireColor(color);
-              // A selected wire is recoloured straight away.
-              if (selectedWireId) setWireColorById(selectedWireId, color);
-            }}
+            onChange={pickWireColor}
           />
           <div className="toolbar-separator" />
         </>
@@ -408,6 +429,24 @@ const Toolbar: React.FC = () => {
             ? t(language, 'running')
             : t(language, 'stopped')}
         </span>
+      </div>
+
+      {/* Its own group: `.sim-controls` is a fixed 250px basis and its two
+          children already fill it, so a third would spill. */}
+      <div className="toolbar-group">
+        <button
+          className={`toolbar-btn ${flowVisible ? 'active' : ''}`}
+          onClick={toggleFlowVisible}
+          disabled={!simulation.running}
+          aria-pressed={flowVisible}
+          title={
+            simulation.running
+              ? t(language, 'showFlowTitle')
+              : t(language, 'showFlowStoppedTitle')
+          }
+        >
+          {t(language, 'showFlow')}
+        </button>
       </div>
 
       <div className="toolbar-spacer" />

@@ -158,7 +158,10 @@ export const UI_STRINGS = {
     historyTitleFallback: 'New chat',
     circuitEmpty: 'The circuit is empty - no components have been added yet.',
     currentCircuit: 'Current circuit:',
-    flowHint: 'Hint: press Shift to see which way the current is going',
+    flowHint: 'Hint: press Shift, or the Show Current button, to see which way the current is going',
+    showFlow: 'Show Current',
+    showFlowTitle: 'Show which way the current is going (Shift)',
+    showFlowStoppedTitle: 'Start the simulation first — there is no current to show yet',
     stepUp: 'Increase (hold to keep going)',
     stepDown: 'Decrease (hold to keep going)',
     componentsLabel: 'Components',
@@ -465,7 +468,10 @@ export const UI_STRINGS = {
     historyTitleFallback: 'Yeni sohbet',
     circuitEmpty: 'Devre boş - henüz bileşen eklenmedi.',
     currentCircuit: 'Mevcut devre:',
-    flowHint: 'İpucu: Shift\'e basarak akım yönünü görebilirsiniz',
+    flowHint: 'İpucu: Shift\'e basarak ya da Akımı Göster düğmesiyle akım yönünü görebilirsiniz',
+    showFlow: 'Akımı Göster',
+    showFlowTitle: 'Akımın hangi yöne gittiğini göster (Shift)',
+    showFlowStoppedTitle: 'Önce simülasyonu başlat — henüz gösterilecek akım yok',
     stepUp: 'Artır (basılı tutunca devam eder)',
     stepDown: 'Azalt (basılı tutunca devam eder)',
     componentsLabel: 'Bileşenler',
@@ -973,6 +979,31 @@ export function getComponentDisplayName(
 ): string {
   if (language === 'tr') {
     return COMPONENT_NAME_TR[type] ?? fallback;
+  }
+
+  return fallback;
+}
+
+/**
+ * The preset cable colours in Turkish.
+ *
+ * Exported so a test can hold it against `WIRE_COLORS`: an entry missing here
+ * falls through to the English name and shows up as an English tooltip in a
+ * Turkish window, which nothing else would catch.
+ */
+export const WIRE_COLOR_NAME_TR: Record<string, string> = {
+  Red: 'Kırmızı',
+  Black: 'Siyah',
+  Green: 'Yeşil',
+  Blue: 'Mavi',
+  Yellow: 'Sarı',
+  Orange: 'Turuncu',
+  White: 'Beyaz',
+};
+
+export function getWireColorDisplayName(language: AppLanguage, fallback: string): string {
+  if (language === 'tr') {
+    return WIRE_COLOR_NAME_TR[fallback] ?? fallback;
   }
 
   return fallback;

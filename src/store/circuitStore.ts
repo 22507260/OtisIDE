@@ -175,6 +175,18 @@ interface CircuitStore {
   selectWire: (id: string | null) => void;
   setWireColor: (color: string) => void;
 
+  /**
+   * Whether the current-flow arrows are drawn.
+   *
+   * Up here rather than in the canvas because the toolbar switches it too, and
+   * two copies of one switch is how a toggle ends up disagreeing with itself.
+   * Only ever true during a run: `startSimulation` and `stopSimulation` both
+   * clear it, so what the hint says is true of the run it is shown during.
+   */
+  flowVisible: boolean;
+  setFlowVisible: (visible: boolean) => void;
+  toggleFlowVisible: () => void;
+
   // Simulation
   simulation: SimulationState;
   startSimulation: () => void;
@@ -1236,6 +1248,16 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
 
   setWireColor: (color) => set({ wireColor: color }),
 
+  flowVisible: false,
+  setFlowVisible: (visible) => set({ flowVisible: visible }),
+  // Only while something is running: switching it on against a stopped circuit
+  // shows nothing, and then the next run would begin with the arrows already
+  // lit and the hint telling you to press the thing that turns them off.
+  toggleFlowVisible: () => {
+    if (!get().simulation.running) return;
+    set((s) => ({ flowVisible: !s.flowVisible }));
+  },
+
   // Simulation
   simulation: {
     running: false,
@@ -1265,6 +1287,11 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
         // Wiring and deleting are locked while it runs, so holding one of those
         // tools would leave the cursor promising something it cannot do.
         toolMode: s.toolMode === 'wire' || s.toolMode === 'delete' ? 'select' : s.toolMode,
+        // Every run starts with the arrows off, so the hint offering to turn
+        // them on is telling the truth. Reset here rather than in the canvas:
+        // it is the run that owns this, and the canvas is only one of the two
+        // things that can switch it.
+        flowVisible: false,
         simulation: {
           ...s.simulation,
           running: true,
@@ -1286,6 +1313,7 @@ export const useCircuitStore = create<CircuitStore>((set, get) => {
     set((s) => {
       stopMockArduinoRuntime();
       return {
+        flowVisible: false,
         simulation: {
           ...s.simulation,
           running: false,

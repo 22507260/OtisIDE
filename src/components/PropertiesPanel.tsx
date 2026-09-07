@@ -7,6 +7,7 @@ import {
 import { useCircuitStore } from '../store/circuitStore';
 import {
   COMPONENT_CATALOG,
+  WIRE_COLORS,
   WIRE_DEFAULT_WIDTH,
   WIRE_MIN_WIDTH,
   WIRE_MAX_WIDTH,
@@ -20,6 +21,7 @@ import {
 import { ColorField } from './ColorField';
 import { PropertyStepper } from './PropertyStepper';
 import {
+  getWireColorDisplayName,
   getComponentDisplayName,
   getMultimeterModeLabel,
   getMultimeterStatusLabel,
@@ -196,6 +198,18 @@ const PropertiesPanel: React.FC = () => {
 
         <div className="property-group">
           <div className="property-group-title">{t(language, 'wireColorTitle')}</div>
+          <div className="wire-colors wire-colors-panel">
+            {WIRE_COLORS.map((color) => (
+              <button
+                key={color.value}
+                className={`wire-color-btn ${selectedWire.color === color.value ? 'active' : ''}`}
+                style={{ background: color.value }}
+                onClick={() => setWireColorById(selectedWire.id, color.value)}
+                title={getWireColorDisplayName(language, color.name)}
+                type="button"
+              />
+            ))}
+          </div>
           <ColorField
             value={selectedWire.color}
             title={t(language, 'wireColorTitle')}

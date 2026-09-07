@@ -1335,8 +1335,41 @@ body::after {
   color: #ffb37e;
 }
 
-/* A colour, picked or typed. The swatch is the platform's own colour input
-   wearing a round border; nothing here is a fixed palette any more. */
+/* The presets, and then the picker for everything else. The toolbar row wraps
+   now — the toolbar itself already did, so a long row only ever cost height,
+   but a row that breaks where it means to reads better than one that spills. */
+.wire-colors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 4px;
+}
+
+.wire-color-btn {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform var(--transition), border-color var(--transition);
+}
+
+.wire-color-btn:hover,
+.wire-color-btn.active {
+  transform: scale(1.08);
+  border-color: #ffffff;
+}
+
+.wire-colors-panel {
+  gap: 8px;
+}
+
+.wire-colors-panel .wire-color-btn {
+  width: 24px;
+  height: 24px;
+}
+
+/* A colour, picked or typed: the way to anything the presets do not cover. */
 .color-field {
   display: flex;
   align-items: center;

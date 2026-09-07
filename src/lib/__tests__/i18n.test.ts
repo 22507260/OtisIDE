@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { COMPONENT_NAME_TR, UI_STRINGS, getDamageLabel, getPinTypeLabel, t } from '../i18n';
-import { COMPONENT_CATALOG } from '../../models/types';
+import {
+  COMPONENT_NAME_TR,
+  UI_STRINGS,
+  WIRE_COLOR_NAME_TR,
+  getDamageLabel,
+  getPinTypeLabel,
+  getWireColorDisplayName,
+  t,
+} from '../i18n';
+import { COMPONENT_CATALOG, WIRE_COLORS } from '../../models/types';
 
 describe('Turkish coverage', () => {
   it('says every interface string in both languages', () => {
@@ -21,6 +29,18 @@ describe('Turkish coverage', () => {
         expect((value as string).trim(), `${language}.${key}`).not.toBe('');
       }
     }
+  });
+
+  it('names every preset cable colour in Turkish', () => {
+    // Nothing else catches this: an unnamed colour falls through to its English
+    // name and shows an English tooltip in a Turkish window, quietly.
+    const missing = WIRE_COLORS.filter((color) => !WIRE_COLOR_NAME_TR[color.name]).map(
+      (color) => color.name
+    );
+
+    expect(missing, 'colours with no Turkish name').toEqual([]);
+    expect(getWireColorDisplayName('tr', 'Red')).toBe('Kırmızı');
+    expect(getWireColorDisplayName('en', 'Red')).toBe('Red');
   });
 
   it('names every catalog part in Turkish', () => {

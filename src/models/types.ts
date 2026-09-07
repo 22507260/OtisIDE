@@ -1261,10 +1261,21 @@ export const COMPONENT_CATALOG: ComponentInfo[] = [
 ];
 
 /**
- * What a cable is until someone says otherwise.
+ * The colours worth having one click away.
  *
- * There used to be a fixed palette of seven here and a picker on the toolbar
- * to choose between them. The colour is a free `#rrggbb` now, so all that is
- * left of the palette is the one a new cable starts as.
+ * A cable can be any `#rrggbb` — the picker beside these sees to that. These
+ * are the ones a breadboard actually gets wired with, and reaching for a picker
+ * every time you want a black ground lead is worse than reaching for black.
  */
-export const WIRE_DEFAULT_COLOR = '#e74c3c';
+export const WIRE_COLORS = [
+  { name: 'Red', value: '#e74c3c' },
+  { name: 'Black', value: '#2c3e50' },
+  { name: 'Green', value: '#27ae60' },
+  { name: 'Blue', value: '#3498db' },
+  { name: 'Yellow', value: '#f1c40f' },
+  { name: 'Orange', value: '#e67e22' },
+  { name: 'White', value: '#ecf0f1' },
+] as const;
+
+/** What a cable is until someone says otherwise. */
+export const WIRE_DEFAULT_COLOR = WIRE_COLORS[0].value;
